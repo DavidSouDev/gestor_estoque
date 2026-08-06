@@ -1,24 +1,223 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+model Empresa {
+  id          String   @id @default(uuid())
+
+  nome        String
+  slug        String   @unique
+
+  logo        String?
+  banner      String?
+  descricao   String?
+
+  telefone    String?
+  instagram   String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  usuarios    Usuario[]
+  produtos    Produto[]
+  combos      Combo[]
+  promocoes   Promocao[]
+
+  @@index([slug])
+}
+
+model Usuario {
+  id             String   @id @default(uuid())
+
+  nome           String
+  email          String   @unique
+  senhaHash      String
+
+  role           UserRole @default(ADMIN)
+  ativo          Boolean  @default(true)
+
+  empresaId      String
+  empresa        Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  movimentacoes  MovimentacaoEstoque[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([empresaId])
+}
+
 model Produto {
-  id  Int @id @default(autoincrement())
-  nome  String
-  descricao String?
-  quantidade  Int
-  precoAtacado Decimal @db.Decimal(10,2)
-  precoVarejo  Decimal @db.Decimal(10,2)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                String   @id @default(uuid())
+
+  empresaId         String
+  empresa           Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  codigo            String
+
+  nome              String
+  descricao         String?
+
+  precoVarejo       Decimal @db.Decimal(10,2)
+  precoAtacado      Decimal @db.Decimal(10,2)
+
+  estoque           Int @default(0)
+
+  fotoCapa          String?
+
+  ordemCatalogo     Int @default(0)
+
+  destaque          Boolean @default(false)
+
+  visivelCatalogo   Boolean @default(true)
+  ativo             Boolean @default(true)
+
+  imagens           ProdutoImagem[]
+  comboItens        ComboItem[]
+  promocoes         PromocaoItem[]
+  movimentacoes     MovimentacaoEstoque[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([empresaId, codigo])
+  @@index([empresaId, ativo, visivelCatalogo, ordemCatalogo])
+}
+
+model ProdutoImagem {
+  id         String @id @default(uuid())
+
+  produtoId  String
+  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  url        String
+  alt        String?
+
+  ordem      Int @default(0)
+
+  createdAt  DateTime @default(now())
+
+  @@index([produtoId])
+}
+
+model Combo {
+  id              String @id @default(uuid())
+
+  empresaId       String
+  empresa         Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  nome            String
+  descricao       String?
+
+  preco           Decimal @db.Decimal(10,2)
+
+  fotoCapa        String?
+
+  ordemCatalogo   Int @default(0)
+
+  destaque        Boolean @default(false)
+
+  visivel         Boolean @default(true)
+  ativo           Boolean @default(true)
+
+  itens           ComboItem[]
+  promocoes       PromocaoItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([empresaId, ativo, visivel, ordemCatalogo])
+}
+
+model ComboItem {
+  id          String @id @default(uuid())
+
+  comboId     String
+  combo       Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+
+  produtoId   String
+  produto     Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  quantidade  Int @default(1)
+
+  @@unique([comboId, produtoId])
+  @@index([produtoId])
+}
+
+model Promocao {
+  id          String @id @default(uuid())
+
+  empresaId   String
+  empresa     Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  nome        String
+
+  dataInicio  DateTime
+  dataFim     DateTime
+
+  itens       PromocaoItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([empresaId])
+}
+
+model PromocaoItem {
+  id          String @id @default(uuid())
+
+  promocaoId  String
+  promocao    Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
+
+  produtoId   String?
+  produto     Produto? @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  comboId     String?
+  combo       Combo? @relation(fields: [comboId], references: [id], onDelete: Cascade)
+
+  preco       Decimal @db.Decimal(10,2)
+
+  @@unique([promocaoId, produtoId])
+  @@unique([promocaoId, comboId])
+
+  @@index([produtoId])
+  @@index([comboId])
+}
+
+model MovimentacaoEstoque {
+  id            String @id @default(uuid())
+
+  produtoId     String
+  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  usuarioId     String
+  usuario       Usuario @relation(fields: [usuarioId], references: [id])
+
+  tipo          TipoMovimentacao
+
+  quantidade    Int
+
+  motivo        String?
+
+  createdAt     DateTime @default(now())
+
+  @@index([produtoId])
+  @@index([usuarioId])
 }
