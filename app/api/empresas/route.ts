@@ -1,12 +1,19 @@
 import { empresaService } from "../../services/empresa.service";
+import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const empresas = await empresaService.list();
+    const auth = await requireAuth(request);
 
-    return NextResponse.json(empresas);
+    const empresa = await empresaService.findById(auth.empresaId);
+
+    return NextResponse.json(empresa ? [empresa] : []);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

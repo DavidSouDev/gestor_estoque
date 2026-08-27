@@ -1,4 +1,5 @@
 import { comboService } from "../../../services/combo.service";
+import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -12,11 +13,13 @@ export async function GET(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
 
     const combo = await comboService.findById(id);
 
-    if (!combo) {
+    if (!combo || combo.empresaId !== auth.empresaId) {
       return NextResponse.json(
         {
           message: "Combo não encontrado.",
@@ -29,6 +32,10 @@ export async function GET(
 
     return NextResponse.json(combo);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -47,7 +54,22 @@ export async function PATCH(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    const existente = await comboService.findById(id);
+
+    if (!existente || existente.empresaId !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Combo não encontrado.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     const body = await request.json();
 
@@ -55,6 +77,10 @@ export async function PATCH(
 
     return NextResponse.json(combo);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -73,7 +99,22 @@ export async function DELETE(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    const existente = await comboService.findById(id);
+
+    if (!existente || existente.empresaId !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Combo não encontrado.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     await comboService.delete(id);
 
@@ -81,6 +122,10 @@ export async function DELETE(
       message: "Combo removido com sucesso.",
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

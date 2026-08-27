@@ -1,4 +1,5 @@
 import { promocaoService } from "../../../services/promocao.service";
+import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -12,11 +13,13 @@ export async function GET(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
 
     const promocao = await promocaoService.findById(id);
 
-    if (!promocao) {
+    if (!promocao || promocao.empresaId !== auth.empresaId) {
       return NextResponse.json(
         {
           message: "Promoção não encontrada.",
@@ -29,6 +32,10 @@ export async function GET(
 
     return NextResponse.json(promocao);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -47,7 +54,22 @@ export async function PATCH(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    const existente = await promocaoService.findById(id);
+
+    if (!existente || existente.empresaId !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Promoção não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     const body = await request.json();
 
@@ -55,6 +77,10 @@ export async function PATCH(
 
     return NextResponse.json(promocao);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -73,7 +99,22 @@ export async function DELETE(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    const existente = await promocaoService.findById(id);
+
+    if (!existente || existente.empresaId !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Promoção não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     await promocaoService.delete(id);
 
@@ -81,6 +122,10 @@ export async function DELETE(
       message: "Promoção removida com sucesso.",
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

@@ -1,4 +1,5 @@
 import { empresaService } from "../../../services/empresa.service";
+import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -12,7 +13,20 @@ export async function GET(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    if (id !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Empresa não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     const empresa = await empresaService.findById(id);
 
@@ -29,6 +43,10 @@ export async function GET(
 
     return NextResponse.json(empresa);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -47,7 +65,20 @@ export async function PATCH(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    if (id !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Empresa não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     const body = await request.json();
 
@@ -55,6 +86,10 @@ export async function PATCH(
 
     return NextResponse.json(empresa);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -73,7 +108,20 @@ export async function DELETE(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    if (id !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Empresa não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     await empresaService.delete(id);
 
@@ -81,6 +129,10 @@ export async function DELETE(
       message: "Empresa removida com sucesso.",
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

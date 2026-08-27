@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { HttpError } from "@/lib/http-error";
+import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 export interface CreateUsuarioDTO {
@@ -15,18 +17,29 @@ export interface UpdateUsuarioDTO {
   ativo?: boolean;
 }
 
+const SAFE_SELECT = {
+  id: true,
+  nome: true,
+  email: true,
+  role: true,
+  ativo: true,
+  empresaId: true,
+  createdAt: true,
+  updatedAt: true,
+  empresa: {
+    select: {
+      id: true,
+      nome: true,
+      slug: true,
+    },
+  },
+} as const;
+
 class UsuarioService {
-  async list() {
+  async list(empresaId: string) {
     return prisma.usuario.findMany({
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-          },
-        },
-      },
+      where: { empresaId },
+      select: SAFE_SELECT,
       orderBy: {
         nome: "asc",
       },
@@ -36,15 +49,7 @@ class UsuarioService {
   async findById(id: string) {
     return prisma.usuario.findUnique({
       where: { id },
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-          },
-        },
-      },
+      select: SAFE_SELECT,
     });
   }
 
@@ -55,25 +60,42 @@ class UsuarioService {
   }
 
   async create(data: CreateUsuarioDTO) {
+    const empresaJaTemAdmin = await prisma.usuario.findUnique({
+      where: { empresaId: data.empresaId },
+      select: { id: true },
+    });
+
+    if (empresaJaTemAdmin) {
+      throw new HttpError("Esta empresa já possui um administrador cadastrado.", 409);
+    }
+
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
-    return prisma.usuario.create({
-      data: {
-        nome: data.nome,
-        email: data.email,
-        senhaHash,
-        empresaId: data.empresaId,
-      },
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-          },
+    try {
+      return await prisma.usuario.create({
+        data: {
+          nome: data.nome,
+          email: data.email,
+          senhaHash,
+          empresaId: data.empresaId,
         },
-      },
-    });
+        select: SAFE_SELECT,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+
+        if (target.includes("empresaId")) {
+          throw new HttpError("Esta empresa já possui um administrador cadastrado.", 409);
+        }
+
+        if (target.includes("email")) {
+          throw new HttpError("Este email já está em uso.", 409);
+        }
+      }
+
+      throw error;
+    }
   }
 
   async update(id: string, data: UpdateUsuarioDTO) {
@@ -90,15 +112,7 @@ class UsuarioService {
     return prisma.usuario.update({
       where: { id },
       data: updateData,
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            nome: true,
-            slug: true,
-          },
-        },
-      },
+      select: SAFE_SELECT,
     });
   }
 
@@ -108,6 +122,7 @@ class UsuarioService {
       data: {
         ativo: false,
       },
+      select: SAFE_SELECT,
     });
   }
 

@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { produtoService } from "./produto.service";
+import { comboService } from "./combo.service";
+import { promocaoService } from "./promocao.service";
 
 export interface CreateEmpresaDTO {
   nome: string;
@@ -43,7 +46,15 @@ class EmpresaService {
         deletedAt: null,
       },
       include: {
-        usuarios: true,
+        usuarios: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+            role: true,
+            ativo: true,
+          },
+        },
         produtos: true,
         combos: true,
         promocoes: true,
@@ -52,30 +63,53 @@ class EmpresaService {
   }
 
   async findBySlug(slug: string) {
-    return prisma.empresa.findFirst({
+    const empresa = await prisma.empresa.findFirst({
       where: {
         slug,
         deletedAt: null,
       },
-      include: {
-        produtos: {
-          where: {
-            ativo: true,
-          },
-          orderBy: {
-            ordemCatalogo: "asc",
-          },
-        },
-        combos: {
-          where: {
-            ativo: true,
-          },
-          orderBy: {
-            ordemCatalogo: "asc",
-          },
-        },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo: true,
+        banner: true,
+        descricao: true,
+        telefone: true,
+        instagram: true,
       },
     });
+
+    if (!empresa) {
+      return null;
+    }
+
+    const [produtos, combos, promocoes] = await Promise.all([
+      produtoService.listCatalogo(empresa.id),
+      comboService.listCatalogo(empresa.id),
+      promocaoService.listVigentesByEmpresa(empresa.id),
+    ]);
+
+    return {
+      ...empresa,
+      produtos,
+      combos,
+      promocoes,
+    };
+  }
+
+  async resolveIdBySlug(slug: string) {
+    const empresa = await prisma.empresa.findFirst({
+      where: {
+        slug,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return empresa?.id ?? null;
   }
 
   async create(data: CreateEmpresaDTO) {

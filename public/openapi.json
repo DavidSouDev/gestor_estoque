@@ -9,6 +9,8 @@
     { "url": "http://localhost:3000", "description": "Ambiente local" }
   ],
   "tags": [
+    { "name": "Autenticação" },
+    { "name": "Catálogo" },
     { "name": "Empresas" },
     { "name": "Usuários" },
     { "name": "Produtos" },
@@ -17,21 +19,43 @@
     { "name": "Movimentações" }
   ],
   "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Autenticar usuário e obter token JWT",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticado com sucesso",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/api/empresas": {
       "get": {
         "tags": ["Empresas"],
-        "summary": "Listar empresas",
+        "summary": "Buscar a empresa do usuário autenticado",
+        "description": "Retorna, em uma lista de um item, a empresa do usuário autenticado (não há listagem entre empresas diferentes).",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
-            "description": "Lista de empresas",
+            "description": "Lista contendo a empresa do usuário autenticado",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Empresa" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Empresas"],
-        "summary": "Criar empresa",
+        "summary": "Criar empresa (cadastro público, self-service)",
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmpresaCreate" } } }
@@ -49,19 +73,22 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Empresas"],
-        "summary": "Buscar empresa por ID",
+        "summary": "Buscar empresa por ID (somente a própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Empresa encontrada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "patch": {
         "tags": ["Empresas"],
-        "summary": "Atualizar empresa",
+        "summary": "Atualizar empresa (somente a própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmpresaUpdate" } } }
@@ -71,14 +98,107 @@
             "description": "Empresa atualizada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Empresas"],
-        "summary": "Remover empresa (soft delete)",
+        "summary": "Remover empresa (soft delete, somente a própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/empresas/slug/{slug}": {
+      "get": {
+        "tags": ["Empresas"],
+        "summary": "Catálogo público de uma empresa por slug",
+        "description": "Rota pública. Retorna dados básicos da empresa e apenas produtos/combos ativos e visíveis no catálogo, além de promoções vigentes.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empresa encontrada",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmpresaCatalogo" } } }
+          },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/catalogo/produtos": {
+      "get": {
+        "tags": ["Catálogo"],
+        "summary": "Listar produtos do catálogo público de uma empresa",
+        "description": "Rota pública. Retorna apenas produtos ativos e visíveis no catálogo, com campos seguros para exibição ao cliente final (sem precoAtacado, estoque ou dados internos).",
+        "parameters": [
+          { "name": "empresaId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" }, "description": "Informe empresaId ou slug." },
+          { "name": "slug", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Informe empresaId ou slug." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos do catálogo",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoCatalogo" } } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/catalogo/produtos/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/id" }],
+      "get": {
+        "tags": ["Catálogo"],
+        "summary": "Buscar produto do catálogo público por ID",
+        "description": "Rota pública. Só retorna o produto se estiver ativo e visível no catálogo.",
+        "responses": {
+          "200": {
+            "description": "Produto encontrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProdutoCatalogo" } } }
+          },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/catalogo/combos": {
+      "get": {
+        "tags": ["Catálogo"],
+        "summary": "Listar combos do catálogo público de uma empresa",
+        "description": "Rota pública. Retorna apenas combos ativos e visíveis no catálogo.",
+        "parameters": [
+          { "name": "empresaId", "in": "query", "required": false, "schema": { "type": "string", "format": "uuid" }, "description": "Informe empresaId ou slug." },
+          { "name": "slug", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Informe empresaId ou slug." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de combos do catálogo",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ComboCatalogo" } } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/catalogo/combos/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/id" }],
+      "get": {
+        "tags": ["Catálogo"],
+        "summary": "Buscar combo do catálogo público por ID",
+        "description": "Rota pública. Só retorna o combo se estiver ativo e visível no catálogo.",
+        "responses": {
+          "200": {
+            "description": "Combo encontrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ComboCatalogo" } } }
+          },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -86,18 +206,21 @@
     "/api/usuarios": {
       "get": {
         "tags": ["Usuários"],
-        "summary": "Listar usuários",
+        "summary": "Listar usuários da própria empresa",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
-            "description": "Lista de usuários",
+            "description": "Lista de usuários da empresa do usuário autenticado",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Usuario" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Usuários"],
-        "summary": "Criar usuário",
+        "summary": "Criar usuário (cadastro público, self-service)",
+        "description": "Cada empresa só pode ter um usuário (administrador). Retorna 409 se a empresa informada já tiver um cadastrado.",
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioCreate" } } }
@@ -107,6 +230,7 @@
             "description": "Usuário criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
           },
+          "409": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -115,19 +239,22 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Usuários"],
-        "summary": "Buscar usuário por ID",
+        "summary": "Buscar usuário por ID (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Usuário encontrado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "patch": {
         "tags": ["Usuários"],
-        "summary": "Atualizar usuário",
+        "summary": "Atualizar usuário (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioUpdate" } } }
@@ -137,14 +264,19 @@
             "description": "Usuário atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Usuários"],
-        "summary": "Remover usuário (inativa)",
+        "summary": "Remover usuário (inativa, somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -152,18 +284,22 @@
     "/api/produtos": {
       "get": {
         "tags": ["Produtos"],
-        "summary": "Listar produtos",
+        "summary": "Listar produtos da própria empresa",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Lista de produtos",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Produto" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Produtos"],
         "summary": "Criar produto",
+        "description": "O empresaId é sempre o da empresa do usuário autenticado; qualquer valor enviado no corpo é ignorado.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProdutoCreate" } } }
@@ -173,6 +309,7 @@
             "description": "Produto criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -181,19 +318,22 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Produtos"],
-        "summary": "Buscar produto por ID",
+        "summary": "Buscar produto por ID (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Produto encontrado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "patch": {
         "tags": ["Produtos"],
-        "summary": "Atualizar produto",
+        "summary": "Atualizar produto (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProdutoUpdate" } } }
@@ -203,14 +343,19 @@
             "description": "Produto atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Produtos"],
-        "summary": "Remover produto (soft delete)",
+        "summary": "Remover produto (soft delete, somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -218,18 +363,22 @@
     "/api/combos": {
       "get": {
         "tags": ["Combos"],
-        "summary": "Listar combos",
+        "summary": "Listar combos da própria empresa",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Lista de combos",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Combo" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Combos"],
         "summary": "Criar combo",
+        "description": "O empresaId é sempre o da empresa do usuário autenticado; qualquer valor enviado no corpo é ignorado.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ComboCreate" } } }
@@ -239,6 +388,7 @@
             "description": "Combo criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -247,19 +397,22 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Combos"],
-        "summary": "Buscar combo por ID",
+        "summary": "Buscar combo por ID (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Combo encontrado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "patch": {
         "tags": ["Combos"],
-        "summary": "Atualizar combo",
+        "summary": "Atualizar combo (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ComboUpdate" } } }
@@ -269,14 +422,19 @@
             "description": "Combo atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Combos"],
-        "summary": "Remover combo (soft delete)",
+        "summary": "Remover combo (soft delete, somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -284,18 +442,22 @@
     "/api/promocoes": {
       "get": {
         "tags": ["Promoções"],
-        "summary": "Listar promoções",
+        "summary": "Listar promoções da própria empresa",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Lista de promoções",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Promocao" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Promoções"],
         "summary": "Criar promoção",
+        "description": "O empresaId é sempre o da empresa do usuário autenticado; qualquer valor enviado no corpo é ignorado.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PromocaoCreate" } } }
@@ -305,6 +467,7 @@
             "description": "Promoção criada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -313,19 +476,22 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Promoções"],
-        "summary": "Buscar promoção por ID",
+        "summary": "Buscar promoção por ID (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Promoção encontrada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "patch": {
         "tags": ["Promoções"],
-        "summary": "Atualizar promoção",
+        "summary": "Atualizar promoção (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PromocaoUpdate" } } }
@@ -335,14 +501,19 @@
             "description": "Promoção atualizada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Promoções"],
-        "summary": "Remover promoção",
+        "summary": "Remover promoção (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -350,18 +521,22 @@
     "/api/movimentacoes": {
       "get": {
         "tags": ["Movimentações"],
-        "summary": "Listar movimentações",
+        "summary": "Listar movimentações da própria empresa",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Lista de movimentações",
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Movimentações"],
         "summary": "Registrar movimentação (ajusta o estoque do produto)",
+        "description": "O usuarioId é sempre o do usuário autenticado; o produto precisa pertencer à empresa do usuário autenticado.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MovimentacaoCreate" } } }
@@ -371,6 +546,7 @@
             "description": "Movimentação registrada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -379,27 +555,40 @@
       "parameters": [{ "$ref": "#/components/parameters/id" }],
       "get": {
         "tags": ["Movimentações"],
-        "summary": "Buscar movimentação por ID",
+        "summary": "Buscar movimentação por ID (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "Movimentação encontrada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } }
           },
+          "401": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "delete": {
         "tags": ["Movimentações"],
-        "summary": "Remover movimentação",
+        "summary": "Remover movimentação (somente da própria empresa)",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token obtido em POST /api/auth/login. Envie como 'Authorization: Bearer <token>'."
+      }
+    },
     "parameters": {
       "id": {
         "name": "id",
@@ -476,13 +665,94 @@
           "slug": { "type": "string" }
         }
       },
+      "ProdutoCatalogo": {
+        "type": "object",
+        "description": "Versão pública e filtrada do produto, sem precoAtacado, estoque ou dados internos.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "empresaId": { "type": "string", "format": "uuid" },
+          "codigo": { "type": "string" },
+          "nome": { "type": "string" },
+          "descricao": { "type": "string", "nullable": true },
+          "precoVarejo": { "type": "number", "format": "double" },
+          "fotoCapa": { "type": "string", "nullable": true },
+          "ordemCatalogo": { "type": "integer" },
+          "destaque": { "type": "boolean" },
+          "imagens": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoImagem" } }
+        }
+      },
+      "ComboCatalogo": {
+        "type": "object",
+        "description": "Versão pública e filtrada do combo.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "empresaId": { "type": "string", "format": "uuid" },
+          "nome": { "type": "string" },
+          "descricao": { "type": "string", "nullable": true },
+          "preco": { "type": "number", "format": "double" },
+          "fotoCapa": { "type": "string", "nullable": true },
+          "ordemCatalogo": { "type": "integer" },
+          "destaque": { "type": "boolean" },
+          "itens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "quantidade": { "type": "integer" },
+                "produto": { "$ref": "#/components/schemas/ProdutoCatalogo" }
+              }
+            }
+          }
+        }
+      },
+      "EmpresaCatalogo": {
+        "type": "object",
+        "description": "Versão pública e filtrada da empresa, usada no catálogo (sem dados internos como usuários ou itens inativos/ocultos).",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "nome": { "type": "string" },
+          "slug": { "type": "string" },
+          "logo": { "type": "string", "nullable": true },
+          "banner": { "type": "string", "nullable": true },
+          "descricao": { "type": "string", "nullable": true },
+          "telefone": { "type": "string", "nullable": true },
+          "instagram": { "type": "string", "nullable": true },
+          "produtos": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoCatalogo" }, "description": "Somente produtos ativos e visíveis no catálogo." },
+          "combos": { "type": "array", "items": { "$ref": "#/components/schemas/ComboCatalogo" }, "description": "Somente combos ativos e visíveis no catálogo." },
+          "promocoes": { "type": "array", "items": { "$ref": "#/components/schemas/Promocao" }, "description": "Somente promoções vigentes (dataInicio <= agora <= dataFim)." }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "senha"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "senha": { "type": "string", "format": "password" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "description": "JWT válido por 7 dias. Envie em requisições privadas como 'Authorization: Bearer <token>'." },
+          "usuario": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "nome": { "type": "string" },
+              "email": { "type": "string", "format": "email" },
+              "role": { "type": "string", "enum": ["ADMIN"] },
+              "empresaId": { "type": "string", "format": "uuid" }
+            }
+          }
+        }
+      },
       "Usuario": {
         "type": "object",
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "nome": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "senhaHash": { "type": "string", "description": "Hash bcrypt da senha, retornado pela API tal como armazenado." },
           "role": { "type": "string", "enum": ["ADMIN"] },
           "ativo": { "type": "boolean" },
           "empresaId": { "type": "string", "format": "uuid" },
@@ -712,10 +982,10 @@
       },
       "MovimentacaoCreate": {
         "type": "object",
-        "required": ["produtoId", "usuarioId", "tipo", "quantidade"],
+        "required": ["produtoId", "tipo", "quantidade"],
+        "description": "usuarioId não é aceito no corpo: é sempre o usuário autenticado.",
         "properties": {
           "produtoId": { "type": "string", "format": "uuid" },
-          "usuarioId": { "type": "string", "format": "uuid" },
           "tipo": {
             "type": "string",
             "enum": ["ENTRADA", "SAIDA", "AJUSTE"],

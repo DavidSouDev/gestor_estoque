@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { PRODUTO_CATALOGO_SELECT } from "./produto.service";
+import { COMBO_CATALOGO_SELECT } from "./combo.service";
 
 export interface PromocaoItemDTO {
   produtoId?: string;
@@ -25,8 +27,40 @@ export interface UpdatePromocaoDTO {
 }
 
 class PromocaoService {
-  async list() {
+  async listVigentesByEmpresa(empresaId: string) {
+    const agora = new Date();
+
     return prisma.promocao.findMany({
+      where: {
+        empresaId,
+        dataInicio: { lte: agora },
+        dataFim: { gte: agora },
+      },
+      select: {
+        id: true,
+        nome: true,
+        dataInicio: true,
+        dataFim: true,
+        itens: {
+          select: {
+            id: true,
+            preco: true,
+            produto: { select: PRODUTO_CATALOGO_SELECT },
+            combo: { select: COMBO_CATALOGO_SELECT },
+          },
+        },
+      },
+      orderBy: {
+        dataInicio: "desc",
+      },
+    });
+  }
+
+  async list(empresaId: string) {
+    return prisma.promocao.findMany({
+      where: {
+        empresaId,
+      },
       include: {
         itens: {
           include: {

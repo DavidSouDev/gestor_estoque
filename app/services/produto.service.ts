@@ -41,10 +41,51 @@ export interface UpdateProdutoDTO {
   visivelCatalogo?: boolean;
 }
 
+export const PRODUTO_CATALOGO_SELECT = {
+  id: true,
+  empresaId: true,
+  codigo: true,
+  nome: true,
+  descricao: true,
+  precoVarejo: true,
+  fotoCapa: true,
+  ordemCatalogo: true,
+  destaque: true,
+  imagens: true,
+} as const;
+
 class ProdutoService {
-  async list() {
+  async listCatalogo(empresaId: string) {
     return prisma.produto.findMany({
       where: {
+        empresaId,
+        ativo: true,
+        visivelCatalogo: true,
+        deletedAt: null,
+      },
+      select: PRODUTO_CATALOGO_SELECT,
+      orderBy: {
+        ordemCatalogo: "asc",
+      },
+    });
+  }
+
+  async findCatalogoById(id: string) {
+    return prisma.produto.findFirst({
+      where: {
+        id,
+        ativo: true,
+        visivelCatalogo: true,
+        deletedAt: null,
+      },
+      select: PRODUTO_CATALOGO_SELECT,
+    });
+  }
+
+  async list(empresaId: string) {
+    return prisma.produto.findMany({
+      where: {
+        empresaId,
         deletedAt: null,
       },
       include: {

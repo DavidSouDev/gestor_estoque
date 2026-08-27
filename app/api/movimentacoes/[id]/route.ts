@@ -1,4 +1,5 @@
 import { movimentacaoEstoqueService } from "../../../services/movimentacao-estoque.service";
+import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -12,11 +13,13 @@ export async function GET(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
 
     const movimentacao = await movimentacaoEstoqueService.findById(id);
 
-    if (!movimentacao) {
+    if (!movimentacao || movimentacao.produto.empresaId !== auth.empresaId) {
       return NextResponse.json(
         {
           message: "Movimentação não encontrada.",
@@ -29,6 +32,10 @@ export async function GET(
 
     return NextResponse.json(movimentacao);
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(
@@ -47,7 +54,22 @@ export async function DELETE(
   { params }: Params
 ) {
   try {
+    const auth = await requireAuth(request);
+
     const { id } = await params;
+
+    const existente = await movimentacaoEstoqueService.findById(id);
+
+    if (!existente || existente.produto.empresaId !== auth.empresaId) {
+      return NextResponse.json(
+        {
+          message: "Movimentação não encontrada.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
 
     await movimentacaoEstoqueService.delete(id);
 
@@ -55,6 +77,10 @@ export async function DELETE(
       message: "Movimentação removida com sucesso.",
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

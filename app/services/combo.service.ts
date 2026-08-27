@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PRODUTO_CATALOGO_SELECT } from "./produto.service";
 
 export interface CreateComboDTO {
   empresaId: string;
@@ -34,10 +35,58 @@ export interface UpdateComboDTO {
   visivel?: boolean;
 }
 
+export const COMBO_CATALOGO_SELECT = {
+  id: true,
+  empresaId: true,
+  nome: true,
+  descricao: true,
+  preco: true,
+  fotoCapa: true,
+  ordemCatalogo: true,
+  destaque: true,
+  itens: {
+    select: {
+      id: true,
+      quantidade: true,
+      produto: {
+        select: PRODUTO_CATALOGO_SELECT,
+      },
+    },
+  },
+} as const;
+
 class ComboService {
-  async list() {
+  async listCatalogo(empresaId: string) {
     return prisma.combo.findMany({
       where: {
+        empresaId,
+        ativo: true,
+        visivel: true,
+        deletedAt: null,
+      },
+      select: COMBO_CATALOGO_SELECT,
+      orderBy: {
+        ordemCatalogo: "asc",
+      },
+    });
+  }
+
+  async findCatalogoById(id: string) {
+    return prisma.combo.findFirst({
+      where: {
+        id,
+        ativo: true,
+        visivel: true,
+        deletedAt: null,
+      },
+      select: COMBO_CATALOGO_SELECT,
+    });
+  }
+
+  async list(empresaId: string) {
+    return prisma.combo.findMany({
+      where: {
+        empresaId,
         deletedAt: null,
       },
       include: {

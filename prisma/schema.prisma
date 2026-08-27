@@ -59,7 +59,7 @@ model Usuario {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([empresaId])
+  @@unique([empresaId])
 }
 
 model Produto {

@@ -4,6 +4,7 @@ import { TipoMovimentacao } from "@prisma/client";
 export interface CreateMovimentacaoDTO {
   produtoId: string;
   usuarioId: string;
+  empresaId: string;
 
   tipo: TipoMovimentacao;
 
@@ -13,8 +14,13 @@ export interface CreateMovimentacaoDTO {
 }
 
 class MovimentacaoEstoqueService {
-  async list() {
+  async list(empresaId: string) {
     return prisma.movimentacaoEstoque.findMany({
+      where: {
+        produto: {
+          empresaId,
+        },
+      },
       include: {
         produto: true,
         usuario: {
@@ -57,7 +63,7 @@ class MovimentacaoEstoqueService {
         },
       });
 
-      if (!produto) {
+      if (!produto || produto.empresaId !== data.empresaId) {
         throw new Error("Produto não encontrado.");
       }
 
