@@ -6,6 +6,8 @@ export interface CreateProdutoDTO {
   nome: string;
   descricao?: string;
 
+  categoria?: string;
+
   precoVarejo: number;
   precoAtacado: number;
 
@@ -25,6 +27,8 @@ export interface UpdateProdutoDTO {
   codigo?: string;
   nome?: string;
   descricao?: string;
+
+  categoria?: string;
 
   precoVarejo?: number;
   precoAtacado?: number;
@@ -47,7 +51,9 @@ export const PRODUTO_CATALOGO_SELECT = {
   codigo: true,
   nome: true,
   descricao: true,
+  categoria: true,
   precoVarejo: true,
+  estoque: true,
   fotoCapa: true,
   ordemCatalogo: true,
   destaque: true,
@@ -141,6 +147,8 @@ class ProdutoService {
 
         nome: data.nome,
         descricao: data.descricao,
+
+        categoria: data.categoria ?? "Geral",
 
         precoVarejo: data.precoVarejo,
         precoAtacado: data.precoAtacado,

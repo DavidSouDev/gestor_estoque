@@ -29,6 +29,9 @@ model Empresa {
   telefone    String?
   instagram   String?
 
+  primaryColor String  @default("#18181b")
+  accentColor  String  @default("#f59e0b")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
@@ -72,6 +75,8 @@ model Produto {
 
   nome              String
   descricao         String?
+
+  categoria         String @default("Geral")
 
   precoVarejo       Decimal @db.Decimal(10,2)
   precoAtacado      Decimal @db.Decimal(10,2)

@@ -12,11 +12,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * O design (catálogo + admin) é deliberadamente claro, sem variante dark —
+ * por isso não seguimos prefers-color-scheme aqui. Antes disso, textos/inputs
+ * sem cor explícita ficavam ilegíveis (claros sobre fundo claro) quando o SO
+ * estava em modo escuro.
+ */
+:root {
+  color-scheme: light;
 }
 
 body {

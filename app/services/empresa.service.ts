@@ -13,6 +13,9 @@ export interface CreateEmpresaDTO {
 
   telefone?: string;
   instagram?: string;
+
+  primaryColor?: string;
+  accentColor?: string;
 }
 
 export interface UpdateEmpresaDTO {
@@ -25,6 +28,9 @@ export interface UpdateEmpresaDTO {
 
   telefone?: string;
   instagram?: string;
+
+  primaryColor?: string;
+  accentColor?: string;
 }
 
 class EmpresaService {
@@ -77,6 +83,8 @@ class EmpresaService {
         descricao: true,
         telefone: true,
         instagram: true,
+        primaryColor: true,
+        accentColor: true,
       },
     });
 
@@ -96,6 +104,44 @@ class EmpresaService {
       combos,
       promocoes,
     };
+  }
+
+  async findHeaderData(id: string) {
+    return prisma.empresa.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo: true,
+        primaryColor: true,
+        accentColor: true,
+      },
+    });
+  }
+
+  async findBranding(id: string) {
+    return prisma.empresa.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo: true,
+        banner: true,
+        descricao: true,
+        telefone: true,
+        instagram: true,
+        primaryColor: true,
+        accentColor: true,
+      },
+    });
   }
 
   async resolveIdBySlug(slug: string) {
@@ -124,6 +170,9 @@ class EmpresaService {
 
         telefone: data.telefone,
         instagram: data.instagram,
+
+        primaryColor: data.primaryColor,
+        accentColor: data.accentColor,
       },
     });
   }

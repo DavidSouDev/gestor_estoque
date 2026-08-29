@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     const token = await signAuthToken({
       sub: usuario.id,
       empresaId: usuario.empresaId,
+      empresaSlug: usuario.empresa.slug,
       email: usuario.email,
       role: usuario.role,
     });

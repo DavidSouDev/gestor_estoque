@@ -6,6 +6,7 @@ const JWT_EXPIRATION = "7d";
 export interface AuthTokenPayload {
   sub: string;
   empresaId: string;
+  empresaSlug: string;
   email: string;
   role: UserRole;
 }
@@ -34,6 +35,7 @@ export async function verifyAuthToken(token: string): Promise<AuthTokenPayload> 
   return {
     sub: payload.sub as string,
     empresaId: payload.empresaId as string,
+    empresaSlug: payload.empresaSlug as string,
     email: payload.email as string,
     role: payload.role as UserRole,
   };
