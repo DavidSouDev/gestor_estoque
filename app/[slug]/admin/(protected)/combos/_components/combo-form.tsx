@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { ComboFormState } from "../actions";
 import type { ComboAdminDetalhe, ProdutoAdmin } from "../../../_lib/types";
+import { CollapsibleSection } from "../../_components/collapsible-section";
 
 const INPUT_CLASS =
   "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -31,59 +32,22 @@ export function ComboForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="descricao" className="text-sm font-medium text-slate-600">
-          Descrição
+        <label htmlFor="preco" className="text-sm font-medium text-slate-600">
+          Preço
         </label>
-        <textarea
-          id="descricao"
-          name="descricao"
-          rows={3}
-          defaultValue={combo?.descricao ?? ""}
+        <input
+          id="preco"
+          name="preco"
+          type="number"
+          step="0.01"
+          required
+          defaultValue={combo ? Number(combo.preco) : undefined}
           className={INPUT_CLASS}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="preco" className="text-sm font-medium text-slate-600">
-            Preço
-          </label>
-          <input
-            id="preco"
-            name="preco"
-            type="number"
-            step="0.01"
-            required
-            defaultValue={combo ? Number(combo.preco) : undefined}
-            className={INPUT_CLASS}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="fotoCapa" className="text-sm font-medium text-slate-600">
-            Foto (URL)
-          </label>
-          <input
-            id="fotoCapa"
-            name="fotoCapa"
-            defaultValue={combo?.fotoCapa ?? ""}
-            className={INPUT_CLASS}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" name="destaque" defaultChecked={combo?.destaque ?? false} />
-          Destaque
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" name="visivel" defaultChecked={combo?.visivel ?? true} />
-          Visível no catálogo
-        </label>
-      </div>
-
       <div>
-        <p className="mb-2 text-sm font-medium text-slate-600">Itens do combo</p>
+        <p className="mb-2 text-sm font-medium text-slate-600">Quais produtos entram no combo?</p>
         {produtos.length === 0 ? (
           <p className="text-sm text-slate-500">Cadastre produtos antes de criar um combo.</p>
         ) : (
@@ -99,19 +63,50 @@ export function ComboForm({
                     defaultChecked={quantidadeAtual !== undefined}
                   />
                   <span className="flex-1">{produto.nome}</span>
-                  <input
-                    type="number"
-                    name={`qty-${produto.id}`}
-                    min={1}
-                    defaultValue={quantidadeAtual ?? 1}
-                    className={`w-20 ${INPUT_CLASS}`}
-                  />
                 </label>
               );
             })}
           </div>
         )}
       </div>
+
+      <CollapsibleSection>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="descricao" className="text-sm font-medium text-slate-600">
+            Descrição
+          </label>
+          <textarea
+            id="descricao"
+            name="descricao"
+            rows={3}
+            defaultValue={combo?.descricao ?? ""}
+            className={INPUT_CLASS}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="fotoCapa" className="text-sm font-medium text-slate-600">
+            Foto (URL)
+          </label>
+          <input
+            id="fotoCapa"
+            name="fotoCapa"
+            defaultValue={combo?.fotoCapa ?? ""}
+            className={INPUT_CLASS}
+          />
+        </div>
+
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="destaque" defaultChecked={combo?.destaque ?? false} />
+            Destaque
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="visivel" defaultChecked={combo?.visivel ?? true} />
+            Visível no catálogo
+          </label>
+        </div>
+      </CollapsibleSection>
 
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/session";
 import { empresaService } from "@/app/services/empresa.service";
+import { usuarioService } from "@/app/services/usuario.service";
+import type { ModoInterface } from "@prisma/client";
 
 export interface BrandingFormState {
   error?: string;
@@ -22,6 +24,18 @@ export async function updateBranding(
     return { error: "Informe o nome da empresa." };
   }
 
+  const nomeUsuario = String(formData.get("nomeUsuario") ?? "").trim();
+
+  if (!nomeUsuario) {
+    return { error: "Informe seu nome." };
+  }
+
+  const modoInterfaceRaw = String(formData.get("modoInterface") ?? "");
+
+  if (modoInterfaceRaw !== "SIMPLES" && modoInterfaceRaw !== "COMPLETO") {
+    return { error: "Selecione um modo de uso válido." };
+  }
+
   await empresaService.update(auth.empresaId, {
     nome,
     descricao: String(formData.get("descricao") ?? "").trim() || undefined,
@@ -30,7 +44,10 @@ export async function updateBranding(
     instagram: String(formData.get("instagram") ?? "").trim() || undefined,
     primaryColor: String(formData.get("primaryColor") ?? "").trim() || undefined,
     accentColor: String(formData.get("accentColor") ?? "").trim() || undefined,
+    modoInterface: modoInterfaceRaw as ModoInterface,
   });
+
+  await usuarioService.update(auth.sub, { nome: nomeUsuario });
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}/admin/marca`);

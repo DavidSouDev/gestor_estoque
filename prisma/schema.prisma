@@ -10,6 +10,11 @@ enum UserRole {
   ADMIN
 }
 
+enum ModoInterface {
+  COMPLETO
+  SIMPLES
+}
+
 enum TipoMovimentacao {
   ENTRADA
   SAIDA
@@ -31,6 +36,8 @@ model Empresa {
 
   primaryColor String  @default("#18181b")
   accentColor  String  @default("#f59e0b")
+
+  modoInterface ModoInterface @default(COMPLETO)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

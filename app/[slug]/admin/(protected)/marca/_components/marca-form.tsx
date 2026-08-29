@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import type { BrandingFormState } from "../actions";
+import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
 
 type EmpresaBranding = {
   nome: string;
@@ -11,6 +12,7 @@ type EmpresaBranding = {
   instagram: string | null;
   primaryColor: string;
   accentColor: string;
+  modoInterface: "SIMPLES" | "COMPLETO";
 };
 
 const PRESET_COLORS = [
@@ -27,9 +29,11 @@ const PRESET_COLORS = [
 export function MarcaForm({
   action,
   empresa,
+  nomeUsuario,
 }: {
   action: (state: BrandingFormState, formData: FormData) => Promise<BrandingFormState>;
   empresa: EmpresaBranding;
+  nomeUsuario: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [nome, setNome] = useState(empresa.nome);
@@ -37,9 +41,24 @@ export function MarcaForm({
   const [descricao, setDescricao] = useState(empresa.descricao ?? "");
   const [primaryColor, setPrimaryColor] = useState(empresa.primaryColor);
   const [accentColor, setAccentColor] = useState(empresa.accentColor);
+  const [modo, setModo] = useState(empresa.modoInterface);
 
   return (
     <form action={formAction} className="space-y-6">
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 font-semibold text-slate-700">Seu perfil</h3>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-slate-600">Seu nome</label>
+          <input
+            name="nomeUsuario"
+            defaultValue={nomeUsuario}
+            required
+            className="w-full max-w-sm rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+          />
+          <p className="mt-1 text-xs text-slate-400">É o nome usado pra te cumprimentar no painel.</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <h3 className="font-semibold text-slate-700">Identidade</h3>
@@ -155,6 +174,15 @@ export function MarcaForm({
               />
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm md:col-span-2">
+          <h3 className="mb-1 font-semibold text-slate-700">Modo de uso</h3>
+          <p className="mb-4 text-xs text-slate-500">
+            Você pode trocar isso quando quiser, sem perder nenhum dado.
+          </p>
+          <ModoInterfacePicker value={modo} onChange={setModo} />
+          <input type="hidden" name="modoInterface" value={modo} />
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm md:col-span-2">

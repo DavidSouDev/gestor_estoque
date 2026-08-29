@@ -29,6 +29,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await requireAuth(request);
+
     const body = await request.json();
 
     const empresa = await empresaService.create(body);
@@ -37,6 +39,10 @@ export async function POST(request: Request) {
       status: 201,
     });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     console.error(error);
 
     return NextResponse.json(

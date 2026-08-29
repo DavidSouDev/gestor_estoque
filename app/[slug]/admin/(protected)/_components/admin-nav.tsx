@@ -24,12 +24,12 @@ const ICONS = {
 
 function buildNavItems(slug: string) {
   return [
-    { href: `/${slug}/admin`, label: "Visão Geral", icon: ICONS.dashboard },
-    { href: `/${slug}/admin/produtos`, label: "Produtos", icon: ICONS.produtos },
+    { href: `/${slug}/admin`, label: "Início", icon: ICONS.dashboard },
+    { href: `/${slug}/admin/produtos`, label: "Meus Produtos", icon: ICONS.produtos },
     { href: `/${slug}/admin/combos`, label: "Combos", icon: ICONS.combos },
     { href: `/${slug}/admin/promocoes`, label: "Promoções", icon: ICONS.promocoes },
     { href: `/${slug}/admin/estoque`, label: "Estoque", icon: ICONS.estoque },
-    { href: `/${slug}/admin/marca`, label: "Marca", icon: ICONS.marca },
+    { href: `/${slug}/admin/marca`, label: "Minha Loja", icon: ICONS.marca },
   ];
 }
 

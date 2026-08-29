@@ -2,6 +2,11 @@ import { requireAdminSession } from "@/lib/session";
 import { produtoService } from "@/app/services/produto.service";
 import { comboService } from "@/app/services/combo.service";
 import { promocaoService } from "@/app/services/promocao.service";
+import { usuarioService } from "@/app/services/usuario.service";
+import { serializeDecimals } from "@/lib/serialize";
+import { QuickActions } from "./_components/quick-actions";
+import { SimplesAssistant } from "./_components/simples/simples-assistant";
+import { getModoInterface } from "./_lib/modo";
 
 const ESTOQUE_BAIXO_LIMITE = 5;
 
@@ -36,6 +41,28 @@ export default async function AdminDashboardPage({
 }) {
   const { slug } = await params;
   const session = await requireAdminSession(slug);
+  const modo = await getModoInterface(session.empresaId);
+
+  if (modo === "SIMPLES") {
+    const [usuario, produtosSimples, combosSimples, promocoesSimples] = await Promise.all([
+      usuarioService.findById(session.sub),
+      produtoService.list(session.empresaId),
+      comboService.list(session.empresaId),
+      promocaoService.list(session.empresaId),
+    ]);
+
+    const primeiroNome = (usuario?.nome ?? "").split(" ")[0] || "tudo bem";
+
+    return (
+      <SimplesAssistant
+        slug={slug}
+        nome={primeiroNome}
+        produtos={serializeDecimals(produtosSimples.filter((produto) => produto.ativo))}
+        combos={serializeDecimals(combosSimples)}
+        promocoes={serializeDecimals(promocoesSimples)}
+      />
+    );
+  }
 
   const [produtos, combos, promocoes] = await Promise.all([
     produtoService.list(session.empresaId),
@@ -66,6 +93,8 @@ export default async function AdminDashboardPage({
         <h1 className="font-bold text-slate-800">Visão Geral</h1>
         <p className="text-xs text-slate-400">Multi-tenant · JWT autenticado</p>
       </div>
+
+      <QuickActions slug={slug} />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard

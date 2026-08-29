@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { slugify } from "@/lib/slugify";
+import { pickUniqueWithSuffix } from "@/lib/unique-suffix";
 
 export interface CreateProdutoDTO {
   empresaId: string;
@@ -61,6 +63,26 @@ export const PRODUTO_CATALOGO_SELECT = {
 } as const;
 
 class ProdutoService {
+  async generateUniqueCodigo(empresaId: string, nome: string) {
+    const base = slugify(nome).toUpperCase().slice(0, 20) || "PRODUTO";
+
+    const existentes = await prisma.produto.findMany({
+      where: {
+        empresaId,
+        codigo: {
+          startsWith: base,
+        },
+      },
+      select: {
+        codigo: true,
+      },
+    });
+
+    const ocupados = new Set(existentes.map((produto) => produto.codigo));
+
+    return pickUniqueWithSuffix(base, ocupados);
+  }
+
   async listCatalogo(empresaId: string) {
     return prisma.produto.findMany({
       where: {

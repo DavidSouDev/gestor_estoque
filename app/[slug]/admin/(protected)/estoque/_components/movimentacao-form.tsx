@@ -7,6 +7,12 @@ import type { ProdutoAdmin } from "../../../_lib/types";
 const INPUT_CLASS =
   "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
 
+const TIPO_LABELS = {
+  ENTRADA: "Entrada (chegou mercadoria)",
+  SAIDA: "Saída (venda ou perda)",
+  AJUSTE: "Ajustar quantidade (corrigir contagem)",
+};
+
 export function MovimentacaoForm({
   action,
   produtos,
@@ -38,9 +44,9 @@ export function MovimentacaoForm({
             Tipo
           </label>
           <select id="tipo" name="tipo" required className={INPUT_CLASS}>
-            <option value="ENTRADA">Entrada</option>
-            <option value="SAIDA">Saída</option>
-            <option value="AJUSTE">Ajuste (define o valor exato)</option>
+            <option value="ENTRADA">{TIPO_LABELS.ENTRADA}</option>
+            <option value="SAIDA">{TIPO_LABELS.SAIDA}</option>
+            <option value="AJUSTE">{TIPO_LABELS.AJUSTE}</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
