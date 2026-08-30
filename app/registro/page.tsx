@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { register } from "./actions";
@@ -34,12 +35,12 @@ export default async function RegistroPage() {
 
             <RegisterForm action={register} />
 
-            <a
+            <Link
               href="/"
               className="mt-4 block w-full py-2 text-center text-sm text-slate-400 transition-colors hover:text-slate-600"
             >
               ← Voltar
-            </a>
+            </Link>
           </div>
         </div>
       </div>

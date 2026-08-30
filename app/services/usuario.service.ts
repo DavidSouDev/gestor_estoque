@@ -99,7 +99,7 @@ class UsuarioService {
   }
 
   async update(id: string, data: UpdateUsuarioDTO) {
-    const updateData: any = {
+    const updateData: Prisma.UsuarioUpdateInput = {
       nome: data.nome,
       email: data.email,
       ativo: data.ativo,
