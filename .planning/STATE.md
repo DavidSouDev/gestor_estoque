@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-08-31T20:04:32.860Z"
+status: verifying
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-08-31T20:14:15.147Z"
 last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
-  percent: 14
+  completed_plans: 11
+  percent: 29
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-31 -- Phase 02 execution started
 
 **Checkpoint fechado:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`)
@@ -74,6 +74,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 02 P03 | 8m | 2 tasks | 4 files |
 | Phase 02 P04 | 5min | 2 tasks | 4 files |
 | Phase 02 P05 | 8min | 2 tasks | 3 files |
+| Phase 02 P06 | 9min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [02-05] A primeira linha de AuditoriaAcesso (causa REGISTRO) usa tx.auditoriaAcesso.create direto, nao acessoService.registrarTransicao: aquele opera no prisma global e o compare-and-swap e desnecessario para uma empresa que acabou de nascer
 - [Phase ?]: [02-05] Registro deixa acessoAte/canceladoEm/acessoVitalicio nos defaults do schema — e o que mantem BILL-04, D-09 e D-10 verdadeiros desde o dia 1
 - [Phase ?]: [02-05] O e2e nao conecta ao banco: navegar por uma segunda tela protegida e a prova indireta do trial; o valor exato de trialFim fica com o teste unitario e o gate SQL do 02-01
+- [Phase ?]: [02-06] revalidarConta deriva statusAcesso dos 4 fatos a cada request e expoe statusAcesso/acessoExpiraEm/carenciaAte em ContaAtiva — assinaturas de requireAdminSession/requireAuth inalteradas
+- [Phase ?]: [02-06] A comparacao com ultimoStatusAuditado (D-16) mora no chamador impuro, nao na funcao pura: revalidarConta so agenda auditoria quando o status calculado difere do persistido
+- [Phase ?]: [02-06] Gate de grep de ultimoStatusAuditado verde (0 violacoes fora da lista de 9 arquivos) — conformidade a BILL-01/OQ-2 provada de forma executavel
+- [Phase ?]: [02-06] human-check 02-06-H1 (after() dentro de React.cache contra Postgres real) PENDENTE — colhido no UAT de fim de fase; se falhar, o fallback inline mantem a auditoria correta, so sem ganho de TTFB
 
 ### Pending Todos
 
@@ -150,6 +155,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T20:04:32.855Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-08-31T20:14:15.142Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
