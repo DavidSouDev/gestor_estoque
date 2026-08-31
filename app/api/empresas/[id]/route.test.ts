@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { buildRequest, buildParams } from "../../../../tests/helpers/request";
-import { buildAuthToken, testAuthPayload } from "../../../../tests/helpers/auth";
+import { buildRequest, buildParams } from "@/tests/helpers/request";
+import { buildAuthToken, testAuthPayload } from "@/tests/helpers/auth";
 
-vi.mock("../../../services/empresa.service", () => ({
+vi.mock("@/app/services/empresa.service", () => ({
   empresaService: {
     findById: vi.fn(),
     update: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock("../../../services/empresa.service", () => ({
   },
 }));
 
-import { empresaService } from "../../../services/empresa.service";
+import { empresaService } from "@/app/services/empresa.service";
 import { GET, PATCH, DELETE } from "./route";
 
 const empresaDoToken = { id: testAuthPayload.empresaId, nome: "Empresa Teste" };
