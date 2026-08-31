@@ -4,9 +4,46 @@ import { prismaMock } from "../../tests/setup/prisma-mock";
 import { Prisma } from "@prisma/client";
 import { webhookAsaasService } from "./webhook-asaas.service";
 import { redigirEnvelope } from "@/lib/billing/asaas/eventos";
-import { envelopePagamento } from "@/tests/helpers/asaas";
+import {
+  envelopeAssinatura,
+  envelopeCheckout,
+  envelopePagamento,
+} from "@/tests/helpers/asaas";
 import { avaliarAcesso, DIAS_DE_CARENCIA } from "@/lib/avaliar-acesso";
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
+import { acessoService } from "@/app/services/acesso.service";
+import { asaasClient } from "@/lib/billing/asaas/client";
+
+/**
+ * O compare-and-swap de auditoria da Fase 2 e chamado, nunca reimplementado —
+ * aqui ele e mockado para que as assercoes sejam sobre a CHAMADA (empresaId,
+ * anterior, novo, causa), que e o contrato que este arquivo precisa honrar.
+ */
+vi.mock("@/app/services/acesso.service", () => ({
+  acessoService: { registrarTransicao: vi.fn() },
+}));
+
+/**
+ * O cliente do gateway e mockado por MODULO (nao por spy) porque o re-fetch
+ * autoritativo e um controle de seguranca: os testes precisam provar tanto a
+ * ORDEM de invocacao quanto o comportamento sob rejeicao, sem nunca tocar a
+ * rede. `importOriginal` preserva `AsaasApiError`, que o teste de falha usa.
+ */
+vi.mock("@/lib/billing/asaas/client", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/billing/asaas/client")>();
+
+  return {
+    ...real,
+    asaasClient: {
+      criarCheckout: vi.fn(),
+      buscarPagamento: vi.fn(),
+      buscarAssinatura: vi.fn(),
+    },
+  };
+});
+
+const acessoMock = vi.mocked(acessoService);
+const asaasMock = vi.mocked(asaasClient);
 
 /**
  * Os 8 eventos de OBSERVACAO (Pattern 4). Nenhum deles pode escrever um fato de
@@ -24,13 +61,12 @@ const EVENTOS_SEM_MUTACAO = [
   "SUBSCRIPTION_DELETED",
 ];
 
-/** Os 4 eventos que MUTAM estado — deliberadamente nao processados nesta wave. */
-const EVENTOS_MUTADORES = [
-  "PAYMENT_CONFIRMED",
-  "PAYMENT_RECEIVED",
-  "SUBSCRIPTION_CREATED",
-  "CHECKOUT_PAID",
-];
+/**
+ * Os eventos de pagamento continuam na fila ate a Task 2 deste plano ligar
+ * `aplicarPagamentoConfirmado` ao despacho. `SUBSCRIPTION_CREATED` e
+ * `CHECKOUT_PAID` sairam desta lista na Task 1: eles agora tem handler.
+ */
+const EVENTOS_MUTADORES = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"];
 
 function linhaDoLedger(overrides: Record<string, unknown> = {}) {
   return {
@@ -54,6 +90,25 @@ function chamadasDeUpdate(): Array<{ data: Record<string, unknown> }> {
   return prismaMock.eventoWebhookAsaas.update.mock.calls.map(
     ([args]) => args as unknown as { data: Record<string, unknown> }
   );
+}
+
+/** `data` de cada `empresa.update`, sem o ruido dos genericos do Prisma. */
+function dadosDeEmpresaUpdate(): Array<Record<string, unknown>> {
+  return prismaMock.empresa.update.mock.calls.map(
+    ([args]) => (args as unknown as { data: Record<string, unknown> }).data
+  );
+}
+
+/** Sub-objeto `subscription` do fixture de `SUBSCRIPTION_CREATED`. */
+function assinaturaDoFixture(overrides: Record<string, unknown> = {}) {
+  const bruto = envelopeAssinatura().subscription as Record<string, unknown>;
+  return { ...bruto, ...overrides };
+}
+
+/** Sub-objeto `checkout` do fixture de `CHECKOUT_PAID` (com a armadilha do Pitfall 8). */
+function checkoutDoFixture(overrides: Record<string, unknown> = {}) {
+  const bruto = envelopeCheckout().checkout as Record<string, unknown>;
+  return { ...bruto, ...overrides };
 }
 
 let erroLogado: ReturnType<typeof vi.spyOn>;
@@ -346,5 +401,335 @@ describe("Pattern 4 — encaixe com o motor de acesso da Fase 2", () => {
     );
     // Literal, para tornar a asserção acima não-vacua: acessoAte + 10 dias.
     expect(resultado.carenciaAte).toEqual(new Date("2026-09-11T03:00:00.000Z"));
+  });
+});
+
+describe("webhookAsaasService.resolverEmpresaId", () => {
+  it("passo 1 — resolve pelo asaasSubscriptionId, que é uma coluna gravada por NÓS", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({ subscription: "sub_1" })
+    ).resolves.toBe("empresa-1");
+
+    // Asserção EXATA: o `where` cita apenas a coluna do mapa local e o filtro de
+    // soft delete. Nenhum identificador afirmado pelo payload vira autorização.
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      where: { asaasSubscriptionId: "sub_1", deletedAt: null },
+      select: { id: true },
+    });
+  });
+
+  it("passo 2 — resolve pelo CheckoutAsaas quando a assinatura ainda não existe", async () => {
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue({
+      empresaId: "empresa-2",
+    } as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({ checkoutId: "chk_1" })
+    ).resolves.toBe("empresa-2");
+
+    expect(prismaMock.checkoutAsaas.findUnique).toHaveBeenCalledWith({
+      where: { asaasCheckoutId: "chk_1" },
+      select: { empresaId: true },
+    });
+  });
+
+  it("precedência: o mapa de assinatura é consultado ANTES do mapa de checkout", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue({
+      empresaId: "empresa-2",
+    } as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_1",
+        checkoutId: "chk_1",
+      })
+    ).resolves.toBe("empresa-2");
+
+    expect(
+      prismaMock.empresa.findFirst.mock.invocationCallOrder[0]
+    ).toBeLessThan(prismaMock.checkoutAsaas.findUnique.mock.invocationCallOrder[0]);
+  });
+
+  it("o mapa de checkout nem é consultado quando a assinatura já resolveu", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_1",
+        checkoutId: "chk_1",
+      })
+    ).resolves.toBe("empresa-1");
+
+    expect(prismaMock.checkoutAsaas.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("passo 3 — cai para o asaasCustomerId só depois que assinatura e checkout falharam", async () => {
+    prismaMock.empresa.findFirst
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValueOnce({ id: "empresa-3" } as never);
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_x",
+        checkoutId: "chk_x",
+        customer: "cus_1",
+      })
+    ).resolves.toBe("empresa-3");
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenLastCalledWith({
+      where: { asaasCustomerId: "cus_1", deletedAt: null },
+      select: { id: true },
+    });
+  });
+
+  it("C-08: externalReference sozinho NUNCA resolve — nenhuma consulta sequer acontece", async () => {
+    // Este é o caso de IDOR. Se um identificador afirmado pelo payload pudesse
+    // resolver o tenant, qualquer um que forjasse um webhook escolheria a
+    // empresa alvo. A autoridade é sempre uma coluna que NÓS gravamos.
+    await expect(
+      webhookAsaasService.resolverEmpresaId({ externalReference: "empresa-9" })
+    ).resolves.toBeNull();
+
+    expect(prismaMock.empresa.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.checkoutAsaas.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("C-08: externalReference divergente é só cross-check — loga e o mapa local prevalece", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_1",
+        externalReference: "empresa-9",
+      })
+    ).resolves.toBe("empresa-1");
+
+    expect(erroLogado).toHaveBeenCalledWith(
+      expect.stringContaining("[webhook-asaas]"),
+      expect.objectContaining({
+        mapaLocal: "empresa-1",
+        referenciaExterna: "empresa-9",
+      })
+    );
+  });
+
+  it("externalReference coincidente não gera log de divergência", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+
+    await webhookAsaasService.resolverEmpresaId({
+      subscription: "sub_1",
+      externalReference: "empresa-1",
+    });
+
+    expect(erroLogado).not.toHaveBeenCalled();
+  });
+
+  it("nada resolve: devolve null e NÃO cria empresa nem adivinha", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_x",
+        checkoutId: "chk_x",
+        customer: "cus_x",
+        externalReference: "empresa-9",
+      })
+    ).resolves.toBeNull();
+
+    expect(prismaMock.empresa.create).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("webhookAsaasService.capturarAssinatura", () => {
+  it("Pitfall 8: grava o sub_… e o cus_… na empresa resolvida e conclui o evento", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+    prismaMock.empresa.update.mockResolvedValue({} as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.capturarAssinatura("evt-1", assinaturaDoFixture());
+
+    // Asserção EXATA: este é o ÚNICO evento que entrega o id `sub_…`. Sem
+    // capturá-lo aqui, nenhuma cobrança futura da assinatura seria reconhecida.
+    expect(prismaMock.empresa.update).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      data: {
+        asaasSubscriptionId: "sub_VXJBYgP2u0eO",
+        asaasCustomerId: "cus_000006297983",
+      },
+    });
+    expect(chamadasDeUpdate()[0].data).toMatchObject({
+      empresaId: "empresa-1",
+      erro: null,
+    });
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+  });
+
+  it("empresa não resolvida: marcarErro e NENHUMA escrita em Empresa", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.capturarAssinatura("evt-1", assinaturaDoFixture());
+
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    const chamadas = chamadasDeUpdate();
+    expect(chamadas).toHaveLength(1);
+    expect(chamadas[0].data).toHaveProperty("erro");
+    // O evento fica na fila `processadoEm IS NULL` para a Fase 5.
+    expect(chamadas[0].data).not.toHaveProperty("processadoEm");
+  });
+
+  it("payload sem os campos exigidos: marcarErro, sem exceção e sem escrita", async () => {
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await expect(
+      webhookAsaasService.capturarAssinatura("evt-1", { id: "sub_1" })
+    ).resolves.toBeUndefined();
+
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("erro");
+  });
+
+  it("idempotente: duas execuções com o mesmo payload produzem escritas idênticas", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+    prismaMock.empresa.update.mockResolvedValue({} as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.capturarAssinatura("evt-1", assinaturaDoFixture());
+    await webhookAsaasService.capturarAssinatura("evt-1", assinaturaDoFixture());
+
+    const [primeira, segunda] = dadosDeEmpresaUpdate();
+    expect(segunda).toEqual(primeira);
+  });
+});
+
+describe("webhookAsaasService.capturarCheckoutPago", () => {
+  function prepararCheckoutResolvido() {
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue({
+      empresaId: "empresa-1",
+    } as never);
+    prismaMock.checkoutAsaas.update.mockResolvedValue({} as never);
+    prismaMock.empresa.update.mockResolvedValue({} as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+  }
+
+  it("atualiza o status do CheckoutAsaas e grava o cus_… na empresa resolvida", async () => {
+    prepararCheckoutResolvido();
+
+    await webhookAsaasService.capturarCheckoutPago("evt-1", checkoutDoFixture());
+
+    expect(prismaMock.checkoutAsaas.update).toHaveBeenCalledWith({
+      where: { asaasCheckoutId: "chk_7b2f4c8e9a1d" },
+      data: { status: "PAID" },
+    });
+    expect(prismaMock.empresa.update).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      data: { asaasCustomerId: "cus_000006297983" },
+    });
+    expect(chamadasDeUpdate()[0].data).toMatchObject({ empresaId: "empresa-1" });
+  });
+
+  it("Pitfall 8: o id da assinatura NUNCA sai do sub-objeto de recorrência do checkout", async () => {
+    // O fixture reproduz a armadilha de propósito: o sub-objeto de recorrência
+    // traz apenas `cycle`/`nextDueDate`/`endDate`, sem `id`. Qualquer tentativa
+    // de extrair um `sub_…` daqui gravaria `undefined`.
+    prepararCheckoutResolvido();
+
+    await webhookAsaasService.capturarCheckoutPago("evt-1", checkoutDoFixture());
+
+    for (const dados of dadosDeEmpresaUpdate()) {
+      expect(dados).not.toHaveProperty("asaasSubscriptionId");
+    }
+  });
+
+  it("este ramo NÃO estende acessoAte — quem paga o acesso é o PAYMENT_CONFIRMED", async () => {
+    prepararCheckoutResolvido();
+
+    await webhookAsaasService.capturarCheckoutPago("evt-1", checkoutDoFixture());
+
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    for (const dados of dadosDeEmpresaUpdate()) {
+      expect(dados).not.toHaveProperty("acessoAte");
+    }
+  });
+
+  it("checkout sem customer: nada é escrito em Empresa", async () => {
+    prepararCheckoutResolvido();
+
+    await webhookAsaasService.capturarCheckoutPago("evt-1", {
+      id: "chk_7b2f4c8e9a1d",
+      status: "PAID",
+    });
+
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    expect(prismaMock.checkoutAsaas.update).toHaveBeenCalled();
+  });
+
+  it("empresa não resolvida: marcarErro, sem tocar CheckoutAsaas nem Empresa", async () => {
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.capturarCheckoutPago("evt-1", checkoutDoFixture());
+
+    expect(prismaMock.checkoutAsaas.update).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).not.toHaveProperty("processadoEm");
+  });
+});
+
+describe("processar — despacho dos eventos de captura (03-06)", () => {
+  it("SUBSCRIPTION_CREATED sai da fila de retrabalho e captura o sub_…", async () => {
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "SUBSCRIPTION_CREATED",
+        payload: redigirEnvelope(envelopeAssinatura()),
+      }) as never
+    );
+    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+    prismaMock.empresa.update.mockResolvedValue({} as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.processar("evt-1");
+
+    expect(dadosDeEmpresaUpdate()[0]).toMatchObject({
+      asaasSubscriptionId: "sub_VXJBYgP2u0eO",
+    });
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+    // Capturar identificador não é fato de billing: nada de auditoria aqui.
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
+  });
+
+  it("CHECKOUT_PAID sai da fila de retrabalho e atualiza o CheckoutAsaas", async () => {
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "CHECKOUT_PAID",
+        payload: redigirEnvelope(envelopeCheckout()),
+      }) as never
+    );
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue({
+      empresaId: "empresa-1",
+    } as never);
+    prismaMock.checkoutAsaas.update.mockResolvedValue({} as never);
+    prismaMock.empresa.update.mockResolvedValue({} as never);
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await webhookAsaasService.processar("evt-1");
+
+    expect(prismaMock.checkoutAsaas.update).toHaveBeenCalledWith({
+      where: { asaasCheckoutId: "chk_7b2f4c8e9a1d" },
+      data: { status: "PAID" },
+    });
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
   });
 });
