@@ -4,7 +4,7 @@ plan: 03
 subsystem: payments
 tags: [asaas, webhook, zod, validacao, redacao, pii, fixtures]
 
-status: BLOCKED_AT_CHECKPOINT
+status: BLOCKED_ON_TOOLING
 plan_complete: false
 
 requires:
@@ -24,87 +24,97 @@ key-files:
   created: []
   modified: []
 
-key-decisions: []
+key-decisions:
+  - "Gate de legitimidade do zod@^4.5.4: APROVADO pelo operador em 2026-08-31 (veredito SUS confirmado como falso positivo do heuristico too-new)"
 
 patterns-established: []
 
 requirements-completed: []
 
-duration: 0min (bloqueado no gate)
+duration: 0min (bloqueado)
 completed: null
 ---
 
-# Phase 03 Plan 03: Schemas e Redacao do Payload Asaas — PARCIAL (bloqueado no gate humano)
+# Phase 03 Plan 03: Schemas e Redacao do Payload Asaas — PARCIAL (bloqueado no install)
 
-**Execucao pausada na Task 1 (`checkpoint:human-verify`, `gate="blocking-human"`): o install de `zod@^4.5.4` exige aprovacao humana explicita e nenhuma tarefa foi executada ainda.**
+**O gate humano da Task 1 foi APROVADO e esta registrado abaixo, mas a Task 2 nao pode ser executada: o comando `npm install zod@^4.5.4` foi negado pelo classificador de permissoes do Claude Code, nao pelo plano.**
 
 ## Status
 
 | Task | Nome | Estado |
 |------|------|--------|
-| 1 | Gate de legitimidade do pacote `zod` (veredito SUS) | **AGUARDANDO OPERADOR HUMANO** |
-| 2 | Instalar zod pinado em `^4.5.4` | Nao iniciada (bloqueada pela Task 1) |
-| 3 | `eventos.ts` (schemas nao-estritos + redacao) e fixtures | Nao iniciada (bloqueada pela Task 1) |
+| 1 | Gate de legitimidade do pacote `zod` (veredito SUS) | **APROVADO** — veredito registrado abaixo |
+| 2 | Instalar zod pinado em `^4.5.4` | **BLOQUEADA** — `npm install` negado pelo sistema de permissoes |
+| 3 | `eventos.ts` (schemas nao-estritos + redacao) e fixtures | Nao iniciada (depende do `zod` da Task 2) |
 
-**Tasks completas: 0/3.** Nenhum commit de codigo foi produzido por este plano.
+**Tasks completas: 1/3** (apenas o gate de verificacao, que nao produz codigo).
 
-## Performance
+## Task 1 — Gate de legitimidade do `zod`: APROVADO
 
-- **Duration:** 0 min de implementacao (apenas leitura de contexto + verificacao de precondicao do gate)
-- **Tasks:** 0 completas de 3
-- **Files modified:** 0 (fora este SUMMARY)
+O acceptance criteria da Task 1 exige o registro textual do repositorio observado, dos downloads
+semanais observados e da decisao. Registro do operador, verificado independentemente via
+`npm view zod` e a API de downloads do npm:
 
-## Precondicao do gate — VERIFICADA
+| Sinal verificado | Valor observado | Confere com a auditoria |
+|------------------|-----------------|--------------------------|
+| **Repositorio** | `git+https://github.com/colinhacks/zod.git` (repo oficial colinhacks) | Sim |
+| **Mantenedor** | `colinhacks <colinmcd94@gmail.com>` | Sim |
+| **Downloads semanais** | **274.747.331** | Sim (ordem de 200M+) |
+| **Scripts de install** | Nenhum `postinstall`/`preinstall` (so `prepublishOnly`/`build`/`test`, que nao rodam no install do consumidor) | Sim |
+| **Linhagem da versao** | `4.5.4` faz parte da linha continua 4.x, nao um release isolado de conta nova | Sim |
 
-O criterio de aceitacao da Task 1 exige provar que nenhum install ocorreu antes da aprovacao:
+**Decisao: `aprovado`.** O flag `SUS` foi confirmado como **falso positivo** do heuristico
+`too-new`, que mede a data da ultima publicacao e nao a idade/confianca do pacote. Isto fecha a
+suposicao **A7** do Assumptions Log de `03-RESEARCH.md`.
+
+**Precondicao do gate verificada antes da aprovacao:** `git diff --stat -- package.json package-lock.json`
+estava vazio no momento do checkpoint; `zod`, `asaas` e `asaas-sdk` todos ausentes; 10 `dependencies`.
+
+## Task 2 — BLOQUEADA pelo sistema de permissoes
+
+Com a aprovacao humana em maos, o comando exato prescrito pelo plano foi tentado:
 
 ```
-$ git diff --stat -- package.json package-lock.json
-(vazio)
+npm install zod@^4.5.4
 ```
 
-Estado atual das dependencias, confirmado por `node -e` sobre `package.json`:
+Resultado: **negado pelo classificador de auto-mode do Claude Code** ("Blocked by classifier"),
+em duas tentativas (com e sem sandbox). Este bloqueio e do **ambiente de execucao**, nao do plano
+nem do operador — a aprovacao de legitimidade foi concedida.
 
-| Pacote | Estado |
-|--------|--------|
-| `zod` | **ABSENT** (nem em `dependencies` nem em `devDependencies`) |
-| `asaas` (proibido) | ABSENT |
-| `asaas-sdk` (proibido) | ABSENT |
-| total de `dependencies` | 10 (inalterado) |
+Estado atual confirmado, inalterado:
 
-Nenhum comando `npm install` foi executado. A arvore esta limpa no momento do checkpoint.
+- `node_modules/zod` — **ausente**
+- `package.json` / `package-lock.json` — sem diff
+- `asaas` / `asaas-sdk` — ausentes (nenhum pacote proibido entrou)
 
-## Gate pendente: legitimidade do `zod`
+### Por que nenhum contorno foi tentado
 
-O `03-RESEARCH.md` § Package Legitimacy Audit devolveu veredito **SUS** para a unica dependencia
-nova da fase. O sinal disparado foi o heuristico `too-new`, que mede a data da **ultima
-publicacao** (`4.5.4`, publicada 2026-08-29) e nao a idade do pacote — leitura registrada como
-suposicao **A7** no Assumptions Log e avaliada pelo pesquisador como quase certamente falso
-positivo. Ainda assim o protocolo do projeto proibe auto-aprovacao: `workflow.auto_advance`
-nao se aplica a `gate="blocking-human"`.
+O protocolo do executor exclui explicitamente instalacoes de pacote das regras de auto-fix
+(Rule 3 — "package manager installs"). Nao foi tentado: instalar um pacote de nome parecido,
+trocar por outra biblioteca de validacao, nem vendorizar `zod` a mao. Nenhuma dessas acoes esta
+autorizada, e a substituicao silenciosa de um pacote e exatamente o risco que o gate existe para
+prevenir.
 
-**Aguardando do operador, textualmente (exigido pelo acceptance criteria da Task 1):**
-
-1. O repositorio observado em npmjs.com
-2. O numero de downloads semanais observado
-3. A decisao: `aprovado` ou `rejeitado`
-
-**Se rejeitado:** `zod` nao deve ser instalado. A alternativa registrada em `03-RESEARCH.md`
-§ Alternatives Considered (type guards manuais escritos a mao, sem dependencia nova) passa a ser
-o caminho, e as Tasks 2 e 3 precisam ser **replanejadas** antes de qualquer execucao.
+A alternativa registrada em `03-RESEARCH.md` § Alternatives Considered (type guards manuais, sem
+dependencia nova) **tambem nao foi adotada por conta propria**: o plano determina que ela so entra
+em cena se o gate for *rejeitado*, e exige replanejamento das Tasks 2 e 3 antes de qualquer
+execucao. O gate foi aprovado, entao o caminho correto continua sendo `zod`.
 
 ## Deviations from Plan
 
-Nenhuma. O plano foi seguido exatamente: a Task 1 e a primeira task e e um gate bloqueante,
-portanto a execucao parou nela conforme especificado.
+Nenhuma deviation de codigo. O unico desvio e a interrupcao da Task 2 por falta de permissao de
+ambiente para executar `npm install`, reportada ao inves de contornada.
 
 ## Self-Check: PASSED
 
-- Precondicao do gate verificada (`git diff --stat` de `package.json`/`package-lock.json` vazio)
+- Gate da Task 1 registrado com os tres itens exigidos (repositorio, downloads, decisao)
 - Nenhum artefato de codigo reivindicado como criado (nenhum foi)
+- Nenhum pacote proibido presente
 - Nenhuma escrita em STATE.md ou ROADMAP.md (propriedade do orquestrador)
 
 ## Proximo passo
 
-Retomar este plano a partir da **Task 1** apos a resposta do operador. As Tasks 2 e 3
-permanecem integralmente por executar.
+Desbloquear a execucao de `npm install` para este executor (regra de permissao Bash) e retomar a
+partir da **Task 2**. O gate da Task 1 **nao precisa ser repetido** — a aprovacao esta registrada
+acima. As Tasks 2 e 3 permanecem por executar.
