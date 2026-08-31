@@ -3,21 +3,48 @@ export function buildRequest(options: {
   url?: string;
   token?: string;
   body?: unknown;
+  /**
+   * Corpo enviado LITERALMENTE, sem passar por `JSON.stringify`. É o único jeito
+   * de montar um request com corpo malformado — `body: "x"` viraria `"\"x\""`,
+   * que é JSON válido. Usado pelo teste do webhook do Asaas.
+   */
+  rawBody?: string;
+  /**
+   * Headers arbitrários, aplicados por último (podem sobrescrever os default).
+   * Necessário para credenciais que não são `Authorization: Bearer`, como o
+   * `asaas-access-token` do webhook.
+   */
+  headers?: Record<string, string>;
 }): Request {
-  const { method = "GET", url = "http://localhost/api/test", token, body } = options;
+  const {
+    method = "GET",
+    url = "http://localhost/api/test",
+    token,
+    body,
+    rawBody,
+    headers: extras,
+  } = options;
 
   const headers = new Headers();
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
   }
-  if (body !== undefined) {
+  if (body !== undefined || rawBody !== undefined) {
     headers.set("content-type", "application/json");
+  }
+  for (const [chave, valor] of Object.entries(extras ?? {})) {
+    headers.set(chave, valor);
   }
 
   return new Request(url, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      rawBody !== undefined
+        ? rawBody
+        : body !== undefined
+          ? JSON.stringify(body)
+          : undefined,
   });
 }
 
