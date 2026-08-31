@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-08-31T19:42:35.546Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-08-31T19:50:45.831Z"
 last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 02 execution started
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 01 P05 | 58m | 2 tasks | 2 files |
 | Phase 02 P01 | 12m | 3 tasks | 3 files |
 | Phase 02 P02 | 5m | 2 tasks | 3 files |
+| Phase 02 P03 | 8m | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,11 @@ Recent decisions affecting current work:
 - [Phase ?]: [02-02] Allowlist positivo de 10 campos com guarda !== undefined (nao truthiness) preserva a semantica Prisma usada por marca/actions.ts
 - [Phase ?]: [02-02] Escritas legitimas futuras nos campos de billing (acessoService, webhook Asaas) NAO podem passar por empresaService.update nem entrar no allowlist — exigem metodo dedicado
 - [Phase ?]: [02-02] Nao-vacuidade do teste comprovada por reversao temporaria: com data cru, 'nao aceita campos de billing' falha na asserção exata
+- [Phase 02-03]: avaliarAcesso devolve o objeto ResultadoAcesso { status, expiraEm, carenciaAte } — carenciaAte sai daqui para ACC-01 (Fase 4) nao re-derivar a aritmetica de carencia
+- [Phase 02-03]: Motor de acesso mora em lib/ (funcao pura, zero I/O); o wrapper de auditoria com efeito colateral e do plano 02-04 e mora em app/services/
+- [Phase 02-03]: meiaNoiteEmSaoPaulo copiado literalmente da versao verificada — a versao ingenua passa em 100% dos casos de 2026 e erra por 1-2h em 2017/2018; os 3 casos de DST historico sao a unica prova de corretude
+- [Phase 02-03]: Relogio por parametro (agora: Date), nunca new Date() interno — e o que torna as 3 viradas exatas de D-02 testaveis sem fake timers (T-02-13)
+- [Phase 02-03]: DIAS_DE_TRIAL exportada com o +1 de D-18 documentado na propria const para o plano 02-05 (registro) nao redescobrir a aritmetica
 
 ### Pending Todos
 
@@ -133,6 +139,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T19:42:14.464Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-08-31T19:50:34.773Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
