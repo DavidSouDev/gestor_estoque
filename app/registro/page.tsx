@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { getVerifiedSession } from "@/lib/session";
 import { register } from "./actions";
 import { RegisterForm } from "./_components/register-form";
 
 export default async function RegistroPage() {
-  const session = await getSession();
+  const session = await getVerifiedSession();
 
   if (session) {
     redirect(`/${session.empresaSlug}/admin`);

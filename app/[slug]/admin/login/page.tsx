@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { getVerifiedSession } from "@/lib/session";
 import { getEmpresaCatalogo } from "../../_lib/empresa";
 import { login } from "../_lib/auth-actions";
 import { LoginForm } from "../_components/login-form";
@@ -10,7 +10,7 @@ export default async function AdminLoginPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const session = await getSession();
+  const session = await getVerifiedSession();
 
   if (session && session.empresaSlug === slug) {
     redirect(`/${slug}/admin`);
