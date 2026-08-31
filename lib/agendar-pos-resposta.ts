@@ -26,19 +26,42 @@ import { after } from "next/server";
  *   **não pode** derrubar o request que a originou (ASVS V7).
  */
 export function agendarPosResposta(tarefa: () => Promise<unknown>): void {
+  // WR-01: `Promise.resolve().then(tarefa)` em vez de `tarefa()` direto —
+  // `.then` também captura um `throw` SÍNCRONO de `tarefa`, não só uma promise
+  // rejeitada. Sem isso, um throw síncrono escaparia de `seguro()` e, no
+  // caminho de fallback (`void seguro()` abaixo), propagaria para dentro do
+  // caller de `agendarPosResposta` — quebrando a garantia de "nunca derruba o
+  // request" (ASVS V7).
   const seguro = () =>
-    tarefa().catch((erro) =>
-      console.error("[acesso] efeito pós-resposta falhou:", erro)
-    );
+    Promise.resolve()
+      .then(tarefa)
+      .catch((erro) =>
+        console.error("[acesso] efeito pós-resposta falhou:", erro)
+      );
 
   try {
     after(seguro);
-  } catch {
+  } catch (erro) {
     // Fora de escopo de request do Next (Vitest, worker HTTP da Fase 5, script
     // de manutenção) o `after` lança `E468` — "was called outside a request
     // scope" — porque o `AsyncLocalStorage` de que ele depende só existe
     // durante o processamento de um request. Executa inline em vez de perder o
     // efeito, e principalmente em vez de propagar a exceção para quem chamou.
+    //
+    // WR-02: qualquer OUTRA causa de falha de `after()` (bug interno do Next,
+    // argumento inválido etc.) também cai neste fallback, mas nesse caso
+    // estaríamos DENTRO de um request de verdade e silenciosamente perdendo a
+    // garantia de que a auditoria roda fora do caminho crítico do response
+    // (T-02-17). Loga para tornar essa anomalia observável em vez de mascará-la
+    // do mesmo jeito que o caso esperado E468.
+    const mensagem = erro instanceof Error ? erro.message : String(erro);
+    if (!mensagem.includes("outside a request scope")) {
+      console.error(
+        "[acesso] after() falhou por motivo inesperado, executando inline:",
+        erro
+      );
+    }
+
     void seguro();
   }
 }

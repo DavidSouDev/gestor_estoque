@@ -6,6 +6,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// WR-01: `seguro()` agora encadeia `Promise.resolve().then(tarefa)` em vez de
+// chamar `tarefa()` direto, para capturar throws síncronos também. Isso soma
+// ticks extras de adoção de promise que variam conforme a engine — em vez de
+// contar `await Promise.resolve()` às cegas, agenda um macrotask (`setTimeout`)
+// para garantir que toda a fila de microtasks pendente já drenou.
+function flushMicrotasks() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe("agendarPosResposta", () => {
   // Este caso roda SEM mockar `next/server` de propósito: é a prova real de que
   // o `E468` ("`after` was called outside a request scope") é capturado. Sem
@@ -15,6 +24,12 @@ describe("agendarPosResposta", () => {
     const tarefa = vi.fn(async () => "feito");
 
     expect(() => agendarPosResposta(tarefa)).not.toThrow();
+
+    // WR-01: `tarefa` agora é chamada via `Promise.resolve().then(tarefa)` (não
+    // mais de forma síncrona) para que um throw síncrono também seja capturado
+    // pelo `.catch` — por isso é preciso deixar a fila de microtasks drenar
+    // antes de observar a chamada.
+    await flushMicrotasks();
 
     expect(tarefa).toHaveBeenCalledTimes(1);
   });
@@ -28,10 +43,9 @@ describe("agendarPosResposta", () => {
 
     expect(() => agendarPosResposta(tarefa)).not.toThrow();
 
-    // Deixa o microtask queue drenar: se o `.catch` interno não existisse, a
+    // Deixa a fila de microtasks drenar: se o `.catch` interno não existisse, a
     // rejeição viraria unhandled rejection aqui e derrubaria o teste.
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushMicrotasks();
 
     expect(consoleError).toHaveBeenCalledTimes(1);
     const [mensagem, erro] = consoleError.mock.calls[0] as [string, unknown];
@@ -71,6 +85,42 @@ describe("agendarPosResposta", () => {
       // E o que foi entregue a `after` é de fato a tarefa embrulhada.
       await agendados[0]!();
       expect(tarefa).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.doUnmock("next/server");
+      vi.resetModules();
+    }
+  });
+
+  // WR-02: motivo de falha de `after()` diferente do E468 esperado não pode
+  // ser mascarado da mesma forma silenciosa — precisa ficar observável.
+  it("loga quando after() falha por um motivo diferente de 'outside a request scope'", async () => {
+    vi.resetModules();
+    vi.doMock("next/server", () => ({
+      after: () => {
+        throw new Error("falha interna inesperada do Next");
+      },
+    }));
+
+    try {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { agendarPosResposta: agendarComFalhaInesperada } = await import(
+        "./agendar-pos-resposta"
+      );
+      const tarefa = vi.fn(async () => "feito");
+
+      expect(() => agendarComFalhaInesperada(tarefa)).not.toThrow();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "[acesso] after() falhou por motivo inesperado, executando inline:",
+        expect.any(Error)
+      );
+
+      // E mesmo assim o fallback continua executando a tarefa inline — a
+      // falha de after() não pode perder o efeito.
+      await flushMicrotasks();
+      expect(tarefa).toHaveBeenCalledTimes(1);
+
+      consoleError.mockRestore();
     } finally {
       vi.doUnmock("next/server");
       vi.resetModules();
