@@ -18,11 +18,11 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - ✓ Catálogo público por slug (`/{slug}`) consumido pelos clientes da empresa — existente
 - ✓ Upload de imagens via Cloudflare R2 — existente
 - ✓ Registro de nova empresa (`/registro`) com criação de sessão admin — existente
+- ✓ Correção do bug crítico do singleton do Prisma (`lib/prisma.ts`) — client publicado incondicionalmente em `globalThis` em todos os ambientes, contagem de conexões do Postgres verificada estável sob carga (`pg_stat_activity`) — Validado na Fase 1: Pré-requisitos de Produção (INFRA-01)
+- ✓ Sessão do admin revalida a conta no banco a cada request via DAL `revalidarConta` (`lib/auth-guard.ts`), fail-closed, ligado em `requireAdminSession` e `requireAuth` — Validado na Fase 1: Pré-requisitos de Produção (INFRA-02). Nota: isto entrega a **infraestrutura** de revalidação; a regra de status de pagamento em si (`avaliarAcesso`) ainda não existe — plugará em `revalidarConta` na Fase 2 (decisão D-04)
 
 ### Active
 
-- [ ] Correção do bug crítico do singleton do Prisma (`lib/prisma.ts`) antes de qualquer código de billing — pré-requisito identificado em `.planning/codebase/CONCERNS.md` e confirmado pela pesquisa como bloqueador real (worker + webhooks vão multiplicar conexões)
-- [ ] Sessão do admin passa a revalidar status de pagamento no banco a cada request (não apenas o JWT) — sem isso, bloqueio não tem efeito para quem já está logado (JWT dura 7 dias)
 - [ ] Modelo de dados baseado em datas/fatos (`acessoAte`, `trialFim`, `canceladoEm`) com uma função pura de decisão de acesso — não um campo de "status" calculado e armazenado como fonte da verdade
 - [ ] Campo de status de pagamento por Empresa (projeção derivada, não fonte da verdade): `em_dia`, `atrasado`, `vitalicio`, `cancelado`, `bloqueado`, `trial`
 - [ ] Período de trial de 14 dias para empresas novas, sem exigir pagamento no registro
@@ -63,6 +63,8 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 
 **Motivação:** o sistema hoje só verifica se o admin está logado, sem nenhum controle de cobrança. Esta é a primeira monetização real do produto.
 
+**Estado atual:** Fase 1 (Pré-requisitos de Produção) concluída em 2026-08-31 — singleton do Prisma corrigido e sessão revalidando no banco a cada request, ambos com evidência automatizada + checkpoint humano (contagem de conexões `pg_stat_activity`: 1 → 5, estável). Próxima: Fase 2 (Modelo de Dados e Motor de Acesso).
+
 ## Constraints
 
 - **Segurança/PCI**: não armazenar dados de pagamento (cartão, etc.) no banco próprio — gateway externo deve cuidar disso — pedido explícito do usuário
@@ -101,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-31 after project research*
+*Last updated: 2026-08-31 after Phase 1 completion*
