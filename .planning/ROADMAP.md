@@ -13,7 +13,7 @@ O sistema hoje só verifica se o admin está logado — não existe nenhuma noç
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Pré-requisitos de Produção** - Prisma singleton corrigido e sessão do admin relendo o banco a cada request
+- [x] **Phase 1: Pré-requisitos de Produção** - Prisma singleton corrigido e sessão do admin relendo o banco a cada request (completed 2026-08-31)
 - [ ] **Phase 2: Modelo de Dados e Motor de Acesso** - Fatos de billing na Empresa + função pura `avaliarAcesso` com auditoria
 - [ ] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
 - [ ] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
@@ -155,7 +155,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pré-requisitos de Produção | 5/5 | In Progress|  |
+| 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 0/TBD | Not started | - |
 | 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
