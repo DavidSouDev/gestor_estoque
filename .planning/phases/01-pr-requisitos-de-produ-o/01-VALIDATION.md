@@ -1,19 +1,20 @@
 ---
 phase: 1
 slug: pr-requisitos-de-produ-o
-status: draft
-nyquist_compliant: false
+status: complete
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-08-31
 gate_executed: 2026-08-31
+human_checkpoint_approved: 2026-08-31
 ---
 
-> **Estado deste documento (atualizado pelo plano 01-05, Task 1):** todas as linhas
-> **automatizadas** do mapa abaixo foram executadas no mesmo estado do repositório e
-> estão verdes. A única linha ainda `⬜ pending` é `01-01-03`, que é **manual por
-> desenho** e depende do `checkpoint:human-verify` da Task 2 do plano 01-05.
-> `nyquist_compliant` permanece `false` até que essa linha manual seja preenchida com
-> os números reais de `pg_stat_activity` — não será virado por inferência.
+> **Estado deste documento (fechado pelo plano 01-05, Task 2):** todas as linhas do mapa
+> abaixo — **automatizadas** (Task 1) e **manual** (Task 2) — estão verdes. A linha
+> `01-01-03` foi preenchida com números reais de `pg_stat_activity` medidos pelo operador
+> humano contra `npm run build` + `npm start` (**1 → 5 conexões**, teto compatível com um
+> único pool), e não por inferência a partir de `lib/prisma.test.ts`.
+> `nyquist_compliant` virou `true` somente depois disso, fechando o T-01-16.
 
 # Phase 1 — Validation Strategy
 
@@ -49,7 +50,7 @@ gate_executed: 2026-08-31
 | 01-01-W0 | 01 | 0 | INFRA-01 | — | `tests/setup/prisma-mock.ts` stubs an active-account default after `mockReset` so existing auth-dependent tests keep passing under fail-closed | unit | `npx vitest run` (full run, watch for regressions) | ✅ exists | ✅ green |
 | 01-01-01 | 01 | 1 | INFRA-01 | — | Re-evaluating `lib/prisma.ts` under `NODE_ENV=production` returns the same client instance | unit | `npx vitest run lib/prisma.test.ts` | ✅ exists | ✅ green |
 | 01-01-02 | 01 | 1 | INFRA-01 | — | Client is published on `globalThis` in production (not only in dev) | unit | `npx vitest run lib/prisma.test.ts` | ✅ exists | ✅ green |
-| 01-01-03 | 01 | 1 | INFRA-01 | DoS (pool exhaustion) | Postgres connections remain stable under repeated load (Success Criterion #1) | manual | `pg_stat_activity` query before/after exercising admin + API | ⏸️ `checkpoint:human-verify` (01-05 Task 2) | ⬜ pending |
+| 01-01-03 | 01 | 1 | INFRA-01 | DoS (pool exhaustion) | Postgres connections remain stable under repeated load (Success Criterion #1) | manual | `pg_stat_activity` query before/after exercising admin + API | ✅ verificado (01-05 Task 2, 2026-08-31) | ✅ green — **1 → 5** conexões da aplicação após ~2 min de carga mista admin+API sob `npm run build` + `npm start`; 5 ≤ 10 (`max` default do pool `pg`), não múltiplo de 10, sem crescimento contínuo. Parte B (fluxos 6-10) confirmada manualmente pelo operador sem nenhum problema |
 | 01-02-01 | 02 | 1 | INFRA-02 | T-EoP-01 (stale JWT authorizing revoked account) | Active account + live empresa → revalidation approves | unit | `npx vitest run lib/auth-guard.test.ts` | ✅ exists | ✅ green |
 | 01-02-02 | 02 | 1 | INFRA-02 | T-EoP-01 | `Usuario.ativo=false` or `Empresa.deletedAt` set → revalidation returns null (Success Criterion #3) | unit | `npx vitest run lib/auth-guard.test.ts` | ✅ exists | ✅ green |
 | 01-02-03 | 02 | 1 | INFRA-02 | T-EoP-02 (fail-open on infra error) | Database error during revalidation → null, fail-closed (D-01) | unit | `npx vitest run lib/auth-guard.test.ts` | ✅ exists | ✅ green |
@@ -142,17 +143,39 @@ Framework installation: none — Vitest and Playwright are already configured an
 
 ### Status da verificação manual (linha 01-01-03)
 
-**⬜ Pendente — aguardando o operador humano.** O plano 01-05 Task 2 é um
-`checkpoint:human-verify` com `gate="blocking"`: a medição precisa ser feita contra
+**✅ Aprovada pelo operador humano em 2026-08-31** (plano 01-05, Task 2 —
+`checkpoint:human-verify`, `gate="blocking"`). A medição foi feita contra
 `npm run build` + `npm start` (não `npm run dev`, porque o fix do singleton só vale a
-partir de um build novo) e os dois números de `count(*)` — antes e depois de ~2 minutos
-de carga mista de páginas do admin + rota de API autenticada — precisam ser registrados
-no `01-05-SUMMARY.md`.
+partir de um build novo).
+
+**Parte A — `pg_stat_activity` (os dois números exigidos):**
+
+| Momento | Conexões da aplicação | Detalhe observado |
+|---------|----------------------|-------------------|
+| **Antes** da carga | **1 total / 0 da aplicação** | única linha era `application_name=psql`, `state=active` (o próprio cliente SQL do operador) |
+| **Depois** de ~2 min de carga mista admin + API | **5** | 5 conexões `idle` sem `application_name` (da aplicação) + a mesma 1 do `psql` |
+
+**Leitura:** 5 ≤ 10 (o `max` default do pool do `pg`), não é múltiplo de 10 e não mostra
+crescimento contínuo com o volume de requests — consistente com **um único pool
+reaproveitado**. INFRA-01 fechado. Ressalva registrada honestamente: não houve uma
+terceira medição para provar platô por repetição; a evidência é que o número final ficou
+bem abaixo do teto de um único pool, que é exatamente o sinal que o critério pedia
+(o sintoma do bug seria um teto múltiplo de 10 ou crescimento sem parar).
+
+**Parte B — ausência de regressão (passos 6-10):** o operador executou registro → admin,
+navegação pelas telas do admin (produtos, estoque, combos, promoções), logout + login pelo
+formulário, catálogo público em janela anônima e avaliação de lentidão perceptível.
+Resultado reportado: *"testei tudo, funcionou normal"* — nenhum dos 5 fluxos apresentou
+problema. Critério de sucesso #4 do roadmap atendido.
+
+**Parte C — item 11:** o operador confirmou explicitamente ciência da consequência aceita
+de D-01 / T-01-10 (indisponibilidade do Postgres derruba sessões e devolve 401,
+distinguível pelo prefixo `[auth-guard]` nos logs).
 
 Nenhum número foi preenchido por inferência a partir de `lib/prisma.test.ts`: aquele
-teste prova o singleton **por processo**, não a contagem de conexões reais. É exatamente
-essa lacuna que o T-01-16 (Repudiation — fase declarada concluída sem evidência do
-critério #1) exige fechar com medição real.
+teste prova o singleton **por processo**, não a contagem de conexões reais. Era
+exatamente essa lacuna que o T-01-16 (Repudiation — fase declarada concluída sem
+evidência do critério #1) exigia fechar com medição real, e ela está fechada.
 
 ---
 
@@ -163,6 +186,8 @@ critério #1) exige fechar com medição real.
 - [x] Wave 0 covers all MISSING references — todos os 5 artefatos de Wave 0 existem e estão verdes
 - [x] No watch-mode flags — `npm test` é `vitest run`; `npm run test:e2e` é `playwright test`
 - [x] Feedback latency < 30s — suíte unitária completa em 9.28s; `npx vitest run lib/` em <1s
-- [ ] `nyquist_compliant: true` set in frontmatter — **bloqueado apenas pela linha manual 01-01-03**
+- [x] `nyquist_compliant: true` set in frontmatter — desbloqueado pela aprovação da linha manual 01-01-03 (01-05 Task 2)
 
-**Approval:** gate automatizado ✅ aprovado (01-05 Task 1) · verificação manual ⏸️ aguardando o checkpoint bloqueante da 01-05 Task 2
+**Approval:** gate automatizado ✅ aprovado (01-05 Task 1) · verificação manual humana ✅ **aprovada** pelo operador em 2026-08-31 (01-05 Task 2, veredito literal: "aprovado")
+
+*A conclusão formal da Fase 1 no `ROADMAP.md` continua sendo do orquestrador, após a verificação de fase (`/gsd-verify-work`). Este documento apenas atesta que o contrato de validação está integralmente cumprido.*
