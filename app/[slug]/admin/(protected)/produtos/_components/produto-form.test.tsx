@@ -41,7 +41,9 @@ describe("ProdutoForm", () => {
 
   it("exibe os campos avançados dentro da seção colapsável ao expandir", async () => {
     const user = userEvent.setup();
-    render(<ProdutoForm action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />);
+    const { container } = render(
+      <ProdutoForm action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />
+    );
 
     await user.click(screen.getByText("Mais opções"));
 
@@ -49,7 +51,14 @@ describe("ProdutoForm", () => {
     expect(screen.getByLabelText("Categoria")).toHaveValue("Mercearia");
     expect(screen.getByLabelText("Descrição")).toHaveValue("Arroz tipo 1");
     expect(screen.getByLabelText("Preço atacado")).toHaveValue(22);
-    expect(screen.getByLabelText("Foto (URL)")).toHaveValue("https://exemplo.com/foto.jpg");
+    expect(container.querySelector('input[name="fotoCapa"]')).toHaveValue(
+      "https://exemplo.com/foto.jpg"
+    );
+    expect(screen.getByAltText("Prévia da foto do produto")).toHaveAttribute(
+      "src",
+      "https://exemplo.com/foto.jpg"
+    );
+    expect(screen.getByLabelText("Foto")).toHaveAttribute("type", "file");
     expect(screen.getByLabelText("Destaque")).toBeChecked();
     expect(screen.getByLabelText("Visível no catálogo")).not.toBeChecked();
   });

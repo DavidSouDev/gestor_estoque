@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/format";
 import type { ProdutoAdmin } from "../../../_lib/types";
-import { criarProdutoSimples, atualizarProdutoSimples } from "../../_lib/simples-actions";
+import {
+  criarProdutoSimples,
+  atualizarProdutoSimples,
+  uploadImagemProduto,
+  removerImagemProduto,
+} from "../../_lib/simples-actions";
 import { WizardShell } from "./wizard-shell";
 import { NumberStepper } from "./number-stepper";
 
@@ -33,8 +38,34 @@ export function ProdutoWizard({
   const [fotoCapa, setFotoCapa] = useState(existing?.fotoCapa ?? "");
   const [error, setError] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const precoNumero = Number(preco.replace(",", "."));
+
+  async function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setError(null);
+    setIsUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const resultado = await uploadImagemProduto(slug, formData);
+
+    setIsUploading(false);
+
+    if (resultado.error) {
+      setError(resultado.error);
+      return;
+    }
+
+    setFotoCapa(resultado.url ?? "");
+  }
 
   function salvar() {
     setError(null);
@@ -54,6 +85,10 @@ export function ProdutoWizard({
       if (resultado.error) {
         setError(resultado.error);
         return;
+      }
+
+      if (existing?.fotoCapa && existing.fotoCapa !== dados.fotoCapa) {
+        await removerImagemProduto(slug, existing.fotoCapa);
       }
 
       setSalvo(true);
@@ -162,17 +197,39 @@ export function ProdutoWizard({
         step={3}
         totalSteps={TOTAL_STEPS}
         title="Quer adicionar uma foto?"
-        subtitle="Se não tiver o link de uma foto agora, pode pular essa parte."
+        subtitle="Se não tiver uma foto agora, pode pular essa parte."
         onBack={() => setStep(2)}
         onNext={() => setStep(4)}
         nextLabel={fotoCapa ? "Próximo" : "Pular"}
+        nextDisabled={isUploading}
       >
-        <input
-          value={fotoCapa}
-          onChange={(event) => setFotoCapa(event.target.value)}
-          placeholder="https://..."
-          className={INPUT_CLASS}
-        />
+        {fotoCapa ? (
+          <div className="flex flex-col items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fotoCapa}
+              alt="Foto do produto"
+              className="h-32 w-32 rounded-2xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setFotoCapa("")}
+              className="text-sm font-semibold text-slate-500 underline"
+            >
+              Trocar imagem
+            </button>
+          </div>
+        ) : (
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFotoChange}
+            disabled={isUploading}
+            className={INPUT_CLASS}
+          />
+        )}
+        {isUploading && <p className="mt-3 text-sm text-slate-500">Enviando...</p>}
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </WizardShell>
     );
   }

@@ -7,10 +7,36 @@ import { produtoService } from "@/app/services/produto.service";
 import { movimentacaoEstoqueService } from "@/app/services/movimentacao-estoque.service";
 import { promocaoService } from "@/app/services/promocao.service";
 import { comboService } from "@/app/services/combo.service";
+import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
 
 export interface SimplesActionState {
   error?: string;
   success?: boolean;
+}
+
+export async function uploadImagemProduto(
+  slug: string,
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  await requireAdminSession(slug);
+
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecione uma imagem." };
+  }
+
+  try {
+    const url = await uploadImage(file, "produtos");
+    return { url };
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+}
+
+export async function removerImagemProduto(slug: string, url: string): Promise<void> {
+  await requireAdminSession(slug);
+  await deleteImage(url);
 }
 
 export async function criarProdutoSimples(
@@ -227,6 +253,10 @@ export async function removerProdutoSimples(slug: string, id: string): Promise<S
 
   await produtoService.delete(id);
 
+  if (produto.fotoCapa) {
+    await deleteImage(produto.fotoCapa);
+  }
+
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);
 
@@ -287,6 +317,10 @@ export async function removerComboSimples(slug: string, id: string): Promise<Sim
   }
 
   await comboService.delete(id);
+
+  if (combo.fotoCapa) {
+    await deleteImage(combo.fotoCapa);
+  }
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);

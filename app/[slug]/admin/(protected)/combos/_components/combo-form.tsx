@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import type { ComboFormState } from "../actions";
 import type { ComboAdminDetalhe, ProdutoAdmin } from "../../../_lib/types";
 import { CollapsibleSection } from "../../_components/collapsible-section";
@@ -21,6 +21,12 @@ export function ComboForm({
   const quantidadePorProduto = new Map(
     (combo?.itens ?? []).map((item) => [item.produtoId, item.quantidade])
   );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  }
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-4">
@@ -85,15 +91,30 @@ export function ComboForm({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="fotoCapa" className="text-sm font-medium text-slate-600">
-            Foto (URL)
+          <label htmlFor="fotoCapaFile" className="text-sm font-medium text-slate-600">
+            Foto
           </label>
+          <input type="hidden" name="fotoCapa" defaultValue={combo?.fotoCapa ?? ""} />
+          {(previewUrl ?? combo?.fotoCapa) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl ?? combo?.fotoCapa ?? undefined}
+              alt="Prévia da foto do combo"
+              className="h-24 w-24 rounded-xl object-cover"
+            />
+          )}
           <input
-            id="fotoCapa"
-            name="fotoCapa"
-            defaultValue={combo?.fotoCapa ?? ""}
+            id="fotoCapaFile"
+            name="fotoCapaFile"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFotoChange}
             className={INPUT_CLASS}
           />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="removerFotoCapa" />
+            Remover imagem
+          </label>
         </div>
 
         <div className="flex gap-6">

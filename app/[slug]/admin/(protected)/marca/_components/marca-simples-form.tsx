@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import type { BrandingFormState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
@@ -45,6 +45,12 @@ export function MarcaSimplesForm({
   const [modo, setModo] = useState(empresa.modoInterface);
   const [primaryColor, setPrimaryColor] = useState(empresa.primaryColor);
   const [accentColor, setAccentColor] = useState(empresa.accentColor);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setLogoPreview(file ? URL.createObjectURL(file) : null);
+  }
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-8">
@@ -94,17 +100,31 @@ export function MarcaSimplesForm({
         </div>
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="logo" className="text-sm font-semibold text-slate-600">
+          <label htmlFor="logoFile" className="text-sm font-semibold text-slate-600">
             Foto/logo da loja
           </label>
+          <input type="hidden" name="logo" defaultValue={empresa.logo ?? ""} />
+          {(logoPreview ?? empresa.logo) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoPreview ?? empresa.logo ?? undefined}
+              alt="Prévia da logo da loja"
+              className="h-20 w-20 rounded-2xl object-cover"
+            />
+          )}
           <input
-            id="logo"
-            name="logo"
-            placeholder="https://..."
-            defaultValue={empresa.logo ?? ""}
+            id="logoFile"
+            name="logoFile"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleLogoChange}
             className={INPUT_CLASS}
           />
           <p className="text-sm text-slate-400">Deixe vazio pra usar a inicial do nome da loja.</p>
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            <input type="checkbox" name="removerLogo" />
+            Remover logo atual
+          </label>
         </div>
 
         <div className="flex flex-col gap-2">
