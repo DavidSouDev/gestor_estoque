@@ -94,6 +94,28 @@ describe("PATCH /api/empresas/[id]", () => {
     expect(body.nome).toBe("Novo nome");
     expect(empresaService.update).toHaveBeenCalledWith(testAuthPayload.empresaId, { nome: "Novo nome" });
   });
+
+  it("ignora campos de billing enviados no corpo do PATCH", async () => {
+    const token = await buildAuthToken();
+    vi.mocked(empresaService.update).mockResolvedValue({ ...empresaDoToken, nome: "Novo nome" } as never);
+
+    // Cenário de ataque real: o ADMIN faz PATCH na PRÓPRIA empresa do token, então o check
+    // `id !== auth.empresaId` do route handler não protege nada.
+    // Neste arquivo o empresaService está mockado por inteiro (linhas 6-14), portanto o allowlist
+    // NÃO é exercitado aqui — este caso documenta a superfície HTTP e o cenário de ataque.
+    // A prova de runtime de que os campos de billing são descartados mora em
+    // app/services/empresa.service.test.ts > "não aceita campos de billing no payload".
+    const response = await PATCH(
+      buildRequest({
+        method: "PATCH",
+        token,
+        body: { nome: "Novo nome", acessoVitalicio: true },
+      }),
+      buildParams({ id: testAuthPayload.empresaId })
+    );
+
+    expect(response.status).toBe(200);
+  });
 });
 
 describe("DELETE /api/empresas/[id]", () => {

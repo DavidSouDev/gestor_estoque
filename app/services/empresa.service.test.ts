@@ -11,7 +11,7 @@ vi.mock("bcryptjs", () => ({
 }));
 
 import bcrypt from "bcryptjs";
-import { empresaService } from "./empresa.service";
+import { empresaService, type UpdateEmpresaDTO } from "./empresa.service";
 
 const empresaBase = {
   id: "empresa-1",
@@ -343,6 +343,68 @@ describe("empresaService.update", () => {
     expect(prismaMock.empresa.update).toHaveBeenCalledWith({
       where: { id: "empresa-1" },
       data: { nome: "Novo Nome" },
+    });
+  });
+
+  it("não aceita campos de billing no payload", async () => {
+    prismaMock.empresa.update.mockResolvedValue(empresaBase as never);
+
+    // O cast duplo é proposital: esses campos não existem em UpdateEmpresaDTO, e é exatamente
+    // por isso que o TypeScript não é defesa suficiente — o body de PATCH /api/empresas/[id]
+    // vem de request.json() e nunca passou pelo compilador.
+    await empresaService.update("empresa-1", {
+      nome: "Loja",
+      acessoVitalicio: true,
+      acessoAte: new Date(Date.UTC(2030, 0, 1, 3, 0, 0)),
+      trialFim: new Date(Date.UTC(2030, 0, 16, 3, 0, 0)),
+      canceladoEm: new Date(Date.UTC(2030, 0, 20, 3, 0, 0)),
+      ultimoStatusAuditado: "VITALICIO",
+    } as unknown as UpdateEmpresaDTO);
+
+    expect(prismaMock.empresa.update).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      data: { nome: "Loja" },
+    });
+
+    const dataRecebido = prismaMock.empresa.update.mock.calls[0][0].data;
+
+    expect(dataRecebido).not.toHaveProperty("acessoVitalicio");
+    expect(dataRecebido).not.toHaveProperty("acessoAte");
+    expect(dataRecebido).not.toHaveProperty("trialFim");
+    expect(dataRecebido).not.toHaveProperty("canceladoEm");
+    expect(dataRecebido).not.toHaveProperty("ultimoStatusAuditado");
+  });
+
+  it("repassa os 10 campos legítimos quando todos são informados", async () => {
+    prismaMock.empresa.update.mockResolvedValue(empresaBase as never);
+
+    await empresaService.update("empresa-1", {
+      nome: "Minha Loja",
+      slug: "minha-loja",
+      logo: "logos/logo.png",
+      banner: "banners/banner.png",
+      descricao: "Descrição da loja",
+      telefone: "11999999999",
+      instagram: "@minhaloja",
+      primaryColor: "#18181b",
+      accentColor: "#f59e0b",
+      modoInterface: ModoInterface.SIMPLES,
+    });
+
+    expect(prismaMock.empresa.update).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      data: {
+        nome: "Minha Loja",
+        slug: "minha-loja",
+        logo: "logos/logo.png",
+        banner: "banners/banner.png",
+        descricao: "Descrição da loja",
+        telefone: "11999999999",
+        instagram: "@minhaloja",
+        primaryColor: "#18181b",
+        accentColor: "#f59e0b",
+        modoInterface: ModoInterface.SIMPLES,
+      },
     });
   });
 });
