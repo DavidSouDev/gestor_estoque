@@ -140,8 +140,13 @@ None — nenhuma configuracao de servico externo. A migration ja esta aplicada n
 - Plano 02-02 e 02-03 destravados: `StatusAcesso` ja e importavel de `@prisma/client` para `lib/avaliar-acesso.ts`.
 - Plano 02-04 destravado: `prisma.auditoriaAcesso` e `Empresa.ultimoStatusAuditado` existem para o compare-and-swap de `acessoService`.
 - Plano 02-05 destravado: `trialFim` existe para o registro gravar o trial na mesma transacao.
-- Atencao para o plano 02-06: o gate de grep de `ultimoStatusAuditado` deve incluir `prisma/schema.prisma`, `prisma/migrations/**` e `prisma/checks/backfill-billing.sql` na allowlist — este ultimo referencia a coluna? Nao: o check nao le `ultimoStatusAuditado`, apenas `trialFim` e `AuditoriaAcesso`, entao nao precisa de allowlist.
+- Atencao para o plano 02-06: o gate de grep de `ultimoStatusAuditado` precisa de `prisma/schema.prisma` e `prisma/migrations/**` na allowlist (ambos citam a coluna). `prisma/checks/backfill-billing.sql` **nao** precisa: ele so le `trialFim`, `deletedAt` e `AuditoriaAcesso`.
 - Nota operacional: o `trialFim` backfillado (`2026-09-15`) e uma data absoluta gravada em 2026-08-31. Se a Fase 2 se estender alem de 15 dias, empresas de dev comecarao a cair em CARENCIA — comportamento correto do motor, mas pode surpreender em testes manuais tardios.
+
+## Self-Check: PASSED
+
+- Arquivos verificados em disco: `prisma/schema.prisma`, `prisma/migrations/20260831193038_add_billing_a_empresa/migration.sql`, `prisma/checks/backfill-billing.sql`, `.planning/phases/02-modelo-de-dados-e-motor-de-acesso/02-01-SUMMARY.md` — todos presentes.
+- Commits verificados em `git log`: `6d041de`, `23dfb70`, `3088740`, `f585596` — todos presentes.
 
 ---
 *Phase: 02-modelo-de-dados-e-motor-de-acesso*

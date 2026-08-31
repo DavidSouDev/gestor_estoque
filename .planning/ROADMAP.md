@@ -71,7 +71,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Schema de billing (4 fatos + 2 enums + AuditoriaAcesso) e migration com backfill executado contra Postgres real (BILL-01, BILL-05)
+- [x] 02-01-PLAN.md — Schema de billing (4 fatos + 2 enums + AuditoriaAcesso) e migration com backfill executado contra Postgres real (BILL-01, BILL-05)
 - [ ] 02-02-PLAN.md — Allowlist anti-mass-assignment em `empresaService.update`, fechando a auto-concessão de acesso vitalício por PATCH (BILL-04, BILL-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -171,7 +171,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
-| 2. Modelo de Dados e Motor de Acesso | 0/6 | Planned | - |
+| 2. Modelo de Dados e Motor de Acesso | 1/6 | In Progress|  |
 | 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |

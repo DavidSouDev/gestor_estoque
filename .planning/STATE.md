@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 2 context gathered
-last_updated: "2026-08-31T19:19:13.173Z"
-last_activity: 2026-08-31 -- Phase 02 planning complete
+status: executing
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-08-31T19:37:31.312Z"
+last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 11
+  completed_plans: 6
   percent: 14
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 01 — pr-requisitos-de-produ-o
+**Current focus:** Phase 02 — modelo-de-dados-e-motor-de-acesso
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
-Status: Execucao da fase encerrada; pronta para `/gsd-verify-work`
-Last activity: 2026-08-31 -- Phase 02 planning complete
+Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-08-31 -- Phase 02 execution started
 
 **Checkpoint fechado:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`)
 foi **aprovado** pelo operador em 2026-08-31. Parte A: `pg_stat_activity` foi de **1** conexao
@@ -69,6 +69,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 01 P03 | 6m | 3 tasks | 5 files |
 | Phase 01 P04 | 9m | 3 tasks | 6 files |
 | Phase 01 P05 | 58m | 2 tasks | 2 files |
+| Phase 02 P01 | 12m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-05] Sizing do max do pool (default 10) e escolha entre DATABASE_URL pooled vs. direta ficam para a fase de deploy/hosting, quando worker (Fase 5) e webhooks (Fase 3) existirem
 - [Phase ?]: [01-05] Nota operacional D-01/T-01-10: pico de 401 e redirects em producao pode significar Postgres fora do ar, nao sessoes revogadas — distinguir pelo prefixo [auth-guard] nos logs
 - [Phase ?]: [01-05] Todo JWT de 7 dias ja emitido passa a ser revalidado no primeiro request apos o deploy: contas ativas nao notam diferenca, contas revogadas caem na hora (esse e o objetivo)
+- [Phase ?]: [02-01] Backfill de billing roda como DML dentro da propria migration (D-11/D-12/D-13) — nao script separado, nao db push
+- [Phase ?]: [02-01] trialFim gravado com duplo AT TIME ZONE e interval de 15 dias (D-18): meia-noite de America/Sao_Paulo independente do TimeZone da sessao do Postgres
+- [Phase ?]: [02-01] Invariantes de dados provadas por gate SQL versionado (prisma/checks/backfill-billing.sql) com RAISE EXCEPTION, nao por inspecao manual
+- [Phase ?]: [02-01] ultimoStatusAuditado existe como bookkeeping com comentario normativo; conformidade a BILL-01 sera provada por gate de grep no plano 02-06
 
 ### Pending Todos
 
@@ -123,6 +128,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T18:21:41.567Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-modelo-de-dados-e-motor-de-acesso/02-CONTEXT.md
+Last session: 2026-08-31T19:37:31.308Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

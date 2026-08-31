@@ -16,11 +16,11 @@ Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais pa
 
 ### Modelo de Dados e Motor de Acesso
 
-- [ ] **BILL-01**: Empresa armazena fatos de billing (`acessoAte`, `trialFim`, `canceladoEm`, `acessoVitalicio`) como fonte da verdade — não um "status" pré-calculado
+- [x] **BILL-01**: Empresa armazena fatos de billing (`acessoAte`, `trialFim`, `canceladoEm`, `acessoVitalicio`) como fonte da verdade — não um "status" pré-calculado
 - [ ] **BILL-02**: Uma função pura de decisão (`avaliarAcesso`) determina o status de acesso (em dia / carência / bloqueado / vitalício / trial) a partir dos fatos armazenados e da data/hora atual
 - [ ] **BILL-03**: Empresa nova recebe automaticamente 14 dias de trial no registro, sem exigir pagamento
 - [ ] **BILL-04**: Acesso vitalício só pode ser concedido diretamente no banco de dados (sem UI de admin/superadmin em v1)
-- [ ] **BILL-05**: Toda mudança de status de acesso é registrada em uma tabela de auditoria (rastreabilidade para investigar bloqueios incorretos)
+- [x] **BILL-05**: Toda mudança de status de acesso é registrada em uma tabela de auditoria (rastreabilidade para investigar bloqueios incorretos)
 
 ### Gateway de Pagamento
 
@@ -93,11 +93,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
-| BILL-01 | Phase 2 | Pending |
+| BILL-01 | Phase 2 | Complete |
 | BILL-02 | Phase 2 | Pending |
 | BILL-03 | Phase 2 | Pending |
 | BILL-04 | Phase 2 | Pending |
-| BILL-05 | Phase 2 | Pending |
+| BILL-05 | Phase 2 | Complete |
 | GTW-01 | Phase 3 | Pending |
 | GTW-02 | Phase 3 | Pending |
 | GTW-03 | Phase 3 | Pending |
