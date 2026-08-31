@@ -12,7 +12,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais para o restante do milestone.
 
 - [x] **INFRA-01**: Bug crítico do singleton do Prisma (`lib/prisma.ts`) é corrigido antes de qualquer código de billing entrar em produção
-- [ ] **INFRA-02**: Sessão do admin revalida o status de pagamento no banco a cada request (não confia apenas no JWT de 7 dias) — sem isso, bloquear uma empresa não tem efeito para quem já está logado
+- [x] **INFRA-02**: Sessão do admin revalida o status de pagamento no banco a cada request (não confia apenas no JWT de 7 dias) — sem isso, bloquear uma empresa não tem efeito para quem já está logado
 
 ### Modelo de Dados e Motor de Acesso
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | BILL-01 | Phase 2 | Pending |
 | BILL-02 | Phase 2 | Pending |
 | BILL-03 | Phase 2 | Pending |

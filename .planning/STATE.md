@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-08-31T15:57:42.495Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-08-31T16:02:27.576Z"
 last_activity: 2026-08-31 -- Phase 01 execution started
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 01 execution started
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 6m | 2 tasks | 3 files |
+| Phase 01 P02 | 5m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Termos de uso (Phase 6) é independente da cadeia de cobrança e pode ser paralelizado
 - [Phase ?]: [01-01] Singleton do Prisma publicado em globalThis sem guarda por ambiente — globalThis e o unico escopo compartilhado entre as camadas de bundle do Next
 - [Phase ?]: [01-01] Dimensionamento de max do pool e URL pooled vs. direta ficam para a fase de deploy/hosting
+- [Phase ?]: [01-02] revalidarConta devolve null (fail-closed) tambem em erro de banco — o try/catch mora inteiramente dentro do DAL
+- [Phase ?]: [01-02] Somente React.cache no DAL de auth — unstable_cache e 'use cache' sao cross-request e reintroduziriam a janela de staleness
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T15:57:42.489Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-08-31T16:02:27.571Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
