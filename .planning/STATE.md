@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-08-31T19:57:20.594Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-08-31T20:04:32.860Z"
 last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 02 execution started
 
@@ -73,6 +73,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 02 P02 | 5m | 2 tasks | 3 files |
 | Phase 02 P03 | 8m | 2 tasks | 4 files |
 | Phase 02 P04 | 5min | 2 tasks | 4 files |
+| Phase 02 P05 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,10 @@ Recent decisions affecting current work:
 - [Phase 02]: [02-04] Guarda D-16 (anterior === novo) retorna ANTES de abrir transacao — zero I/O, nao apenas zero escrita, porque a funcao roda a cada request autenticado
 - [Phase 02]: [02-04] Fallback inline de agendarPosResposta e requisito, nao defensive coding: revalidarConta roda em 3 contextos sem escopo de request e o after() do Next lanca E468 neles
 - [Phase 02]: [02-04] Nenhum caminho de leitura de AuditoriaAcesso criado (gate de grep proibindo findMany/findFirst/findUnique) — decisao de seguranca T-02-19
+- [Phase ?]: [02-05] trialFim e calculado em empresaService.registerComUsuario, nao na Server Action — so dentro do service o valor entra na mesma transacao que cria Empresa+Usuario
+- [Phase ?]: [02-05] A primeira linha de AuditoriaAcesso (causa REGISTRO) usa tx.auditoriaAcesso.create direto, nao acessoService.registrarTransicao: aquele opera no prisma global e o compare-and-swap e desnecessario para uma empresa que acabou de nascer
+- [Phase ?]: [02-05] Registro deixa acessoAte/canceladoEm/acessoVitalicio nos defaults do schema — e o que mantem BILL-04, D-09 e D-10 verdadeiros desde o dia 1
+- [Phase ?]: [02-05] O e2e nao conecta ao banco: navegar por uma segunda tela protegida e a prova indireta do trial; o valor exato de trialFim fica com o teste unitario e o gate SQL do 02-01
 
 ### Pending Todos
 
@@ -145,6 +150,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T19:57:08.358Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-08-31T20:04:32.855Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
