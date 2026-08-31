@@ -4,7 +4,9 @@ import { comboService } from "./combo.service";
 import { promocaoService } from "./promocao.service";
 import { generateUniqueSlug } from "@/lib/slug";
 import { HttpError } from "@/lib/http-error";
-import { ModoInterface, Prisma } from "@prisma/client";
+import { CausaTransicaoAcesso, ModoInterface, Prisma, StatusAcesso } from "@prisma/client";
+import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
+import { DIAS_DE_TRIAL } from "@/lib/avaliar-acesso";
 import bcrypt from "bcryptjs";
 
 export interface RegisterComUsuarioDTO {
@@ -52,13 +54,28 @@ class EmpresaService {
     const slug = await generateUniqueSlug(data.nomeEmpresa);
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
+    // D-18: o dia do cadastro é o dia 0, e `meiaNoiteEmSaoPaulo` devolve o limite
+    // SUPERIOR EXCLUSIVO do dia local. Por isso o deslocamento carrega um dia extra
+    // além de `DIAS_DE_TRIAL`: sem esse dia, quem se cadastrasse às 23:59 receberia 13
+    // dias e um minuto em vez dos 14 dias completos prometidos por BILL-03.
+    const agora = new Date();
+    const trialFim = meiaNoiteEmSaoPaulo(agora, DIAS_DE_TRIAL + 1);
+
     try {
       return await prisma.$transaction(async (tx) => {
+        // Os outros três fatos de billing ficam nos defaults do schema (nulo, nulo
+        // e `false`) porque esse é exatamente o estado correto de uma empresa em
+        // trial, e porque nenhum caminho de aplicação pode escrevê-los: BILL-04
+        // (acesso vitalício só direto no banco), D-09 (a data de acesso pago é
+        // escrita só pelo webhook de pagamento confirmado, Fase 3) e D-10 (a data
+        // de cancelamento só por ação explícita do usuário, Fase 7).
         const empresa = await tx.empresa.create({
           data: {
             nome: data.nomeEmpresa,
             slug,
             modoInterface: data.modoInterface,
+            trialFim,
+            ultimoStatusAuditado: StatusAcesso.TRIAL,
           },
         });
 
@@ -68,6 +85,26 @@ class EmpresaService {
             email: data.email,
             senhaHash,
             empresaId: empresa.id,
+          },
+        });
+
+        // BILL-05: primeira entrada da trilha, na MESMA transação — se o registro
+        // fizer rollback (ex.: P2002 de email duplicado), a linha de auditoria some
+        // junto e a trilha não fica com fantasmas.
+        //
+        // Escrita direta com `tx.` em vez de `acessoService.registrarTransicao`:
+        // aquele método opera sobre o `prisma` global, fora desta transação, e o
+        // compare-and-swap dele não faz sentido aqui — a empresa acabou de nascer,
+        // não há concorrência possível sobre ela.
+        //
+        // D-17: exatamente estas 4 chaves; a linha de auditoria não carrega
+        // snapshot dos fatos de billing.
+        await tx.auditoriaAcesso.create({
+          data: {
+            empresaId: empresa.id,
+            statusAnterior: null,
+            statusNovo: StatusAcesso.TRIAL,
+            causa: CausaTransicaoAcesso.REGISTRO,
           },
         });
 
