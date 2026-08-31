@@ -184,6 +184,14 @@ Pronto para os planos que dependem deste:
 1. `03-PATTERNS.md` esta untracked no checkout principal e nao chegou a nenhum worktree — commitar antes das waves seguintes, ja que 03-02..03-07 o referenciam.
 2. Os blockers de STATE.md continuam abertos e sao pre-requisito das partes de integracao da fase (nao deste plano): preco mensal indefinido e confirmacao do Asaas (sandbox, header `asaas-access-token`, aprovacao do checkout).
 
+## Self-Check: PASSED
+
+- Arquivos declarados existem em disco: `prisma/schema.prisma`, `prisma/checks/asaas-schema.sql`, `prisma/migrations/20260831230000_add_asaas_webhook_ledger/migration.sql`, `03-01-SUMMARY.md`.
+- Commits declarados existem em `worktree-agent-a0029c416c221c57a`: `e587d73`, `395b90e`, `6693391`, `e68e3ef`.
+- `git status --short` limpo: os runners temporarios de `psql` foram removidos e os symlinks de ambiente (`node_modules`, `.env`) sao gitignored — nada de ambiente vazou para os commits.
+- Nenhum arquivo deletado em nenhum dos commits (`git diff --diff-filter=D` vazio contra o commit de spawn).
+- `STATE.md` e `ROADMAP.md` **nao** foram tocados (escrita do orquestrador apos a wave).
+
 ---
 *Phase: 03-gateway-asaas-e-ingest-o-de-webhooks*
 *Completed: 2026-08-31*
