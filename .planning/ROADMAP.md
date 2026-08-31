@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Corrigir o singleton do Prisma em todos os ambientes (INFRA-01) + corrigir o mecanismo descrito no CONCERNS.md
+- [x] 01-01-PLAN.md — Corrigir o singleton do Prisma em todos os ambientes (INFRA-01) + corrigir o mecanismo descrito no CONCERNS.md
 - [ ] 01-02-PLAN.md — Criar o DAL `lib/auth-guard.ts` (`revalidarConta`) fail-closed e memoizado por request (INFRA-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -155,7 +155,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pré-requisitos de Produção | 0/5 | Planned | - |
+| 1. Pré-requisitos de Produção | 1/5 | In Progress|  |
 | 2. Modelo de Dados e Motor de Acesso | 0/TBD | Not started | - |
 | 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |

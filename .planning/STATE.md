@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-08-31T15:47:19.788Z"
-last_activity: 2026-08-31 — Roadmap criado a partir de REQUIREMENTS.md e research/SUMMARY.md (24/24 requisitos mapeados)
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-08-31T15:57:42.495Z"
+last_activity: 2026-08-31 -- Phase 01 execution started
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 5
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 1 — Pré-requisitos de Produção
+**Current focus:** Phase 01 — pr-requisitos-de-produ-o
 
 ## Current Position
 
-Phase: 1 of 7 (Pré-requisitos de Produção)
-Plan: 0 of TBD in current phase
+Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-31 — Roadmap criado a partir de REQUIREMENTS.md e research/SUMMARY.md (24/24 requisitos mapeados)
+Last activity: 2026-08-31 -- Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01 P01 | 6m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Enforcement (Phase 4) precisa estar validado em produção antes de o worker (Phase 5) poder bloquear alguém
 - [Roadmap]: Reativação cobra apenas o período corrente, sem cobrança retroativa dos meses bloqueados
 - [Roadmap]: Termos de uso (Phase 6) é independente da cadeia de cobrança e pode ser paralelizado
+- [Phase ?]: [01-01] Singleton do Prisma publicado em globalThis sem guarda por ambiente — globalThis e o unico escopo compartilhado entre as camadas de bundle do Next
+- [Phase ?]: [01-01] Dimensionamento de max do pool e URL pooled vs. direta ficam para a fase de deploy/hosting
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T15:06:50.830Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-pr-requisitos-de-produ-o/01-CONTEXT.md
+Last session: 2026-08-31T15:57:42.489Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
