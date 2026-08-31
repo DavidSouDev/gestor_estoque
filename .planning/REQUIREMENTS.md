@@ -24,8 +24,8 @@ Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais pa
 
 ### Gateway de Pagamento
 
-- [ ] **GTW-01**: Integração com Asaas para assinatura recorrente via checkout hospedado — nenhum dado de cartão/pagamento é armazenado no banco próprio
-- [ ] **GTW-02**: Endpoint de webhook do Asaas verifica autenticidade, é idempotente (não processa o mesmo evento duas vezes) e responde 200 imediatamente, processando o restante de forma assíncrona
+- [x] **GTW-01**: Integração com Asaas para assinatura recorrente via checkout hospedado — nenhum dado de cartão/pagamento é armazenado no banco próprio
+- [x] **GTW-02**: Endpoint de webhook do Asaas verifica autenticidade, é idempotente (não processa o mesmo evento duas vezes) e responde 200 imediatamente, processando o restante de forma assíncrona
 - [ ] **GTW-03**: Webhook de pagamento confirmado atualiza `acessoAte` da empresa e encerra qualquer carência em curso
 - [ ] **GTW-04**: Webhook de pagamento atrasado/falho inicia a contagem da carência de 10 dias
 
@@ -98,8 +98,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BILL-03 | Phase 2 | Complete |
 | BILL-04 | Phase 2 | Complete |
 | BILL-05 | Phase 2 | Complete |
-| GTW-01 | Phase 3 | Pending |
-| GTW-02 | Phase 3 | Pending |
+| GTW-01 | Phase 3 | Complete |
+| GTW-02 | Phase 3 | Complete |
 | GTW-03 | Phase 3 | Pending |
 | GTW-04 | Phase 3 | Pending |
 | ACC-01 | Phase 4 | Pending |

@@ -107,8 +107,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-04-PLAN.md — Checkout hospedado recorrente de R$29,90/mês, sem nenhuma escrita antes do 2xx do gateway (GTW-01)
-- [ ] 03-05-PLAN.md — Endpoint de webhook: token timing-safe, sempre 200, persist-then-ack e ramos de no-op de estado (GTW-02, GTW-04)
+- [x] 03-04-PLAN.md — Checkout hospedado recorrente de R$29,90/mês, sem nenhuma escrita antes do 2xx do gateway (GTW-01)
+- [x] 03-05-PLAN.md — Endpoint de webhook: token timing-safe, sempre 200, persist-then-ack e ramos de no-op de estado (GTW-02, GTW-04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -192,7 +192,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 |-------|----------------|--------|-----------|
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
-| 3. Gateway Asaas e Ingestão de Webhooks | 3/7 | In Progress|  |
+| 3. Gateway Asaas e Ingestão de Webhooks | 5/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
