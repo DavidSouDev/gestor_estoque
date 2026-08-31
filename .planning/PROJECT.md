@@ -21,20 +21,24 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 
 ### Active
 
-- [ ] Campo de status de pagamento por Empresa: `em_dia`, `atrasado`, `vitalicio`, `cancelado`, `bloqueado`, `trial`
+- [ ] Correção do bug crítico do singleton do Prisma (`lib/prisma.ts`) antes de qualquer código de billing — pré-requisito identificado em `.planning/codebase/CONCERNS.md` e confirmado pela pesquisa como bloqueador real (worker + webhooks vão multiplicar conexões)
+- [ ] Sessão do admin passa a revalidar status de pagamento no banco a cada request (não apenas o JWT) — sem isso, bloqueio não tem efeito para quem já está logado (JWT dura 7 dias)
+- [ ] Modelo de dados baseado em datas/fatos (`acessoAte`, `trialFim`, `canceladoEm`) com uma função pura de decisão de acesso — não um campo de "status" calculado e armazenado como fonte da verdade
+- [ ] Campo de status de pagamento por Empresa (projeção derivada, não fonte da verdade): `em_dia`, `atrasado`, `vitalicio`, `cancelado`, `bloqueado`, `trial`
 - [ ] Período de trial de 14 dias para empresas novas, sem exigir pagamento no registro
 - [ ] Status `vitalicio` só pode ser ativado manualmente no banco de dados (sem UI de admin/superadmin para isso em v1)
 - [ ] Worker diário que avalia o status de pagamento de cada empresa e aplica as regras de carência/bloqueio
 - [ ] Integração com gateway de pagamento externo para assinatura recorrente automática (cobrança mensal, sem armazenar dados de cartão/pagamento no nosso sistema)
 - [ ] Webhook do gateway atualiza o status de pagamento da empresa (sucesso/falha de cobrança)
-- [ ] Pesquisa e seleção do gateway de pagamento a usar (candidatos: Stripe, Mercado Pago, Asaas, Pagar.me, Iugu — a validar em research)
+- [ ] Gateway de pagamento: Asaas (checkout hospedado com assinatura recorrente) — decidido após pesquisa (ver `.planning/research/STACK.md`)
 - [ ] Janela de carência de 10 dias quando o pagamento atrasa, antes do bloqueio
 - [ ] Banner de aviso em destaque em todas as telas do admin durante a carência, mostrando dias restantes e pedindo o pagamento (não aparece no catálogo público)
-- [ ] Bloqueio após os 10 dias de carência: perda de acesso ao painel admin **e** despublicação do catálogo público daquela empresa (sem mensagem de pagamento no catálogo — apenas indisponível)
-- [ ] Reativação automática ao quitar os períodos em atraso (ex: 2 meses atrasados exigem pagamento dos 2 meses para reativar)
+- [ ] Bloqueio após os 10 dias de carência: perda de acesso ao painel admin **e** despublicação do catálogo público daquela empresa (sem mensagem de pagamento no catálogo — apenas indisponível). O catálogo tem 5 caminhos de leitura públicos hoje (páginas + endpoints, incluindo um que aceita `empresaId` direto) — todos precisam do mesmo guard, não só a página
+- [ ] Webhook do gateway é idempotente (não processa o mesmo evento duas vezes) e sempre responde 200 rapidamente, processando de forma assíncrona
+- [ ] Reativação automática ao pagar a cobrança corrente do gateway (não é cobrado retroativamente pelos meses em que ficou bloqueada — decisão revisada após pesquisa: gateways de assinatura não suportam cobrança retroativa nativamente, e cobrar por período sem prestação de serviço é arriscado sob o CDC)
 - [ ] Cancelamento de plano pelo usuário: acesso mantido até o fim dos 30 dias do último pagamento; depois disso, mesmo fluxo de bloqueio
 - [ ] Tela de termos de uso exibida no momento do registro da conta, com aceite obrigatório
-- [ ] Endpoint para atualizar os termos de uso (uso do dono do sistema/superadmin)
+- [ ] Endpoint para atualizar os termos de uso, restrito a um novo papel `SUPERADMIN` (hoje só existe `ADMIN`, que é por empresa — sem esse papel novo, qualquer admin de qualquer empresa poderia reescrever os termos da plataforma)
 - [ ] Aceite de termos por Usuario (login individual, não por empresa): se `termos.atualizadoEm` for mais recente que o aceite do usuário, modal obrigatório aparece ao logar no admin — sistema não pode ser usado sem aceitar
 - [ ] Tela de gerenciamento de assinatura para o usuário: ver status do pagamento e cancelar o plano
 
@@ -75,7 +79,9 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 | Plano único por enquanto | Simplicidade para v1; múltiplos planos só se o modelo se provar rentável | — Pending |
 | Trial de 14 dias para empresas novas | Tempo suficiente para testar catálogo/estoque sem exigir pagamento imediato no registro | — Pending |
 | Aceite de termos de uso por Usuario (não por Empresa) | Cada login precisa concordar individualmente com os termos vigentes | — Pending |
-| Gateway de pagamento ainda não escolhido | Requer pesquisa de opções (Stripe, Mercado Pago, Asaas, Pagar.me, Iugu) antes da fase de roadmap detalhado | — Pending |
+| Gateway de pagamento: Asaas | Pesquisa recomendou Asaas sobre Stripe — Pix sem exigir aprovação/convite no Brasil (Stripe exige), sem mensalidade, ~4% de taxa, NFS-e nativa, cobranças por período mapeiam bem para o modelo de acesso | — Pending |
+| Reativação cobra apenas o mês corrente, não os meses em atraso | Gateways de assinatura não suportam cobrança retroativa nativamente; cobrar por período sem prestação de serviço é arriscado sob o CDC | — Pending |
+| Status de acesso derivado de datas (`acessoAte`, `trialFim`), não de um campo de status já calculado | O worker diário vira uma rede de segurança (reconciliador), não a autoridade — uma falha no cron não libera nem bloqueia incorretamente | — Pending |
 
 ## Evolution
 
@@ -95,4 +101,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-31 after initialization*
+*Last updated: 2026-08-31 after project research*
