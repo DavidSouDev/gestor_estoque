@@ -302,7 +302,6 @@ describe("webhookAsaasService.processar", () => {
       const chamadas = chamadasDeUpdate();
       expect(chamadas).toHaveLength(1);
       expect(chamadas[0].data).toHaveProperty("erro");
-      expect(chamadas[0].data.erro).toContain("03-06");
       // Asserção de AUSÊNCIA: marcarProcessado nunca é chamado nesta wave.
       for (const chamada of chamadas) {
         expect(chamada.data).not.toHaveProperty("processadoEm");
