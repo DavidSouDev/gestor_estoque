@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prismaMock } from "../../tests/setup/prisma-mock";
 import { CausaTransicaoAcesso, Prisma } from "@prisma/client";
 import { webhookAsaasService } from "./webhook-asaas.service";
-import { redigirEnvelope } from "@/lib/billing/asaas/eventos";
+import { EVENTOS_ASSINADOS, redigirEnvelope } from "@/lib/billing/asaas/eventos";
 import { acessoAteAposPagamento } from "@/lib/billing/asaas/datas";
 import {
   envelopeAssinatura,
@@ -1135,6 +1135,201 @@ describe("processar — despacho dos eventos de pagamento (GTW-03)", () => {
 
     expect(segundo).toEqual(primeiro);
     expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+  });
+});
+
+// ===========================================================================
+// GTW-04 — matriz de terminação, reentrega e fora-de-ordem
+// ===========================================================================
+
+/** Os 12 eventos registrados no Asaas mais um que ainda não existe. */
+const MATRIZ_DE_EVENTOS = [...EVENTOS_ASSINADOS, "EVENTO_QUE_NAO_EXISTE_AINDA"];
+
+/** Payload redigido coerente com a família do evento. */
+function payloadPara(evento: string): Record<string, unknown> {
+  if (evento.startsWith("CHECKOUT_")) {
+    return redigirEnvelope(envelopeCheckout({ event: evento }));
+  }
+  if (evento.startsWith("SUBSCRIPTION_")) {
+    return redigirEnvelope(envelopeAssinatura({ event: evento }));
+  }
+  if (evento.startsWith("PAYMENT_")) {
+    return redigirEnvelope(envelopePagamento({ event: evento }));
+  }
+  return {};
+}
+
+/** Deixa TODOS os caminhos de mutação viáveis, para isolar a terminação. */
+function prepararTodosOsCaminhos() {
+  prepararPagamento();
+  prismaMock.checkoutAsaas.findUnique.mockResolvedValue({
+    empresaId: "empresa-1",
+  } as never);
+  prismaMock.checkoutAsaas.update.mockResolvedValue({} as never);
+  prismaMock.empresa.update.mockResolvedValue({} as never);
+}
+
+describe("processar — invariante de terminação sobre a matriz de eventos", () => {
+  it.each(MATRIZ_DE_EVENTOS)(
+    "%s: nunca rejeita e termina com processadoEm OU erro, nunca com nenhum dos dois",
+    async (evento) => {
+      prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+        linhaDoLedger({ evento, payload: payloadPara(evento) }) as never
+      );
+      prepararTodosOsCaminhos();
+
+      await expect(
+        webhookAsaasService.processar("evt-1")
+      ).resolves.toBeUndefined();
+
+      const chamadas = chamadasDeUpdate();
+      expect(chamadas.length).toBeGreaterThan(0);
+
+      const terminal = chamadas[chamadas.length - 1].data;
+      const concluido = "processadoEm" in terminal;
+      const comErro =
+        terminal.erro !== null && terminal.erro !== undefined;
+
+      // Um evento sem `processadoEm` e sem `erro` seria invisível tanto para a
+      // fila de retrabalho quanto para o operador: o Asaas não reenvia (o 200 já
+      // foi respondido) e ninguém saberia que ele existiu.
+      expect(concluido || comErro).toBe(true);
+
+      // Nenhum evento cai mais no marcador provisório do plano 03-05.
+      expect(JSON.stringify(chamadas)).not.toContain("pendente");
+    }
+  );
+
+  it("reentrega: evento já processado não escreve nada e não chega a falar com o gateway", async () => {
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_CONFIRMED",
+        payload: redigirEnvelope(envelopePagamento()),
+        processadoEm: new Date("2026-09-01T12:00:00.000Z"),
+      }) as never
+    );
+    prepararTodosOsCaminhos();
+
+    await webhookAsaasService.processar("evt-1");
+
+    expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    expect(prismaMock.eventoWebhookAsaas.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("GTW-04 — cenário completo de evento fora de ordem", () => {
+  it("um PAYMENT_CONFIRMED de 2026-08-01 reentregue depois do de 2026-10-01 não reduz acessoAte", async () => {
+    // --- Entrega 1: a cobrança de outubro estende o acesso até 01/11. ---
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_CONFIRMED",
+        payload: redigirEnvelope(envelopePagamento()),
+      }) as never
+    );
+    prepararPagamento({
+      autoritativo: pagamentoAutoritativo({
+        id: "pay_outubro",
+        dueDate: "2026-10-01",
+      }),
+    });
+
+    await webhookAsaasService.processar("evt-outubro");
+
+    const acessoDeNovembro = (
+      prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+        { data: { acessoAte: Date } },
+      ]
+    )[0].data.acessoAte;
+
+    expect(acessoDeNovembro).toEqual(new Date("2026-11-01T03:00:00.000Z"));
+    expect(acessoMock.registrarTransicao).toHaveBeenCalledTimes(1);
+
+    // --- Entrega 2: o evento ANTIGO de agosto é reentregue. ---
+    vi.clearAllMocks();
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_CONFIRMED",
+        payload: redigirEnvelope(envelopePagamento()),
+      }) as never
+    );
+    prepararPagamento({
+      autoritativo: pagamentoAutoritativo({
+        id: "pay_agosto",
+        dueDate: "2026-08-01",
+      }),
+      fatos: { ...FATOS_EM_CARENCIA, acessoAte: acessoDeNovembro },
+      // O banco já está em novembro: a guarda do WHERE não casa nenhuma linha.
+      count: 0,
+    });
+
+    await webhookAsaasService.processar("evt-agosto");
+
+    const [tentativa] = prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+      { where: { OR: unknown[] }; data: { acessoAte: Date } },
+    ];
+
+    // O valor CALCULADO é o de setembro — menor que o corrente. É a guarda do
+    // WHERE, e não um `if`, que transforma isso num no-op.
+    expect(tentativa.data.acessoAte).toEqual(new Date("2026-09-01T03:00:00.000Z"));
+    expect(tentativa.where.OR).toEqual([
+      { acessoAte: null },
+      { acessoAte: { lt: new Date("2026-09-01T03:00:00.000Z") } },
+    ]);
+
+    // Nenhuma auditoria nova, e o evento antigo é concluído (não fica na fila).
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+
+    // E o fato de billing continua sendo o de novembro: uma empresa em dia NÃO
+    // pode ser bloqueada por reentrega. `avaliarAcesso` aqui é o real.
+    const resultado = avaliarAcesso(
+      {
+        acessoAte: acessoDeNovembro,
+        trialFim: FATOS_EM_CARENCIA.trialFim,
+        canceladoEm: null,
+        acessoVitalicio: false,
+      },
+      new Date("2026-10-15T12:00:00.000Z")
+    );
+
+    expect(resultado.status).toBe("EM_DIA");
+    expect(resultado.carenciaAte).toBeNull();
+  });
+
+  it("Pitfall 4: PAYMENT_OVERDUE chegando DEPOIS do PAYMENT_CONFIRMED do mesmo mês não altera fato nenhum", async () => {
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_CONFIRMED",
+        payload: redigirEnvelope(envelopePagamento()),
+      }) as never
+    );
+    prepararPagamento();
+
+    await webhookAsaasService.processar("evt-confirmado");
+    expect(prismaMock.empresa.updateMany).toHaveBeenCalledTimes(1);
+
+    // Agora o atraso, do MESMO mês, entregue fora de ordem.
+    vi.clearAllMocks();
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_OVERDUE",
+        payload: redigirEnvelope(envelopePagamento({ event: "PAYMENT_OVERDUE" })),
+      }) as never
+    );
+    prepararTodosOsCaminhos();
+
+    await webhookAsaasService.processar("evt-atrasado");
+
+    // As três asserções de ausência: observar um atraso não é comando de
+    // escrita. Encurtar a carência de quem já pagou seria o pior desfecho.
+    expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
     expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
   });
 });

@@ -1,10 +1,11 @@
 ---
 phase: 3
 slug: gateway-asaas-e-ingest-o-de-webhooks
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: active
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-31
+updated: 2026-08-31
 ---
 
 # Phase 3 — Validation Strategy
@@ -39,38 +40,43 @@ created: 2026-08-31
 
 | Task ID | Plan | Wave | Requirement | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------------|-----------|-------------------|-------------|--------|
-| 03-01-01 | TBD | TBD | GTW-01 | `criarCheckout` monta body com `chargeTypes:["RECURRENT"]`, `billingTypes:["CREDIT_CARD"]`, `value: 29.90` | unit | `npx vitest run app/services/assinatura.service.test.ts` | ❌ W0 | ⬜ pending |
-| 03-01-02 | TBD | TBD | GTW-01 | Erro do Asaas (rede/4xx/5xx) → `HttpError`, zero escrita no Prisma | unit | idem | ❌ W0 | ⬜ pending |
-| 03-01-03 | TBD | TBD | GTW-01 | Nenhum campo `creditCard*`/`cpfCnpj` aparece em qualquer `prisma.*.create` | unit | `npx vitest run app/services/webhook-asaas.service.test.ts` | ❌ W0 | ⬜ pending |
-| 03-02-01 | TBD | TBD | GTW-02 | Header `asaas-access-token` ausente/errado → 401, nenhum insert | unit | `npx vitest run app/api/webhooks/asaas/route.test.ts` | ❌ W0 | ⬜ pending |
-| 03-02-02 | TBD | TBD | GTW-02 | Header correto → exatamente 200 (não 201/204) | unit | idem | ❌ W0 | ⬜ pending |
-| 03-02-03 | TBD | TBD | GTW-02 | `create` do ledger acontece antes do 200; `processar` agendado via `agendarPosResposta`, não `await`ado | unit | idem | ❌ W0 | ⬜ pending |
-| 03-02-04 | TBD | TBD | GTW-02 | Evento desconhecido/payload malformado → 200, nunca 500 | unit | idem | ❌ W0 | ⬜ pending |
-| 03-04-01 | TBD | TBD | GTW-04 | Mesmo `eventoId` 2x → P2002 → 200 nas duas, uma só execução de `processar` | unit | idem | ❌ W0 | ⬜ pending |
-| 03-04-02 | TBD | TBD | GTW-04 | Evento antigo fora de ordem → `count === 0` → nenhuma auditoria/escrita | unit | idem | ❌ W0 | ⬜ pending |
-| 03-04-03 | TBD | TBD | GTW-04 | `PAYMENT_OVERDUE` → nenhuma escrita em fatos de billing; `avaliarAcesso` já devolve `CARENCIA` | unit | idem | ❌ W0 | ⬜ pending |
-| 03-03-01 | TBD | TBD | GTW-03 | `PAYMENT_CONFIRMED` → `updateMany` com `OR:[{acessoAte:null},{acessoAte:{lt:novo}}]`, `acessoAte` de `dueDate` | unit | `npx vitest run app/services/webhook-asaas.service.test.ts` | ❌ W0 | ⬜ pending |
-| 03-03-02 | TBD | TBD | GTW-03 | Após estender, `avaliarAcesso` devolve `EM_DIA` e `carenciaAte: null` | unit | `npx vitest run lib/avaliar-acesso.test.ts` (existente + caso novo) | ⚠️ parcial | ⬜ pending |
-| 03-03-03 | TBD | TBD | GTW-03 | `registrarTransicao` chamado com `causa: WEBHOOK_PAGAMENTO`, `anterior: ultimoStatusAuditado` | unit | idem | ❌ W0 | ⬜ pending |
-| 03-03-04 | TBD | TBD | GTW-03 | `acessoAteAposPagamento("2021-01-31")` → 28/02 (clamp); `("2021-01-01")` → instante UTC correto de SP | unit | `npx vitest run lib/billing/asaas/datas.test.ts` | ❌ W0 | ⬜ pending |
-| 03-01-04 | TBD | TBD | GTW-01/02 | Config lança no import quando `ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` faltam | unit | `npx vitest run lib/billing/asaas/config.test.ts` | ❌ W0 | ⬜ pending |
-| 03-H1 | TBD | TBD | GTW-01..04 | Fluxo real em sandbox: criar checkout → pagar com cartão de teste → `CHECKOUT_PAID` + `PAYMENT_CONFIRMED` → `acessoAte` estendido | manual | — (requer conta Asaas, D-05) | n/a | ⬜ pending |
+| 03-04-01 | 03-04 | 2 | GTW-01 | `criarCheckout` monta body com `chargeTypes:["RECURRENT"]`, `billingTypes:["CREDIT_CARD"]`, `value: 29.90` | unit | `npx vitest run app/services/assinatura.service.test.ts` | ✅ | ✅ green |
+| 03-04-01b | 03-04 | 2 | GTW-01 | Erro do Asaas (rede/4xx/5xx) → `HttpError`, zero escrita no Prisma | unit | idem | ✅ | ✅ green |
+| 03-05-01 | 03-05 | 2 | GTW-01 | Nenhum campo `creditCard*`/`cpfCnpj` aparece em qualquer `prisma.*.create` | unit | `npx vitest run app/services/webhook-asaas.service.test.ts` | ✅ | ✅ green |
+| 03-05-02 | 03-05 | 2 | GTW-02 | Header `asaas-access-token` ausente/errado → 401, nenhum insert | unit | `npx vitest run app/api/webhooks/asaas/route.test.ts` | ✅ | ✅ green |
+| 03-05-02b | 03-05 | 2 | GTW-02 | Header correto → exatamente 200 (não 201/204) | unit | idem | ✅ | ✅ green |
+| 03-05-02c | 03-05 | 2 | GTW-02 | `create` do ledger acontece antes do 200; `processar` agendado via `agendarPosResposta`, não `await`ado | unit | idem | ✅ | ✅ green |
+| 03-05-02d | 03-05 | 2 | GTW-02 | Evento desconhecido/payload malformado → 200, nunca 500 | unit | idem | ✅ | ✅ green |
+| 03-05-02e | 03-05 | 2 | GTW-04 | Mesmo `eventoId` 2x → P2002 → 200 nas duas, uma só execução de `processar` | unit | idem | ✅ | ✅ green |
+| 03-06-03 | 03-06 | 3 | GTW-04 | Evento antigo fora de ordem → `count === 0` → nenhuma auditoria/escrita | unit | `npx vitest run app/services/webhook-asaas.service.test.ts` | ✅ | ✅ green |
+| 03-06-03b | 03-06 | 3 | GTW-04 | `PAYMENT_OVERDUE` → nenhuma escrita em fatos de billing; `avaliarAcesso` já devolve `CARENCIA` | unit | idem | ✅ | ✅ green |
+| 03-06-02 | 03-06 | 3 | GTW-03 | `PAYMENT_CONFIRMED` → `updateMany` com `OR:[{acessoAte:null},{acessoAte:{lt:novo}}]`, `acessoAte` de `dueDate` | unit | idem | ✅ | ✅ green |
+| 03-06-02b | 03-06 | 3 | GTW-03 | Após estender, `avaliarAcesso` (real) devolve `EM_DIA` e `carenciaAte: null` | unit | idem | ✅ | ✅ green |
+| 03-06-02c | 03-06 | 3 | GTW-03 | `registrarTransicao` chamado com `causa: WEBHOOK_PAGAMENTO`, `anterior: ultimoStatusAuditado` | unit | idem | ✅ | ✅ green |
+| 03-06-02d | 03-06 | 3 | GTW-03 | Re-fetch autoritativo acontece ANTES de qualquer escrita; rejeição do gateway → zero `updateMany` | unit | idem | ✅ | ✅ green |
+| 03-06-01 | 03-06 | 3 | GTW-03/04 | C-08: `resolverEmpresaId({ externalReference })` devolve `null`; nenhuma consulta usa a referência externa como filtro | unit | idem | ✅ | ✅ green |
+| 03-06-03c | 03-06 | 3 | GTW-02/04 | Os 12 eventos assinados + 1 desconhecido: `processar` nunca rejeita e sempre termina com `processadoEm` ou `erro` | unit | idem | ✅ | ✅ green |
+| 03-02-02 | 03-02 | 1 | GTW-03 | `acessoAteAposPagamento("2021-01-31")` → 28/02 (clamp); `("2021-01-01")` → instante UTC correto de SP | unit | `npx vitest run lib/billing/asaas/datas.test.ts` | ✅ | ✅ green |
+| 03-02-01 | 03-02 | 1 | GTW-01/02 | Config falha rápido quando `ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` faltam | unit | `npx vitest run lib/billing/asaas/config.test.ts` | ✅ | ✅ green |
+| 03-03-03 | 03-03 | 1 | GTW-01 | `redigirEnvelope` é allowlist positiva: campo sensível novo nunca é copiado | unit | `npx vitest run lib/billing/asaas/eventos.test.ts` | ✅ | ✅ green |
+| 03-H1 | 03-07 | 4 | GTW-01..04 | Fluxo real em sandbox: criar checkout → pagar com cartão de teste → `CHECKOUT_PAID` + `PAYMENT_CONFIRMED` → `acessoAte` estendido | manual | — (requer conta Asaas, D-05) | n/a | 🧑 manual |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · 🧑 manual (fora do alcance automatizado)*
 
-*Task IDs are placeholders — the planner assigns real `{padded_phase}-{plan}-{task}` IDs; this map is re-synced during Wave 0 / plan review.*
+Sufixos `b`/`c`/`d` distinguem comportamentos verificados dentro da MESMA task; o
+prefixo é sempre o `{padded_phase}-{plan}-{task}` real.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `lib/billing/asaas/config.test.ts` — cobre GTW-01/GTW-02 (fail-fast de env vars)
-- [ ] `lib/billing/asaas/datas.test.ts` — cobre GTW-03 (clamp de mês, parsing de data SP)
-- [ ] `app/services/assinatura.service.test.ts` — cobre GTW-01
-- [ ] `app/services/webhook-asaas.service.test.ts` — cobre GTW-02/03/04
-- [ ] `app/api/webhooks/asaas/route.test.ts` — **primeiro teste de route handler do projeto**; conferir se `tests/helpers/` já tem `buildRequest()` reusável; criar se não
-- [ ] Helper de fixtures de payload Asaas (`tests/helpers/asaas.ts`) — envelopes de `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`, `CHECKOUT_PAID`, `SUBSCRIPTION_CREATED`
-- [ ] Framework install: nenhum — Vitest já configurado
+- [x] `lib/billing/asaas/config.test.ts` — cobre GTW-01/GTW-02 (fail-fast de env vars)
+- [x] `lib/billing/asaas/datas.test.ts` — cobre GTW-03 (clamp de mês, parsing de data SP)
+- [x] `app/services/assinatura.service.test.ts` — cobre GTW-01
+- [x] `app/services/webhook-asaas.service.test.ts` — cobre GTW-02/03/04 (84 casos)
+- [x] `app/api/webhooks/asaas/route.test.ts` — **primeiro teste de route handler do projeto**; `buildRequest()` de `tests/helpers/request.ts` ganhou `headers` e `rawBody` (03-05)
+- [x] Helper de fixtures de payload Asaas (`tests/helpers/asaas.ts`) — envelopes de `PAYMENT_CONFIRMED`, `CHECKOUT_PAID`, `SUBSCRIPTION_CREATED` (o de atraso é derivado por override de `event`)
+- [x] Framework install: nenhum — Vitest já configurado
 
 ---
 
@@ -84,11 +90,13 @@ created: 2026-08-31
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** aprovado após a wave 3 (plano 03-06). Toda linha do mapa tem comando
+automatizado verde, exceto `03-H1`, que está explicitamente listada como manual em
+*Manual-Only Verifications* e é o `checkpoint:human-verify` de sandbox do plano 03-07.
