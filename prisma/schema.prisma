@@ -32,27 +32,30 @@ enum StatusAcesso {
 
 // D-14: apenas os valores que existem HOJE. Novas causas entram por migration
 // propria na fase em que passarem a existir.
+// Fase 3 (GTW-03) exerceu esse ponto de extensao: WEBHOOK_PAGAMENTO entrou por
+// migration propria, sem DML que use o valor na mesma transacao (Pitfall 7).
 enum CausaTransicaoAcesso {
   REGISTRO
   BACKFILL
   AVALIACAO_SESSAO
+  WEBHOOK_PAGAMENTO
 }
 
 model Empresa {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  nome        String
-  slug        String   @unique
+  nome String
+  slug String @unique
 
-  logo        String?
-  banner      String?
-  descricao   String?
+  logo      String?
+  banner    String?
+  descricao String?
 
-  telefone    String?
-  instagram   String?
+  telefone  String?
+  instagram String?
 
-  primaryColor String  @default("#18181b")
-  accentColor  String  @default("#f59e0b")
+  primaryColor String @default("#18181b")
+  accentColor  String @default("#f59e0b")
 
   modoInterface ModoInterface @default(COMPLETO)
 
@@ -68,216 +71,298 @@ model Empresa {
   // acima. Existe so para detectar transicao sem uma segunda query por request.
   ultimoStatusAuditado StatusAcesso?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  // Identificadores externos do Asaas (GTW-04). NAO sao fatos de billing e
+  // avaliarAcesso() nunca os le: nenhuma decisao de acesso depende deles.
+  // Existem exclusivamente para resolver o empresaId de um evento de webhook
+  // pelo mapa LOCAL, em vez de confiar no que o payload afirma (Pattern 5 /
+  // C-08). A unicidade de asaasSubscriptionId e o que impede um "sub_..."
+  // forjado de apontar para duas empresas.
+  asaasCustomerId     String?
+  asaasSubscriptionId String? @unique
 
-  usuarios    Usuario[]
-  produtos    Produto[]
-  combos      Combo[]
-  promocoes   Promocao[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  usuarios         Usuario[]
+  produtos         Produto[]
+  combos           Combo[]
+  promocoes        Promocao[]
   auditoriasAcesso AuditoriaAcesso[]
+  checkoutsAsaas   CheckoutAsaas[]
 
   @@index([slug])
 }
 
 model Usuario {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  nome           String
-  email          String   @unique
-  senhaHash      String
+  nome      String
+  email     String @unique
+  senhaHash String
 
-  role           UserRole @default(ADMIN)
-  ativo          Boolean  @default(true)
+  role  UserRole @default(ADMIN)
+  ativo Boolean  @default(true)
 
-  empresaId      String
-  empresa        Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  movimentacoes  MovimentacaoEstoque[]
+  movimentacoes MovimentacaoEstoque[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([empresaId])
 }
 
 model Produto {
-  id                String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  empresaId         String
-  empresa           Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  codigo            String
+  codigo String
 
-  nome              String
-  descricao         String?
+  nome      String
+  descricao String?
 
-  categoria         String @default("Geral")
+  categoria String @default("Geral")
 
-  precoVarejo       Decimal @db.Decimal(10,2)
-  precoAtacado      Decimal @db.Decimal(10,2)
+  precoVarejo  Decimal @db.Decimal(10, 2)
+  precoAtacado Decimal @db.Decimal(10, 2)
 
-  estoque           Int @default(0)
+  estoque Int @default(0)
 
-  fotoCapa          String?
+  fotoCapa String?
 
-  ordemCatalogo     Int @default(0)
+  ordemCatalogo Int @default(0)
 
-  destaque          Boolean @default(false)
+  destaque Boolean @default(false)
 
-  visivelCatalogo   Boolean @default(true)
-  ativo             Boolean @default(true)
+  visivelCatalogo Boolean @default(true)
+  ativo           Boolean @default(true)
 
-  imagens           ProdutoImagem[]
-  comboItens        ComboItem[]
-  promocoes         PromocaoItem[]
-  movimentacoes     MovimentacaoEstoque[]
+  imagens       ProdutoImagem[]
+  comboItens    ComboItem[]
+  promocoes     PromocaoItem[]
+  movimentacoes MovimentacaoEstoque[]
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([empresaId, codigo])
   @@index([empresaId, ativo, visivelCatalogo, ordemCatalogo])
 }
 
 model ProdutoImagem {
-  id         String @id @default(uuid())
+  id String @id @default(uuid())
 
-  produtoId  String
-  produto    Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  url        String
-  alt        String?
+  url String
+  alt String?
 
-  ordem      Int @default(0)
+  ordem Int @default(0)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([produtoId])
 }
 
 model Combo {
-  id              String @id @default(uuid())
+  id String @id @default(uuid())
 
-  empresaId       String
-  empresa         Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  nome            String
-  descricao       String?
+  nome      String
+  descricao String?
 
-  preco           Decimal @db.Decimal(10,2)
+  preco Decimal @db.Decimal(10, 2)
 
-  fotoCapa        String?
+  fotoCapa String?
 
-  ordemCatalogo   Int @default(0)
+  ordemCatalogo Int @default(0)
 
-  destaque        Boolean @default(false)
+  destaque Boolean @default(false)
 
-  visivel         Boolean @default(true)
-  ativo           Boolean @default(true)
+  visivel Boolean @default(true)
+  ativo   Boolean @default(true)
 
-  itens           ComboItem[]
-  promocoes       PromocaoItem[]
+  itens     ComboItem[]
+  promocoes PromocaoItem[]
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  deletedAt       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([empresaId, ativo, visivel, ordemCatalogo])
 }
 
 model ComboItem {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
 
-  comboId     String
-  combo       Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  comboId String
+  combo   Combo  @relation(fields: [comboId], references: [id], onDelete: Cascade)
 
-  produtoId   String
-  produto     Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
 
-  quantidade  Int @default(1)
+  quantidade Int @default(1)
 
   @@unique([comboId, produtoId])
   @@index([produtoId])
 }
 
 model Promocao {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
 
-  empresaId   String
-  empresa     Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  nome        String
+  nome String
 
-  dataInicio  DateTime
-  dataFim     DateTime
+  dataInicio DateTime
+  dataFim    DateTime
 
-  itens       PromocaoItem[]
+  itens PromocaoItem[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([empresaId])
 }
 
 model PromocaoItem {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
 
-  promocaoId  String
-  promocao    Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
+  promocaoId String
+  promocao   Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
 
-  produtoId   String?
-  produto     Produto? @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produtoId String?
+  produto   Produto? @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  comboId     String?
-  combo       Combo? @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  comboId String?
+  combo   Combo?  @relation(fields: [comboId], references: [id], onDelete: Cascade)
 
-  preco       Decimal @db.Decimal(10,2)
+  preco Decimal @db.Decimal(10, 2)
 
   @@unique([promocaoId, produtoId])
   @@unique([promocaoId, comboId])
-
   @@index([produtoId])
   @@index([comboId])
 }
 
 model MovimentacaoEstoque {
-  id            String @id @default(uuid())
+  id String @id @default(uuid())
 
-  produtoId     String
-  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
-  usuarioId     String
-  usuario       Usuario @relation(fields: [usuarioId], references: [id])
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
 
-  tipo          TipoMovimentacao
+  tipo TipoMovimentacao
 
-  quantidade    Int
+  quantidade Int
 
-  motivo        String?
+  motivo String?
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([produtoId])
   @@index([usuarioId])
 }
 
 model AuditoriaAcesso {
-  id             String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  empresaId      String
-  empresa        Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   // Nulo apenas na primeirissima entrada de cada empresa (REGISTRO / BACKFILL).
   statusAnterior StatusAcesso?
   statusNovo     StatusAcesso
   causa          CausaTransicaoAcesso
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   // D-17: sem snapshot dos fatos de billing.
 
   @@index([empresaId, createdAt])
+}
+
+// Mapa checkout -> empresa (GTW-04, Pattern 5).
+//
+// D-07: a linha so nasce DEPOIS do 2xx do Asaas. Nunca existe checkout parcial
+// no banco — se a chamada de criacao falhar, nao ha o que reconciliar depois.
+//
+// Pitfall 8: o payload de CHECKOUT_PAID traz checkout.id e checkout.customer,
+// mas o objeto checkout.subscription carrega apenas a CONFIGURACAO da
+// recorrencia (cycle, nextDueDate, endDate) — nao o id "sub_..." da assinatura
+// criada. Por isso este mapa, gravado no momento da criacao do checkout, e a
+// unica associacao certa entre um checkout e uma Empresa.
+model CheckoutAsaas {
+  id String @id @default(uuid())
+
+  asaasCheckoutId String @unique
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // String livre, deliberadamente NAO enum: ACTIVE/PAID/CANCELED/EXPIRED sao
+  // vocabulario de terceiro e podem crescer sem aviso. Travar em enum
+  // reproduziria o defeito do Pitfall 3 no nivel do schema — um status novo
+  // passaria a derrubar a ingestao em vez de ser apenas desconhecido.
+  status String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([empresaId, createdAt])
+}
+
+// Ledger append-only de eventos de webhook do Asaas (GTW-01/GTW-02/GTW-04).
+model EventoWebhookAsaas {
+  id String @id @default(uuid())
+
+  // id do envelope do Asaas ("evt_<hash>&<seq>"), estavel entre reenvios do
+  // mesmo evento. A constraint UNICA e a UNICA defesa correta contra entrega
+  // concorrente: um findFirst antes do insert perde a corrida porque as duas
+  // entregas passam pela leitura juntas. So o Postgres resolve isso
+  // (GTW-02/GTW-04, Don't Hand-Roll). Duplicata => P2002 => 200 + no-op.
+  eventoId String @unique
+
+  evento String
+
+  // Versao REDIGIDA do envelope, NUNCA o corpo bruto (GTW-01, Pitfall 9).
+  // creditCard, customerData, cpfCnpj, pixTransaction, pixQrCodeId,
+  // bankSlipUrl, invoiceUrl e transactionReceiptUrl sao descartados antes de
+  // persistir. A redacao e implementada e testada no plano 03-05.
+  payload Json
+
+  // DELIBERADAMENTE sem @relation/FK, divergindo da convencao do projeto.
+  // O ledger e append-only e precisa sobreviver a remocao de uma Empresa; um
+  // onDelete: Cascade apagaria a trilha de auditoria financeira exatamente no
+  // caso em que ela mais importa. Nulo tambem e estado legitimo: um evento
+  // pode chegar antes de qualquer tenant ter sido resolvido (Pattern 5, passo
+  // 4). Custo aceito e consciente (T-03-04): integridade referencial nao e
+  // imposta pelo banco nesta coluna.
+  empresaId String?
+
+  // Interface de recuperacao consumida pela FASE 5 (WRK-01): a fila de
+  // retrabalho e WHERE "processadoEm" IS NULL. Esta fase entrega apenas as
+  // colunas e o indice — DRENAR a fila nao e escopo daqui (Pitfall 10).
+  // "erro" precisa ser gravado, nao apenas logado: depois do 200 o Asaas nunca
+  // reenvia, entao um evento que falhou em silencio some para sempre.
+  processadoEm DateTime?
+  erro         String?
+  tentativas   Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([processadoEm])
+  @@index([evento, createdAt])
 }
