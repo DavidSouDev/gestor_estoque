@@ -1,9 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prismaMock } from "../../tests/setup/prisma-mock";
-import { Prisma } from "@prisma/client";
+import { CausaTransicaoAcesso, Prisma } from "@prisma/client";
 import { webhookAsaasService } from "./webhook-asaas.service";
 import { redigirEnvelope } from "@/lib/billing/asaas/eventos";
+import { acessoAteAposPagamento } from "@/lib/billing/asaas/datas";
 import {
   envelopeAssinatura,
   envelopeCheckout,
@@ -12,7 +13,7 @@ import {
 import { avaliarAcesso, DIAS_DE_CARENCIA } from "@/lib/avaliar-acesso";
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
 import { acessoService } from "@/app/services/acesso.service";
-import { asaasClient } from "@/lib/billing/asaas/client";
+import { asaasClient, AsaasApiError } from "@/lib/billing/asaas/client";
 
 /**
  * O compare-and-swap de auditoria da Fase 2 e chamado, nunca reimplementado —
@@ -61,12 +62,8 @@ const EVENTOS_SEM_MUTACAO = [
   "SUBSCRIPTION_DELETED",
 ];
 
-/**
- * Os eventos de pagamento continuam na fila ate a Task 2 deste plano ligar
- * `aplicarPagamentoConfirmado` ao despacho. `SUBSCRIPTION_CREATED` e
- * `CHECKOUT_PAID` sairam desta lista na Task 1: eles agora tem handler.
- */
-const EVENTOS_MUTADORES = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"];
+/** Os dois eventos que estendem `acessoAte` — o unico caminho de dinheiro. */
+const EVENTOS_DE_PAGAMENTO = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"];
 
 function linhaDoLedger(overrides: Record<string, unknown> = {}) {
   return {
@@ -286,29 +283,6 @@ describe("webhookAsaasService.processar", () => {
 
       // Mas o evento É concluído: ele não pode ficar na fila de retrabalho.
       expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
-    }
-  );
-
-  it.each(EVENTOS_MUTADORES)(
-    "wave 2 — %s fica na fila `processadoEm IS NULL`, nunca marcado como concluído",
-    async (evento) => {
-      prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
-        linhaDoLedger({ evento }) as never
-      );
-      prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
-
-      await webhookAsaasService.processar("evt-1");
-
-      const chamadas = chamadasDeUpdate();
-      expect(chamadas).toHaveLength(1);
-      expect(chamadas[0].data).toHaveProperty("erro");
-      // Asserção de AUSÊNCIA: marcarProcessado nunca é chamado nesta wave.
-      for (const chamada of chamadas) {
-        expect(chamada.data).not.toHaveProperty("processadoEm");
-      }
-      expect(prismaMock.empresa.update).not.toHaveBeenCalled();
-      expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
-      expect(prismaMock.$transaction).not.toHaveBeenCalled();
     }
   );
 
@@ -730,5 +704,437 @@ describe("processar — despacho dos eventos de captura (03-06)", () => {
     expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
     expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
     expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
+  });
+});
+
+// ===========================================================================
+// GTW-03 / GTW-04 — aplicarPagamentoConfirmado
+// ===========================================================================
+
+/** Instante do `acessoAte` derivado de `dueDate: "2026-09-01"`. */
+const ACESSO_ATE_DE_SETEMBRO = new Date("2026-10-01T03:00:00.000Z");
+
+/** Fatos de billing de uma empresa que acabou de sair do trial sem pagar. */
+const FATOS_EM_CARENCIA = {
+  acessoAte: null,
+  trialFim: new Date("2026-08-20T03:00:00.000Z"),
+  canceladoEm: null,
+  acessoVitalicio: false,
+  ultimoStatusAuditado: "CARENCIA",
+};
+
+/** Resposta do re-fetch autoritativo (`GET /v3/payments/{id}`). */
+function pagamentoAutoritativo(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "pay_080225913252",
+    status: "CONFIRMED",
+    value: 29.9,
+    dueDate: "2026-09-01",
+    subscription: "sub_VXJBYgP2u0eO",
+    customer: "cus_000006297983",
+    externalReference: "empresa-1",
+    billingType: "CREDIT_CARD",
+    ...overrides,
+  };
+}
+
+/** Sub-objeto `payment` do envelope, já redigido — é o que o ledger guarda. */
+function pagamentoDoLedger(overrides: Record<string, unknown> = {}) {
+  const bruto = redigirEnvelope(envelopePagamento()).payment as Record<
+    string,
+    unknown
+  >;
+  return { ...bruto, ...overrides };
+}
+
+function prepararPagamento(
+  opcoes: {
+    autoritativo?: Record<string, unknown>;
+    fatos?: Record<string, unknown> | null;
+    count?: number;
+  } = {}
+) {
+  const {
+    autoritativo = pagamentoAutoritativo(),
+    fatos = FATOS_EM_CARENCIA,
+    count = 1,
+  } = opcoes;
+
+  asaasMock.buscarPagamento.mockResolvedValue(autoritativo as never);
+  prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
+  prismaMock.empresa.findUnique.mockResolvedValue(fatos as never);
+  prismaMock.empresa.updateMany.mockResolvedValue({ count } as never);
+  prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+  acessoMock.registrarTransicao.mockResolvedValue(null as never);
+}
+
+describe("webhookAsaasService.aplicarPagamentoConfirmado — re-fetch autoritativo", () => {
+  it("T-03-32: reconfere a cobrança na API do Asaas ANTES de qualquer escrita em Empresa", async () => {
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    // A ORDEM é a prova: o re-fetch é controle de segurança, não redundância.
+    // Um payload forjado (o Asaas não assina o corpo) não sobrevive a ele.
+    expect(asaasMock.buscarPagamento.mock.invocationCallOrder[0]).toBeLessThan(
+      prismaMock.empresa.updateMany.mock.invocationCallOrder[0]
+    );
+    expect(asaasMock.buscarPagamento).toHaveBeenCalledWith("pay_080225913252");
+  });
+
+  it("o dueDate que vira acessoAte vem do RE-FETCH, nunca do payload do webhook", async () => {
+    // O payload afirma um vencimento muito posterior; o gateway diz setembro.
+    // Se o payload vencesse, forjar um webhook compraria anos de acesso.
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger({ dueDate: "2030-01-01" })
+    );
+
+    const [args] = prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+      { data: { acessoAte: Date } },
+    ];
+    expect(args.data.acessoAte).toEqual(ACESSO_ATE_DE_SETEMBRO);
+  });
+
+  it.each(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"])(
+    "status %s do gateway é aceito como pagamento",
+    async (status) => {
+      prepararPagamento({ autoritativo: pagamentoAutoritativo({ status }) });
+
+      await webhookAsaasService.aplicarPagamentoConfirmado(
+        "evt-1",
+        pagamentoDoLedger()
+      );
+
+      expect(prismaMock.empresa.updateMany).toHaveBeenCalled();
+    }
+  );
+
+  it.each(["PENDING", "OVERDUE", "REFUNDED", "AWAITING_RISK_ANALYSIS"])(
+    "status %s do gateway NÃO concede acesso: zero escrita, evento marcado com erro",
+    async (status) => {
+      prepararPagamento({ autoritativo: pagamentoAutoritativo({ status }) });
+
+      await webhookAsaasService.aplicarPagamentoConfirmado(
+        "evt-1",
+        pagamentoDoLedger()
+      );
+
+      expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+      expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+      expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+      expect(chamadasDeUpdate()[0].data).toHaveProperty("erro");
+      expect(chamadasDeUpdate()[0].data).not.toHaveProperty("processadoEm");
+    }
+  );
+
+  it("T-03-37: falha do gateway não escreve nada, não propaga e deixa o evento na fila", async () => {
+    prepararPagamento();
+    asaasMock.buscarPagamento.mockRejectedValue(
+      new AsaasApiError("Não foi possível falar com o gateway de pagamento.", 502)
+    );
+
+    await expect(
+      webhookAsaasService.aplicarPagamentoConfirmado("evt-1", pagamentoDoLedger())
+    ).resolves.toBeUndefined();
+
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("erro");
+    expect(chamadasDeUpdate()[0].data).not.toHaveProperty("processadoEm");
+  });
+
+  it("payload de pagamento sem os campos exigidos: marcarErro sem sequer chamar o gateway", async () => {
+    prismaMock.eventoWebhookAsaas.update.mockResolvedValue({} as never);
+
+    await expect(
+      webhookAsaasService.aplicarPagamentoConfirmado("evt-1", { id: "pay_1" })
+    ).resolves.toBeUndefined();
+
+    expect(asaasMock.buscarPagamento).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("erro");
+  });
+
+  it("empresa não resolvida: marcarErro, nenhuma escrita, nenhuma empresa criada", async () => {
+    prepararPagamento();
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.create).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).not.toHaveProperty("processadoEm");
+  });
+
+  it("empresa some entre a resolução e a leitura dos fatos: marcarErro, sem escrita", async () => {
+    prepararPagamento({ fatos: null });
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(prismaMock.empresa.updateMany).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("erro");
+  });
+
+  it("C-07: a leitura dos fatos usa select explícito dos 4 fatos + o bookkeeping de auditoria", async () => {
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(prismaMock.empresa.findUnique).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      select: {
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
+        ultimoStatusAuditado: true,
+      },
+    });
+  });
+});
+
+describe("webhookAsaasService.aplicarPagamentoConfirmado — escrita monotônica (GTW-04)", () => {
+  it("a guarda de monotonicidade mora no WHERE do updateMany — asserção EXATA", async () => {
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    // A exatidão é o que prova a invariante: um `if` em memória equivalente
+    // passaria neste teste se a asserção fosse `objectContaining`, e perderia a
+    // corrida com o worker da Fase 5 em produção.
+    expect(prismaMock.empresa.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "empresa-1",
+        OR: [{ acessoAte: null }, { acessoAte: { lt: ACESSO_ATE_DE_SETEMBRO } }],
+      },
+      data: { acessoAte: ACESSO_ATE_DE_SETEMBRO },
+    });
+  });
+
+  it("GTW-04: count === 0 (evento antigo fora de ordem) não gera auditoria, mas conclui o evento", async () => {
+    prepararPagamento({ count: 0 });
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    // O evento foi TRATADO corretamente; apenas não havia o que mudar. Deixá-lo
+    // na fila de retrabalho faria a Fase 5 tentar de novo para sempre.
+    expect(chamadasDeUpdate()[0].data).toMatchObject({ empresaId: "empresa-1" });
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+  });
+
+  it("count === 1 registra a transição com causa WEBHOOK_PAGAMENTO — asserção EXATA", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(acessoMock.registrarTransicao).toHaveBeenCalledWith({
+      empresaId: "empresa-1",
+      anterior: "CARENCIA",
+      novo: "EM_DIA",
+      causa: CausaTransicaoAcesso.WEBHOOK_PAGAMENTO,
+    });
+  });
+
+  it("o `novo` é DERIVADO por avaliarAcesso, nunca um literal: trial vigente continua TRIAL", async () => {
+    // Mesma escrita de `acessoAte`, fatos diferentes. Um `if (pago) …` fixo
+    // devolveria o status de pagante; a derivação devolve TRIAL, porque D-05 diz
+    // que quem paga durante o trial não perde os dias restantes.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
+    prepararPagamento({
+      fatos: {
+        acessoAte: null,
+        trialFim: new Date("2026-09-20T03:00:00.000Z"),
+        canceladoEm: null,
+        acessoVitalicio: false,
+        ultimoStatusAuditado: null,
+      },
+    });
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(acessoMock.registrarTransicao).toHaveBeenCalledWith({
+      empresaId: "empresa-1",
+      anterior: null,
+      novo: "TRIAL",
+      causa: CausaTransicaoAcesso.WEBHOOK_PAGAMENTO,
+    });
+  });
+
+  it("a auditoria passa pelo CAS da Fase 2, nunca por escrita direta na tabela", async () => {
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    expect(acessoMock.registrarTransicao).toHaveBeenCalledTimes(1);
+    expect(prismaMock.auditoriaAcesso.create).not.toHaveBeenCalled();
+  });
+
+  it("Pitfall 5: acessoAte é função PURA do dueDate — dois relógios distintos, o mesmo instante", async () => {
+    vi.useFakeTimers();
+
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    prepararPagamento();
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+    const primeiro = (
+      prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+        { data: { acessoAte: Date } },
+      ]
+    )[0].data.acessoAte;
+
+    vi.clearAllMocks();
+    vi.setSystemTime(new Date("2027-04-17T23:59:59.000Z"));
+    prepararPagamento();
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-2",
+      pagamentoDoLedger()
+    );
+    const segundo = (
+      prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+        { data: { acessoAte: Date } },
+      ]
+    )[0].data.acessoAte;
+
+    // Derivar de `new Date()` faria cada reentrega avançar o acesso e desalinhar
+    // permanentemente o nosso calendário do calendário de cobrança.
+    expect(segundo).toEqual(primeiro);
+    expect(primeiro).toEqual(acessoAteAposPagamento("2026-09-01"));
+    // Literal, para a asserção acima não ser vácua.
+    expect(primeiro).toEqual(ACESSO_ATE_DE_SETEMBRO);
+  });
+
+  it("GTW-03: depois da escrita, avaliarAcesso REAL devolve EM_DIA e encerra a carência sem coluna nenhuma", async () => {
+    prepararPagamento();
+
+    await webhookAsaasService.aplicarPagamentoConfirmado(
+      "evt-1",
+      pagamentoDoLedger()
+    );
+
+    const [args] = prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+      { data: { acessoAte: Date } },
+    ];
+
+    const resultado = avaliarAcesso(
+      {
+        acessoAte: args.data.acessoAte,
+        trialFim: FATOS_EM_CARENCIA.trialFim,
+        canceladoEm: null,
+        acessoVitalicio: false,
+      },
+      new Date("2026-09-15T12:00:00.000Z")
+    );
+
+    expect(resultado.status).toBe("EM_DIA");
+    // A carência em curso é encerrada como EFEITO da derivação: não existe
+    // coluna de carência para limpar (BILL-01 / D-16).
+    expect(resultado.carenciaAte).toBeNull();
+  });
+});
+
+describe("processar — despacho dos eventos de pagamento (GTW-03)", () => {
+  it.each(EVENTOS_DE_PAGAMENTO)(
+    "%s estende acessoAte e sai da fila de retrabalho",
+    async (evento) => {
+      prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+        linhaDoLedger({
+          evento,
+          payload: redigirEnvelope(envelopePagamento({ event: evento })),
+        }) as never
+      );
+      prepararPagamento();
+
+      await webhookAsaasService.processar("evt-1");
+
+      expect(prismaMock.empresa.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "empresa-1",
+          OR: [{ acessoAte: null }, { acessoAte: { lt: ACESSO_ATE_DE_SETEMBRO } }],
+        },
+        data: { acessoAte: ACESSO_ATE_DE_SETEMBRO },
+      });
+      expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
+    }
+  );
+
+  it("idempotência de valor: PAYMENT_RECEIVED do mesmo dueDate vira count 0 depois do CONFIRMED", async () => {
+    // Primeira entrega: CONFIRMED aplica.
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_CONFIRMED",
+        payload: redigirEnvelope(envelopePagamento()),
+      }) as never
+    );
+    prepararPagamento();
+
+    await webhookAsaasService.processar("evt-1");
+
+    const primeiro = (
+      prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+        { data: { acessoAte: Date } },
+      ]
+    )[0].data.acessoAte;
+
+    // Segunda entrega: RECEIVED do MESMO dueDate. O banco já tem o valor, então
+    // a guarda do WHERE não casa nenhuma linha.
+    vi.clearAllMocks();
+    prismaMock.eventoWebhookAsaas.findUnique.mockResolvedValue(
+      linhaDoLedger({
+        evento: "PAYMENT_RECEIVED",
+        payload: redigirEnvelope(envelopePagamento({ event: "PAYMENT_RECEIVED" })),
+      }) as never
+    );
+    prepararPagamento({
+      autoritativo: pagamentoAutoritativo({ status: "RECEIVED" }),
+      count: 0,
+    });
+
+    await webhookAsaasService.processar("evt-2");
+
+    const segundo = (
+      prismaMock.empresa.updateMany.mock.calls[0] as unknown as [
+        { data: { acessoAte: Date } },
+      ]
+    )[0].data.acessoAte;
+
+    expect(segundo).toEqual(primeiro);
+    expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
+    expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
   });
 });
