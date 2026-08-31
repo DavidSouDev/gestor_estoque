@@ -256,22 +256,47 @@ class EmpresaService {
     return empresa?.id ?? null;
   }
 
+  // CR-01: mesmo cálculo de trial de `registerComUsuario` — sem isso a Empresa
+  // nasce com os 4 fatos de billing nulos e `avaliarAcesso` a bloqueia para
+  // sempre (fail-closed), violando INV-1 ("nenhuma empresa ativa pode ficar
+  // sem trialFim", prisma/checks/backfill-billing.sql).
   async create(data: CreateEmpresaDTO) {
-    return prisma.empresa.create({
-      data: {
-        nome: data.nome,
-        slug: data.slug,
+    const agora = new Date();
+    const trialFim = meiaNoiteEmSaoPaulo(agora, DIAS_DE_TRIAL + 1);
 
-        logo: data.logo,
-        banner: data.banner,
-        descricao: data.descricao,
+    return prisma.$transaction(async (tx) => {
+      const empresa = await tx.empresa.create({
+        data: {
+          nome: data.nome,
+          slug: data.slug,
 
-        telefone: data.telefone,
-        instagram: data.instagram,
+          logo: data.logo,
+          banner: data.banner,
+          descricao: data.descricao,
 
-        primaryColor: data.primaryColor,
-        accentColor: data.accentColor,
-      },
+          telefone: data.telefone,
+          instagram: data.instagram,
+
+          primaryColor: data.primaryColor,
+          accentColor: data.accentColor,
+
+          trialFim,
+          ultimoStatusAuditado: StatusAcesso.TRIAL,
+        },
+      });
+
+      // BILL-05: primeira entrada da trilha, na mesma transação da criação —
+      // ver justificativa completa em `registerComUsuario`, acima.
+      await tx.auditoriaAcesso.create({
+        data: {
+          empresaId: empresa.id,
+          statusAnterior: null,
+          statusNovo: StatusAcesso.TRIAL,
+          causa: CausaTransicaoAcesso.REGISTRO,
+        },
+      });
+
+      return empresa;
     });
   }
 
