@@ -97,8 +97,28 @@ Plans:
   4. O mesmo evento entregue duas vezes não é processado duas vezes, e um evento antigo chegando fora de ordem não sobrescreve um estado mais recente — uma empresa em dia nunca é bloqueada por reentrega
   5. O endpoint de webhook rejeita payloads não autênticos e responde 200 imediatamente nos autênticos, processando o restante fora do ciclo do request
 
-**Plans**: TBD
-**Research flag**: yes — Asaas não tem SDK oficial nem webhook de assinatura (estado precisa ser derivado dos `payment`); confirmar URL de sandbox, header de autenticação e aprovação do checkout antes de planejar
+**Plans**: 7 plans
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Schema Asaas (ledger de eventos, mapa de checkout, enum WEBHOOK_PAGAMENTO) + migration aplicada contra Postgres real (GTW-01..04)
+- [ ] 03-02-PLAN.md — Fundação `lib/billing/asaas`: config fail-fast, datas determinísticas, tipos e cliente HTTP tipado (GTW-01, GTW-03)
+- [ ] 03-03-PLAN.md — Gate humano de legitimidade do `zod` + install pinado + schemas não-estritos e redação de PII (GTW-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-04-PLAN.md — Checkout hospedado recorrente de R$29,90/mês, sem nenhuma escrita antes do 2xx do gateway (GTW-01)
+- [ ] 03-05-PLAN.md — Endpoint de webhook: token timing-safe, sempre 200, persist-then-ack e ramos de no-op de estado (GTW-02, GTW-04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-06-PLAN.md — Resolução de tenant por mapa local, escrita monotônica de `acessoAte` e auditoria `WEBHOOK_PAGAMENTO` (GTW-03, GTW-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-07-PLAN.md — Credenciais sandbox (human-action), registro do webhook e homologação end-to-end (GTW-01..04)
+
+**Research flag**: resolvido em `03-RESEARCH.md` — a autenticação do webhook é um token estático no header `asaas-access-token` (não HMAC), e `PAYMENT_OVERDUE` é no-op de estado porque `avaliarAcesso` já deriva CARENCIA de `acessoAte`
 
 ### Phase 4: Aplicação do Bloqueio
 
@@ -172,7 +192,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 |-------|----------------|--------|-----------|
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
-| 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
+| 3. Gateway Asaas e Ingestão de Webhooks | 0/7 | Planned     | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
