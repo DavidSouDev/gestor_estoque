@@ -101,9 +101,9 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Schema Asaas (ledger de eventos, mapa de checkout, enum WEBHOOK_PAGAMENTO) + migration aplicada contra Postgres real (GTW-01..04)
-- [ ] 03-02-PLAN.md — Fundação `lib/billing/asaas`: config fail-fast, datas determinísticas, tipos e cliente HTTP tipado (GTW-01, GTW-03)
-- [ ] 03-03-PLAN.md — Gate humano de legitimidade do `zod` + install pinado + schemas não-estritos e redação de PII (GTW-02)
+- [x] 03-01-PLAN.md — Schema Asaas (ledger de eventos, mapa de checkout, enum WEBHOOK_PAGAMENTO) + migration aplicada contra Postgres real (GTW-01..04)
+- [x] 03-02-PLAN.md — Fundação `lib/billing/asaas`: config fail-fast, datas determinísticas, tipos e cliente HTTP tipado (GTW-01, GTW-03)
+- [x] 03-03-PLAN.md — Gate humano de legitimidade do `zod` + install pinado + schemas não-estritos e redação de PII (GTW-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -192,7 +192,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 |-------|----------------|--------|-----------|
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
-| 3. Gateway Asaas e Ingestão de Webhooks | 0/7 | Planned     | - |
+| 3. Gateway Asaas e Ingestão de Webhooks | 3/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |

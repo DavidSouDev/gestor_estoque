@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-08-31T22:08:47.580Z"
-last_activity: 2026-08-31 -- Phase 03 planning complete
+last_updated: "2026-08-31T22:10:49.737Z"
+last_activity: 2026-08-31 -- Phase 03 execution started
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 11
+  total_plans: 18
   completed_plans: 11
   percent: 29
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 02 — modelo-de-dados-e-motor-de-acesso
+**Current focus:** Phase 03 — gateway-asaas-e-ingest-o-de-webhooks
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-31 -- Phase 03 planning complete
+Phase: 03 (gateway-asaas-e-ingest-o-de-webhooks) — EXECUTING
+Plan: 1 of 7
+Status: Executing Phase 03
+Last activity: 2026-08-31 -- Phase 03 execution started
 
 **Checkpoint fechado:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`)
 foi **aprovado** pelo operador em 2026-08-31. Parte A: `pg_stat_activity` foi de **1** conexao
