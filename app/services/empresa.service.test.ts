@@ -467,20 +467,105 @@ describe("empresaService.resolveIdBySlug", () => {
 });
 
 describe("empresaService.create", () => {
-  it("cria a empresa com os dados informados", async () => {
-    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+  it("cria a empresa com os dados informados e os fatos de billing de trial (CR-01)", async () => {
+    // Fake timers porque `create` lê `new Date()` internamente, igual a
+    // `registerComUsuario`.
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
 
-    await empresaService.create({
-      nome: "Minha Loja",
-      slug: "minha-loja",
-    });
+    try {
+      mockTransaction();
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
 
-    expect(prismaMock.empresa.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+      await empresaService.create({
         nome: "Minha Loja",
         slug: "minha-loja",
-      }),
-    });
+      });
+
+      // Asserção EXATA de propósito (WR-03): é a rede que teria detectado CR-01
+      // (trialFim/ultimoStatusAuditado ausentes) antes de chegar em produção.
+      // Não relaxar para `objectContaining`.
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Minha Loja",
+          slug: "minha-loja",
+
+          logo: undefined,
+          banner: undefined,
+          descricao: undefined,
+
+          telefone: undefined,
+          instagram: undefined,
+
+          primaryColor: undefined,
+          accentColor: undefined,
+
+          trialFim: TRIAL_FIM_MEIO_DIA,
+          ultimoStatusAuditado: "TRIAL",
+        },
+      });
+
+      // Mesma trilha de auditoria de BILL-05 que `registerComUsuario` grava,
+      // na mesma transação da criação da Empresa.
+      expect(prismaMock.auditoriaAcesso.create).toHaveBeenCalledWith({
+        data: {
+          empresaId: empresaBase.id,
+          statusAnterior: null,
+          statusNovo: "TRIAL",
+          causa: "REGISTRO",
+        },
+      });
+
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("repassa os campos opcionais informados", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
+
+    try {
+      mockTransaction();
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+
+      await empresaService.create({
+        nome: "Minha Loja",
+        slug: "minha-loja",
+        logo: "logos/logo.png",
+        banner: "banners/banner.png",
+        descricao: "Descrição da loja",
+        telefone: "11999999999",
+        instagram: "@minhaloja",
+        primaryColor: "#18181b",
+        accentColor: "#f59e0b",
+      });
+
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Minha Loja",
+          slug: "minha-loja",
+
+          logo: "logos/logo.png",
+          banner: "banners/banner.png",
+          descricao: "Descrição da loja",
+
+          telefone: "11999999999",
+          instagram: "@minhaloja",
+
+          primaryColor: "#18181b",
+          accentColor: "#f59e0b",
+
+          trialFim: TRIAL_FIM_MEIO_DIA,
+          ultimoStatusAuditado: "TRIAL",
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
