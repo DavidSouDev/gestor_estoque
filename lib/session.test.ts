@@ -23,8 +23,24 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { createAdminSession, destroySession, getSession, requireAdminSession } from "./session";
+import {
+  createAdminSession,
+  destroySession,
+  getSession,
+  getVerifiedSession,
+  requireAdminSession,
+} from "./session";
 import { signAuthToken, type AuthTokenPayload } from "./jwt";
+import { prismaMock } from "@/tests/setup/prisma-mock";
+
+/** Conta ativa que o stub default de tests/setup/prisma-mock.ts devolve. */
+const contaAtiva = {
+  id: "user-1",
+  email: "admin@teste.com",
+  role: "ADMIN",
+  empresaId: "empresa-1",
+  empresa: { slug: "empresa-teste" },
+};
 
 const payload: AuthTokenPayload = {
   sub: "user-1",
@@ -105,6 +121,108 @@ describe("session", () => {
       await expect(requireAdminSession("outra-empresa")).rejects.toThrow(
         "REDIRECT:/outra-empresa/admin/login"
       );
+    });
+
+    it("redireciona quando a conta foi revogada no banco, mesmo com JWT válido", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockResolvedValue(null as never);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+    });
+
+    it("redireciona quando o banco falha (fail-closed, D-01)", async () => {
+      const erroSilenciado = vi.spyOn(console, "error").mockImplementation(() => {});
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockRejectedValue(new Error("connection refused") as never);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+
+      erroSilenciado.mockRestore();
+    });
+
+    it("redireciona quando o slug do banco não bate com o da URL (slug obsoleto, D-03)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockResolvedValue({
+        ...contaAtiva,
+        empresa: { slug: "slug-novo" },
+      } as never);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+    });
+
+    it("não consulta o banco quando não há sessão (T-01-08)", async () => {
+      cookieStore.get.mockReturnValue(undefined);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow("REDIRECT:");
+      expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("não consulta o banco quando o token é de outra empresa (T-01-08)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+
+      await expect(requireAdminSession("outra-empresa")).rejects.toThrow("REDIRECT:");
+      expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("aplica uma mudança no banco já no request seguinte, sem novo login", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+
+      // Request 1: conta ativa.
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+
+      // A conta é desativada no banco — o cookie/JWT continua exatamente o mesmo.
+      prismaMock.usuario.findFirst.mockResolvedValue(null as never);
+
+      // Request 2: já é rejeitado.
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+    });
+  });
+
+  describe("getVerifiedSession", () => {
+    it("retorna null quando não há cookie", async () => {
+      cookieStore.get.mockReturnValue(undefined);
+
+      await expect(getVerifiedSession()).resolves.toBeNull();
+      expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("retorna o payload quando o banco confirma a conta", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+
+      await expect(getVerifiedSession()).resolves.toEqual(payload);
+    });
+
+    it("retorna null quando o JWT é válido mas a conta foi revogada", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockResolvedValue(null as never);
+
+      await expect(getVerifiedSession()).resolves.toBeNull();
+    });
+
+    it("retorna null quando o banco falha (fail-closed, D-01)", async () => {
+      const erroSilenciado = vi.spyOn(console, "error").mockImplementation(() => {});
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockRejectedValue(new Error("connection refused") as never);
+
+      await expect(getVerifiedSession()).resolves.toBeNull();
+
+      erroSilenciado.mockRestore();
     });
   });
 });
