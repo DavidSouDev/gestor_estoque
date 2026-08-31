@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-08-31T16:02:27.576Z"
+last_updated: "2026-08-31T16:10:25.130Z"
 last_activity: 2026-08-31 -- Phase 01 execution started
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 01 execution started
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01 P01 | 6m | 2 tasks | 3 files |
 | Phase 01 P02 | 5m | 2 tasks | 2 files |
+| Phase 01 P03 | 6m | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-01] Dimensionamento de max do pool e URL pooled vs. direta ficam para a fase de deploy/hosting
 - [Phase ?]: [01-02] revalidarConta devolve null (fail-closed) tambem em erro de banco — o try/catch mora inteiramente dentro do DAL
 - [Phase ?]: [01-02] Somente React.cache no DAL de auth — unstable_cache e 'use cache' sao cross-request e reintroduziriam a janela de staleness
+- [Phase ?]: [01-03] Retorno de requireAdminSession/requireAuth continua AuthTokenPayload — devolver ContaAtiva quebraria ~40 call sites
+- [Phase ?]: [01-03] Mensagem unica 'Sessao invalida.' para conta inativa, empresa removida e erro de banco (T-01-06)
+- [Phase ?]: [01-03] Stub default de conta ativa no setup global bastou — nenhum dos 12 arquivos de rota autenticada precisou de stub local
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:02:27.571Z
+Last session: 2026-08-31T16:10:08.175Z
 Stopped at: Completed 01-02-PLAN.md
 Resume file: None
