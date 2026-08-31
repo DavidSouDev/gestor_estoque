@@ -6,30 +6,34 @@
 
 ### Prisma Client Singleton Misconfiguration (Production Bug)
 
+**Status:** Resolvido na Fase 1 — plano 01-01 (requisito INFRA-01).
+
 **Issue:** Prisma client is only cached in development, not in production.
 
 **Files:** `lib/prisma.ts`
 
-**Impact:** 
-- In production, every module that imports `lib/prisma.ts` creates a NEW `PrismaClient` instance
-- Each instance maintains its own connection pool
-- This rapidly exhausts the PostgreSQL connection pool
-- Server becomes unresponsive as connections max out
+**Mechanism (corrigido):** a conclusão original estava certa, mas o mecanismo descrito estava errado. O cache de módulos do Node **impede** a duplicação dentro de uma mesma camada de bundle — importar `lib/prisma.ts` de dez arquivos da mesma camada devolve a mesma instância. O problema real é que o Next.js 16 compila o código de servidor em **camadas de bundle separadas** (`rsc`, `ssr`, `api-node`, `api-edge`, `action-browser`, `instrument`, `middleware`, `shared` — verificado em `node_modules/next/dist/lib/constants.js:331-372`), e o mesmo arquivo importado de camadas diferentes vira **instâncias de módulo distintas em runtime**. Como `lib/prisma.ts` é importado tanto por Server Components/Server Actions (camadas `rsc`/`action-browser`) quanto por todas as rotas `app/api/*` (camada `api-node`), em produção o processo abria um `PrismaClient` por camada — cada um com o seu próprio `pg.Pool` (`max` default = 10).
+
+**Impact:**
+- Pools de conexão redundantes no mesmo processo (um por camada de bundle, não um por processo)
+- Dois multiplicadores agravam o quadro: em serverless cada lambda é um processo novo; e os pontos de entrada extras das Fases 3 e 5 (webhooks do gateway e worker diário) adicionam mais camadas/processos
+- Sob carga, isso esgota o limite de conexões do PostgreSQL e o servidor para de responder
 - **System will fail under load in production**
 
-**Current code:**
+**Código anterior:**
 ```typescript
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 ```
 
-**Fix approach:** Remove the NODE_ENV check. Cache globally in ALL environments:
+**Fix approach (implementado):** a construção do client foi extraída para uma factory `createPrismaClient()` — o que também tira a leitura de `process.env.DATABASE_URL` do tempo de import — e a atribuição a `globalThis` passou a ser **incondicional**, sem nenhuma guarda por ambiente. `globalThis` é o único escopo compartilhado entre as camadas de bundle, então é ele que garante um pool por processo:
 ```typescript
-if (!globalForPrisma.prisma) {
-  globalForPrisma.prisma = prisma;
-}
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+
+globalForPrisma.prisma = prisma;
 ```
+Gate automatizado em `lib/prisma.test.ts` (reavalia o módulo sob `NODE_ENV=production` e exige a mesma instância). O dimensionamento de `max` do pool e a escolha entre URL *pooled* e direta continuam **fora de escopo** — são entrada da fase de deploy/hosting.
 
 **Priority:** CRITICAL - Production blocker
 
