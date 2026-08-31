@@ -18,6 +18,24 @@ test.describe("Cadastro de empresa e autenticação", () => {
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByRole("link", { name: "Meus Produtos" })).toBeVisible();
     await expect(page.getByText(empresa.email)).toBeVisible();
+
+    // Critério de sucesso #1 da Fase 2, contra Postgres real: a empresa nova usa o
+    // painel normalmente. Uma empresa criada sem `trialFim` cairia em BLOQUEADO no
+    // motor de decisão — navegar por uma segunda tela protegida é a prova prática
+    // de que o trial foi gravado no registro.
+    await page.getByRole("link", { name: "Meus Produtos" }).click();
+    await expect(page).toHaveURL(/\/admin\/produtos$/);
+    await expect(page.getByRole("heading", { name: "Produtos" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Novo produto" })).toBeVisible();
+
+    // Nesta fase nada é bloqueado (a aplicação do bloqueio é a Fase 4). Esta
+    // asserção negativa trava esse contrato: nenhuma mensagem de bloqueio ou de
+    // cobrança pode aparecer para quem acabou de se cadastrar.
+    await expect(page.getByText(/bloquead|pagamento|assinatura vencida/i)).toHaveCount(0);
+
+    // O valor exato de `trialFim` é responsabilidade do teste unitário e do gate
+    // SQL do plano 02-01 — o processo do Playwright não carrega `.env` e não deve
+    // conhecer credenciais de banco.
   });
 
   test("bloqueia cadastro com senhas diferentes", async ({ page }) => {

@@ -25,10 +25,27 @@ const empresaBase = {
   primaryColor: "#18181b",
   accentColor: "#f59e0b",
   modoInterface: ModoInterface.COMPLETO,
+  // Os 5 campos de billing existem na linha real da tabela desde a migration do
+  // plano 02-01 — a fixture precisa refleti-los para continuar representando uma
+  // Empresa de verdade.
+  acessoAte: null,
+  trialFim: new Date(Date.UTC(2026, 8, 15, 3)),
+  canceladoEm: null,
+  acessoVitalicio: false,
+  ultimoStatusAuditado: "TRIAL",
   createdAt: new Date(),
   updatedAt: new Date(),
   deletedAt: null,
 };
+
+// 30/08/2026 09:00 em São Paulo. Escolhido como "meio do dia" para que o cálculo
+// do trial não dependa de nenhuma borda.
+const AGORA_MEIO_DIA = new Date("2026-08-30T12:00:00.000Z");
+
+// Derivação (não usar `meiaNoiteEmSaoPaulo` aqui — seria circular):
+// 30/08 é o dia 0 → +15 dias = 14/09 → meia-noite de America/Sao_Paulo (UTC-3)
+// = 14/09 03:00 UTC.
+const TRIAL_FIM_MEIO_DIA = new Date("2026-09-14T03:00:00.000Z");
 
 const usuarioBase = {
   id: "usuario-1",
@@ -62,39 +79,137 @@ beforeEach(() => {
 
 describe("empresaService.registerComUsuario", () => {
   it("gera um slug único a partir do nome da empresa, hasheia a senha e cria empresa+usuário em transação", async () => {
-    mockTransaction();
-    prismaMock.empresa.findMany.mockResolvedValue([]);
-    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
-    prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+    // Fake timers porque `registerComUsuario` lê `new Date()` internamente (ao
+    // contrário de `avaliarAcesso`, onde `agora` é parâmetro).
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
 
-    const resultado = await empresaService.registerComUsuario({
-      nomeEmpresa: "Minha Loja",
-      nomeResponsavel: "Responsável",
-      email: "responsavel@teste.com",
-      senha: "senha-plana",
-      modoInterface: ModoInterface.COMPLETO,
-    });
+    try {
+      mockTransaction();
+      prismaMock.empresa.findMany.mockResolvedValue([]);
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
 
-    expect(bcrypt.hash).toHaveBeenCalledWith("senha-plana", 10);
-
-    expect(prismaMock.empresa.create).toHaveBeenCalledWith({
-      data: {
-        nome: "Minha Loja",
-        slug: "minha-loja",
-        modoInterface: ModoInterface.COMPLETO,
-      },
-    });
-
-    expect(prismaMock.usuario.create).toHaveBeenCalledWith({
-      data: {
-        nome: "Responsável",
+      const resultado = await empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
-        senhaHash: "hashed:senha-plana",
-        empresaId: empresaBase.id,
-      },
-    });
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+      });
 
-    expect(resultado).toEqual({ empresa: empresaBase, usuario: usuarioBase });
+      expect(bcrypt.hash).toHaveBeenCalledWith("senha-plana", 10);
+
+      // Asserção EXATA de propósito: é a rede que detecta campo inesperado
+      // entrando no create da Empresa. Não relaxar para `objectContaining`.
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Minha Loja",
+          slug: "minha-loja",
+          modoInterface: ModoInterface.COMPLETO,
+          trialFim: TRIAL_FIM_MEIO_DIA,
+          ultimoStatusAuditado: "TRIAL",
+        },
+      });
+
+      expect(prismaMock.usuario.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Responsável",
+          email: "responsavel@teste.com",
+          senhaHash: "hashed:senha-plana",
+          empresaId: empresaBase.id,
+        },
+      });
+
+      expect(resultado).toEqual({ empresa: empresaBase, usuario: usuarioBase });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("grava o trial de 14 dias e a auditoria de REGISTRO na mesma transação", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
+
+    try {
+      mockTransaction();
+      prismaMock.empresa.findMany.mockResolvedValue([]);
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+
+      await empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+      });
+
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Minha Loja",
+          slug: "minha-loja",
+          modoInterface: ModoInterface.COMPLETO,
+          trialFim: TRIAL_FIM_MEIO_DIA,
+          ultimoStatusAuditado: "TRIAL",
+        },
+      });
+
+      // Exatamente 4 chaves (D-17): a linha de auditoria não carrega snapshot dos
+      // fatos de billing. Asserção exata, não `objectContaining`.
+      expect(prismaMock.auditoriaAcesso.create).toHaveBeenCalledWith({
+        data: {
+          empresaId: "empresa-1",
+          statusAnterior: null,
+          statusNovo: "TRIAL",
+          causa: "REGISTRO",
+        },
+      });
+
+      // A auditoria roda dentro do callback do $transaction — o mock de transação
+      // repassa o próprio prismaMock como `tx`, então a única prova possível aqui
+      // é que a escrita aconteceu na mesma passagem, sem uma segunda transação.
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dá 14 dias completos para quem se cadastra às 23:59 no horário de São Paulo", async () => {
+    vi.useFakeTimers();
+    // 2026-09-01T02:59:00Z = 31/08/2026 23:59 em São Paulo (UTC-3).
+    vi.setSystemTime(new Date("2026-09-01T02:59:00.000Z"));
+
+    try {
+      mockTransaction();
+      prismaMock.empresa.findMany.mockResolvedValue([]);
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+
+      await empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+      });
+
+      // 31/08 é o dia 0 → +15 dias = 15/09 → meia-noite SP = 15/09 03:00 UTC.
+      // Com `+14` o valor seria 14/09 03:00 UTC e o usuário receberia 13 dias e
+      // um minuto — é exatamente esse erro que este caso trava (D-18).
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            trialFim: new Date("2026-09-15T03:00:00.000Z"),
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("adiciona sufixo ao slug quando já existe um slug igual", async () => {
@@ -134,6 +249,41 @@ describe("empresaService.registerComUsuario", () => {
       message: "Este email já está em uso.",
       status: 409,
     });
+  });
+
+  it("não deixa linha de auditoria órfã quando a transação de registro aborta", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
+
+    try {
+      mockTransaction();
+      prismaMock.empresa.findMany.mockResolvedValue([]);
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.usuario.create.mockRejectedValue(makeP2002(["email"]));
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+
+      // O tratamento de erro não regrediu com a mudança do trial: o HttpError
+      // continua sendo o que o usuário vê.
+      await expect(
+        empresaService.registerComUsuario({
+          nomeEmpresa: "Minha Loja",
+          nomeResponsavel: "Responsável",
+          email: "responsavel@teste.com",
+          senha: "senha-plana",
+          modoInterface: ModoInterface.COMPLETO,
+        })
+      ).rejects.toMatchObject({
+        message: "Este email já está em uso.",
+        status: 409,
+      });
+
+      // BILL-05: a auditoria vem depois do usuário na mesma transação, então um
+      // registro que aborta nunca chega a escrevê-la. No banco real, mesmo se
+      // tivesse sido escrita, o rollback a levaria junto.
+      expect(prismaMock.auditoriaAcesso.create).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("converte violação de unicidade de slug em HttpError 409", async () => {
