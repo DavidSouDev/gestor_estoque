@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-08-31T19:37:31.312Z"
+last_updated: "2026-08-31T19:42:35.546Z"
 last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 02 execution started
 
@@ -70,6 +70,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 01 P04 | 9m | 3 tasks | 6 files |
 | Phase 01 P05 | 58m | 2 tasks | 2 files |
 | Phase 02 P01 | 12m | 3 tasks | 3 files |
+| Phase 02 P02 | 5m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [02-01] trialFim gravado com duplo AT TIME ZONE e interval de 15 dias (D-18): meia-noite de America/Sao_Paulo independente do TimeZone da sessao do Postgres
 - [Phase ?]: [02-01] Invariantes de dados provadas por gate SQL versionado (prisma/checks/backfill-billing.sql) com RAISE EXCEPTION, nao por inspecao manual
 - [Phase ?]: [02-01] ultimoStatusAuditado existe como bookkeeping com comentario normativo; conformidade a BILL-01 sera provada por gate de grep no plano 02-06
+- [Phase ?]: [02-02] Choke point de escrita da Empresa e o service, nao o route handler — route handler e Server Action convergem em empresaService.update
+- [Phase ?]: [02-02] Allowlist positivo de 10 campos com guarda !== undefined (nao truthiness) preserva a semantica Prisma usada por marca/actions.ts
+- [Phase ?]: [02-02] Escritas legitimas futuras nos campos de billing (acessoService, webhook Asaas) NAO podem passar por empresaService.update nem entrar no allowlist — exigem metodo dedicado
+- [Phase ?]: [02-02] Nao-vacuidade do teste comprovada por reversao temporaria: com data cru, 'nao aceita campos de billing' falha na asserção exata
 
 ### Pending Todos
 
@@ -128,6 +133,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T19:37:31.308Z
+Last session: 2026-08-31T19:42:14.464Z
 Stopped at: Completed 02-01-PLAN.md
 Resume file: None
