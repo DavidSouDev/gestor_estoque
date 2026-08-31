@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-08-31T19:50:45.831Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-08-31T19:57:20.594Z"
 last_activity: 2026-08-31 -- Phase 02 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 02 (modelo-de-dados-e-motor-de-acesso) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 02 execution started
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 02 P01 | 12m | 3 tasks | 3 files |
 | Phase 02 P02 | 5m | 2 tasks | 3 files |
 | Phase 02 P03 | 8m | 2 tasks | 4 files |
+| Phase 02 P04 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,11 @@ Recent decisions affecting current work:
 - [Phase 02-03]: meiaNoiteEmSaoPaulo copiado literalmente da versao verificada — a versao ingenua passa em 100% dos casos de 2026 e erra por 1-2h em 2017/2018; os 3 casos de DST historico sao a unica prova de corretude
 - [Phase 02-03]: Relogio por parametro (agora: Date), nunca new Date() interno — e o que torna as 3 viradas exatas de D-02 testaveis sem fake timers (T-02-13)
 - [Phase 02-03]: DIAS_DE_TRIAL exportada com o +1 de D-18 documentado na propria const para o plano 02-05 (registro) nao redescobrir a aritmetica
+- [Phase 02]: [02-04] O efeito colateral de auditoria mora em acessoService.registrarTransicao, nao dentro de avaliarAcesso — a funcao pura do 02-03 continua pura
+- [Phase 02]: [02-04] Compare-and-swap usa Empresa.ultimoStatusAuditado como registrador atomico: updateMany condicional + create so quando count === 1; read-then-write descartado por nao ser atomico
+- [Phase 02]: [02-04] Guarda D-16 (anterior === novo) retorna ANTES de abrir transacao — zero I/O, nao apenas zero escrita, porque a funcao roda a cada request autenticado
+- [Phase 02]: [02-04] Fallback inline de agendarPosResposta e requisito, nao defensive coding: revalidarConta roda em 3 contextos sem escopo de request e o after() do Next lanca E468 neles
+- [Phase 02]: [02-04] Nenhum caminho de leitura de AuditoriaAcesso criado (gate de grep proibindo findMany/findFirst/findUnique) — decisao de seguranca T-02-19
 
 ### Pending Todos
 
@@ -139,6 +145,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T19:50:34.773Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-08-31T19:57:08.358Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
