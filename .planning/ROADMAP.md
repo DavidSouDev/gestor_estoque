@@ -31,7 +31,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Uma alteração feita diretamente no banco sobre a Empresa ou o Usuario do admin logado passa a valer no próximo request, sem esperar os 7 dias do JWT nem exigir novo login
   3. Uma Empresa ou Usuario removido/desativado no banco tem a sessão ativa invalidada imediatamente, em vez de continuar navegando com o token antigo
   4. Todos os fluxos existentes (admin, registro, catálogo público) continuam funcionando exatamente como antes — nenhuma regressão de comportamento ou de isolamento por `empresaId`
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Corrigir o singleton do Prisma em todos os ambientes (INFRA-01) + corrigir o mecanismo descrito no CONCERNS.md
+- [ ] 01-02-PLAN.md — Criar o DAL `lib/auth-guard.ts` (`revalidarConta`) fail-closed e memoizado por request (INFRA-02)
+- [ ] 01-03-PLAN.md — Ligar a revalidação em `lib/session.ts` e `lib/api-auth.ts` + stub default no setup de testes
+- [ ] 01-04-PLAN.md — Eliminar o loop de redirect nas guardas públicas, alinhar o login ao DAL e provar por e2e
+- [ ] 01-05-PLAN.md — Gate automatizado da fase + checkpoint humano da estabilidade de conexões do Postgres
 
 ### Phase 2: Modelo de Dados e Motor de Acesso
 **Goal**: O sistema sabe dizer, para qualquer empresa e qualquer data, exatamente qual é o status de acesso dela — derivado de fatos armazenados, nunca de um status pré-calculado
@@ -116,7 +123,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pré-requisitos de Produção | 0/TBD | Not started | - |
+| 1. Pré-requisitos de Produção | 0/5 | Planned | - |
 | 2. Modelo de Dados e Motor de Acesso | 0/TBD | Not started | - |
 | 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |
