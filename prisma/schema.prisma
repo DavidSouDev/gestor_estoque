@@ -21,6 +21,23 @@ enum TipoMovimentacao {
   AJUSTE
 }
 
+enum StatusAcesso {
+  TRIAL
+  EM_DIA
+  CARENCIA
+  BLOQUEADO
+  CANCELADO
+  VITALICIO
+}
+
+// D-14: apenas os valores que existem HOJE. Novas causas entram por migration
+// propria na fase em que passarem a existir.
+enum CausaTransicaoAcesso {
+  REGISTRO
+  BACKFILL
+  AVALIACAO_SESSAO
+}
+
 model Empresa {
   id          String   @id @default(uuid())
 
@@ -39,6 +56,18 @@ model Empresa {
 
   modoInterface ModoInterface @default(COMPLETO)
 
+  // Fatos de billing (BILL-01). Fonte da verdade do acesso. Instantes UTC ja
+  // normalizados para a meia-noite de America/Sao_Paulo (D-01).
+  acessoAte       DateTime?
+  trialFim        DateTime?
+  canceladoEm     DateTime?
+  acessoVitalicio Boolean   @default(false)
+
+  // Bookkeeping de auditoria (D-16). NAO e fonte da verdade e NENHUMA decisao
+  // de acesso pode le-lo: quem decide e sempre avaliarAcesso() sobre os 4 fatos
+  // acima. Existe so para detectar transicao sem uma segunda query por request.
+  ultimoStatusAuditado StatusAcesso?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
@@ -47,6 +76,7 @@ model Empresa {
   produtos    Produto[]
   combos      Combo[]
   promocoes   Promocao[]
+  auditoriasAcesso AuditoriaAcesso[]
 
   @@index([slug])
 }
@@ -232,4 +262,22 @@ model MovimentacaoEstoque {
 
   @@index([produtoId])
   @@index([usuarioId])
+}
+
+model AuditoriaAcesso {
+  id             String   @id @default(uuid())
+
+  empresaId      String
+  empresa        Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // Nulo apenas na primeirissima entrada de cada empresa (REGISTRO / BACKFILL).
+  statusAnterior StatusAcesso?
+  statusNovo     StatusAcesso
+  causa          CausaTransicaoAcesso
+
+  createdAt      DateTime @default(now())
+
+  // D-17: sem snapshot dos fatos de billing.
+
+  @@index([empresaId, createdAt])
 }
