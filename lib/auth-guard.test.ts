@@ -3,12 +3,21 @@ import { describe, expect, it, vi } from "vitest";
 import { prismaMock } from "@/tests/setup/prisma-mock";
 import { revalidarConta } from "./auth-guard";
 
+const TRIAL_FUTURO = new Date("2099-01-01T03:00:00.000Z");
+
 const contaAtiva = {
   id: "user-1",
   email: "admin@teste.com",
   role: "ADMIN",
   empresaId: "empresa-1",
-  empresa: { slug: "empresa-teste" },
+  empresa: {
+    slug: "empresa-teste",
+    acessoAte: null,
+    trialFim: TRIAL_FUTURO,
+    canceladoEm: null,
+    acessoVitalicio: false,
+    ultimoStatusAuditado: "TRIAL",
+  },
 };
 
 describe("revalidarConta", () => {
@@ -21,6 +30,9 @@ describe("revalidarConta", () => {
       empresaSlug: "empresa-teste",
       email: "admin@teste.com",
       role: "ADMIN",
+      statusAcesso: "TRIAL",
+      acessoExpiraEm: TRIAL_FUTURO,
+      carenciaAte: null,
     });
   });
 
