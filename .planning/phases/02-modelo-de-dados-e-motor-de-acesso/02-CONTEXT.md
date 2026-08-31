@@ -46,6 +46,10 @@ Fora do escopo desta fase: gateway de pagamento (Fase 3), aplicação real do bl
 - **D-16:** A auditoria só grava uma linha quando o status **realmente muda** (compara com o último status conhecido da Empresa) — nunca a cada execução de `avaliarAcesso`. Isso é obrigatório, não opcional: a função vai plugar em `revalidarConta` (D-04 da Fase 1) e rodar a cada request autenticado; gravar sempre geraria uma linha por request.
 - **D-17:** A entrada de auditoria guarda apenas `status anterior`, `status novo`, `causa` e `horário` — sem snapshot dos 4 fatos de billing no momento da transição. Mais enxuto; investigação de "por que mudou" depende de outras fontes se necessário.
 
+### Resolvidas após pesquisa (02-RESEARCH.md OQ-1, OQ-3)
+- **D-18:** `trialFim` é calculado como `meiaNoiteEmSaoPaulo(agora, 15)` — o dia do cadastro conta como dia 0, não dia 1. Garante que a promessa de "14 dias de trial" nunca entrega menos que 14 dias completos, independente da hora do cadastro.
+- **D-19:** Existe uma 4ª causa de auditoria nesta fase, além de `REGISTRO` e `BACKFILL` (D-14): **`AVALIACAO_SESSAO`** — cobre transições de status observadas durante um request autenticado (ex: trial vence enquanto o admin está logado), já que `avaliarAcesso` roda dentro de `revalidarConta` a cada request (D-16) e deve auditar toda transição real, não só as duas causas originais. `after()` do `next/server` + compare-and-swap (`updateMany` + `count === 1`) seguem no escopo desta fase. Limitação aceita: empresas sem nenhum login não são auditadas até a Fase 5 (worker) existir — não é regressão, é o buraco que WRK-01 fecha.
+
 ### Claude's Discretion
 - Onde exatamente mora o efeito colateral de escrever a auditoria (wrapper que chama `avaliarAcesso` e compara com o último status persistido, vs. método de serviço) — desde que `avaliarAcesso` em si continue pura (D-16 exige comparação com estado anterior, que é responsabilidade de quem chama, não da função pura).
 - Nome exato dos campos/enum no schema Prisma (`StatusAcesso`, `CausaTransicao` ou equivalente) e da tabela de auditoria.
