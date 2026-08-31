@@ -1,40 +1,164 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestor de Estoque
 
-## Getting Started
+Plataforma **multi-tenant** que dá a cada empresa dois produtos em um só sistema:
 
-First, run the development server:
+- um **catálogo público** para os clientes navegarem produtos e combos (com preço de varejo/atacado, destaques e promoções por período);
+- um **gestor de estoque e vendas** para o lojista cadastrar produtos, montar combos, criar promoções e controlar movimentações de estoque (entrada, saída, ajuste).
+
+Cada empresa tem seu próprio espaço isolado, acessado por um slug único (`/<slug>` para o catálogo, `/<slug>/admin` para a gestão), com dados completamente segregados entre tenants.
+
+## Índice
+
+- [Objetivo](#objetivo)
+- [Como o sistema é organizado](#como-o-sistema-é-organizado)
+- [Tecnologias](#tecnologias)
+- [Pré-requisitos](#pré-requisitos)
+- [Rodando o projeto localmente](#rodando-o-projeto-localmente)
+- [Contribuindo (fork + PR)](#contribuindo-fork--pr)
+- [Testes](#testes)
+- [Documentação da API](#documentação-da-api)
+- [Deploy](#deploy)
+
+## Objetivo
+
+O projeto resolve duas pontas do mesmo negócio:
+
+1. **Cliente final** — acessa `/<slug-da-empresa>` e vê uma vitrine (catálogo) com os produtos e combos ativos daquela empresa: fotos, categorias, preços, destaques e promoções vigentes. Não precisa de login.
+2. **Vendedor/lojista** — acessa `/<slug-da-empresa>/admin`, autenticado, para:
+   - cadastrar e editar produtos, imagens, preços (varejo/atacado) e categorias;
+   - montar **combos** (kits com vários produtos e preço próprio);
+   - criar **promoções** com vigência (data início/fim) sobre produtos ou combos;
+   - registrar **movimentações de estoque** (entrada, saída, ajuste) com histórico por usuário;
+   - configurar a marca da empresa (nome, logo, banner, cores, contato).
+
+A interface do admin tem dois **modos**, escolhidos no cadastro da empresa (`ModoInterface`: `COMPLETO` ou `SIMPLES`) — o modo simples reduz o admin a wizards guiados (passo a passo) para quem prefere menos telas e menos decisões.
+
+## Como o sistema é organizado
+
+- **Multi-tenant por slug**: toda empresa (`Empresa`) tem um `slug` único, gerado a partir do nome no cadastro. As rotas dinâmicas `app/[slug]/...` roteiam catálogo e admin para o tenant certo.
+- **Autenticação**: login gera um JWT (assinado com `JWT_SECRET`, via [`jose`](https://github.com/panva/jose)) guardado em cookie `httpOnly`. O payload carrega `empresaId`/`empresaSlug`, então um token de uma empresa nunca autentica em outra.
+  - `proxy.ts` faz a checagem otimista nas rotas `/:slug/admin/*` (redireciona para o login se não houver sessão válida para aquele slug).
+  - `lib/session.ts#requireAdminSession` faz a checagem definitiva em toda page/layout/Server Action do admin — nunca confia só no proxy.
+- **Camadas do backend**: rotas de API (`app/api/**/route.ts`) chamam **services** (`app/services/*.service.ts`), que concentram as regras de negócio e o acesso ao banco via Prisma. Erros de negócio usam `HttpError` (`lib/http-error.ts`) para mapear status HTTP.
+- **Banco de dados**: PostgreSQL via Prisma ORM (schema em `prisma/schema.prisma`). Entidades principais: `Empresa`, `Usuario`, `Produto` (+ `ProdutoImagem`), `Combo` (+ `ComboItem`), `Promocao` (+ `PromocaoItem`) e `MovimentacaoEstoque`.
+
+## Tecnologias
+
+| Camada | Escolha |
+|---|---|
+| Framework | [Next.js 16](https://nextjs.org) (App Router, Server Actions) |
+| Linguagem | TypeScript |
+| UI | React 19 + Tailwind CSS 4 |
+| ORM / Banco | Prisma 7 + PostgreSQL (via `@prisma/adapter-pg`) |
+| Autenticação | JWT (`jose`) em cookie `httpOnly` + `bcryptjs` para hash de senha |
+| Testes unitários/integração/componentes | [Vitest](https://vitest.dev) + Testing Library |
+| Testes e2e | [Playwright](https://playwright.dev) |
+| Documentação de API | OpenAPI (`public/openapi.json`) servido via Swagger UI em `/docs` |
+| CI | GitHub Actions (`.github/workflows/tests.yml`) — lint, testes unitários com cobertura e e2e a cada push/PR na `main` |
+
+## Pré-requisitos
+
+- Node.js 22+ (mesma versão usada no CI)
+- npm
+- PostgreSQL rodando localmente (ou acessível via `DATABASE_URL`)
+
+## Rodando o projeto localmente
+
+1. **Clone o repositório** (veja [Contribuindo](#contribuindo-fork--pr) se for contribuir via fork):
+
+   ```bash
+   git clone https://github.com/<seu-usuario>/gestor_estoque.git
+   cd gestor_estoque/gestor_estoque
+   ```
+
+2. **Instale as dependências:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configure as variáveis de ambiente** — crie um `.env` na raiz do projeto:
+
+   ```bash
+   DATABASE_URL="postgresql://usuario:senha@localhost:5432/gestor_estoque"
+   JWT_SECRET="uma-string-secreta-qualquer-para-desenvolvimento"
+   ```
+
+4. **Gere o client do Prisma e aplique as migrations:**
+
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   ```
+
+5. **Suba o servidor de desenvolvimento:**
+
+   ```bash
+   npm run dev
+   ```
+
+   Acesse [http://localhost:3000](http://localhost:3000).
+
+6. **Crie sua primeira empresa** em `/registro` — o formulário cria a `Empresa` (com slug gerado a partir do nome), o `Usuario` administrador e já autentica, redirecionando para `/<slug>/admin`. A partir daí:
+   - o catálogo público fica em `/<slug>`;
+   - o admin fica em `/<slug>/admin`.
+
+### Scripts úteis
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev            # servidor de desenvolvimento
+npm run build           # build de produção
+npm run start            # roda o build de produção
+npm run lint            # ESLint
+npm test                # suíte Vitest (unitário + componentes)
+npm run test:e2e         # suíte Playwright (sobe o dev server na porta 3100)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Veja a seção [Testes](#testes) para detalhes de cada camada.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Contribuindo (fork + PR)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Faça um **fork** deste repositório pelo GitHub (botão "Fork" no canto superior direito).
+2. Clone o **seu fork** localmente:
+
+   ```bash
+   git clone https://github.com/<seu-usuario>/gestor_estoque.git
+   cd gestor_estoque/gestor_estoque
+   git remote add upstream https://github.com/<dono-original>/gestor_estoque.git
+   ```
+
+3. Siga os passos de [Rodando o projeto localmente](#rodando-o-projeto-localmente) para configurar o ambiente.
+4. Crie uma branch a partir da `main`:
+
+   ```bash
+   git checkout -b minha-feature
+   ```
+
+5. Mantenha seu fork atualizado com o repositório original quando necessário:
+
+   ```bash
+   git fetch upstream
+   git merge upstream/main
+   ```
+
+6. Rode lint e testes antes de abrir o PR (o CI roda os mesmos checks a cada push/PR):
+
+   ```bash
+   npm run lint
+   npm test
+   npm run test:e2e
+   ```
+
+7. Abra o Pull Request do seu fork para a `main` do repositório original.
 
 ## Testes
 
-O projeto tem uma suíte de testes em três camadas (unitário/integração, componentes e e2e) e um CI que roda tudo em cada push/PR. Veja [TESTING.md](./TESTING.md) para os comandos e as convenções.
+O projeto tem três camadas de teste automatizado (unitário/integração, componentes e e2e), todas rodadas pelo CI a cada push/PR. Comandos, convenções de mock do Prisma e padrões de teste de rota/e2e estão detalhados em **[TESTING.md](./TESTING.md)**.
 
-## Learn More
+## Documentação da API
 
-To learn more about Next.js, take a look at the following resources:
+A API REST (`app/api/**`) é documentada em OpenAPI (`public/openapi.json`) e pode ser explorada interativamente em [`/docs`](http://localhost:3000/docs) (Swagger UI) com o servidor rodando.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Por ser um app Next.js padrão, pode ser publicado em qualquer plataforma que suporte Next.js (ex: [Vercel](https://vercel.com)), desde que as variáveis `DATABASE_URL` e `JWT_SECRET` estejam configuradas e as migrations do Prisma (`npx prisma migrate deploy`) sejam aplicadas no banco de produção.
