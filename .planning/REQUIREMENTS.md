@@ -91,36 +91,46 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| BILL-01 | TBD | Pending |
-| BILL-02 | TBD | Pending |
-| BILL-03 | TBD | Pending |
-| BILL-04 | TBD | Pending |
-| BILL-05 | TBD | Pending |
-| GTW-01 | TBD | Pending |
-| GTW-02 | TBD | Pending |
-| GTW-03 | TBD | Pending |
-| GTW-04 | TBD | Pending |
-| ACC-01 | TBD | Pending |
-| ACC-02 | TBD | Pending |
-| ACC-03 | TBD | Pending |
-| ACC-04 | TBD | Pending |
-| WRK-01 | TBD | Pending |
-| WRK-02 | TBD | Pending |
-| TERM-01 | TBD | Pending |
-| TERM-02 | TBD | Pending |
-| TERM-03 | TBD | Pending |
-| TERM-04 | TBD | Pending |
-| SUB-01 | TBD | Pending |
-| SUB-02 | TBD | Pending |
-| SUB-03 | TBD | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| BILL-01 | Phase 2 | Pending |
+| BILL-02 | Phase 2 | Pending |
+| BILL-03 | Phase 2 | Pending |
+| BILL-04 | Phase 2 | Pending |
+| BILL-05 | Phase 2 | Pending |
+| GTW-01 | Phase 3 | Pending |
+| GTW-02 | Phase 3 | Pending |
+| GTW-03 | Phase 3 | Pending |
+| GTW-04 | Phase 3 | Pending |
+| ACC-01 | Phase 4 | Pending |
+| ACC-02 | Phase 4 | Pending |
+| ACC-03 | Phase 4 | Pending |
+| ACC-04 | Phase 4 | Pending |
+| WRK-01 | Phase 5 | Pending |
+| WRK-02 | Phase 5 | Pending |
+| TERM-01 | Phase 6 | Pending |
+| TERM-02 | Phase 6 | Pending |
+| TERM-03 | Phase 6 | Pending |
+| TERM-04 | Phase 6 | Pending |
+| SUB-01 | Phase 7 | Pending |
+| SUB-02 | Phase 7 | Pending |
+| SUB-03 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0 (roadmap not yet created)
-- Unmapped: 24 ⚠️ (expected — roadmap creation fills this in)
+- Mapped to phases: 24 ✓
+- Unmapped: 0 — every v1 requirement maps to exactly one phase (see `.planning/ROADMAP.md`)
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 1 — Pré-requisitos de Produção | INFRA-01, INFRA-02 | 2 |
+| 2 — Modelo de Dados e Motor de Acesso | BILL-01 … BILL-05 | 5 |
+| 3 — Gateway Asaas e Ingestão de Webhooks | GTW-01 … GTW-04 | 4 |
+| 4 — Aplicação do Bloqueio | ACC-01 … ACC-04 | 4 |
+| 5 — Worker Diário de Reconciliação | WRK-01, WRK-02 | 2 |
+| 6 — Termos de Uso e Aceite | TERM-01 … TERM-04 | 4 |
+| 7 — Gestão de Assinatura | SUB-01 … SUB-03 | 3 |
 
 ---
 *Requirements defined: 2026-08-31*
-*Last updated: 2026-08-31 after initial definition*
+*Last updated: 2026-08-31 after roadmap creation (traceability mapped)*
