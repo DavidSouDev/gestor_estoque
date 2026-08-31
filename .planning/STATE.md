@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-08-31T16:26:28.830Z"
-last_activity: 2026-08-31 -- Phase 01 execution started
+status: ready_for_verification
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-08-31T17:26:00.000Z"
+last_activity: 2026-08-31 -- 01-05 concluido; checkpoint humano aprovado (pg_stat_activity 1 -> 5)
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 0
+  completed_plans: 5
+  percent: 14
 ---
 
 # Project State
@@ -25,18 +25,24 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 ## Current Position
 
-Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
-Plan: 5 of 5
-Status: PAUSADO no checkpoint bloqueante (01-05 Task 2)
-Last activity: 2026-08-31 -- 01-05 Task 1 verde; aguardando medicao humana de pg_stat_activity
+Phase: 01 (pr-requisitos-de-produ-o) — 5/5 PLANOS CONCLUIDOS, aguardando verificacao de fase
+Plan: 5 of 5 (concluido)
+Status: Execucao da fase encerrada; pronta para `/gsd-verify-work`
+Last activity: 2026-08-31 -- 01-05 concluido; checkpoint humano aprovado (pg_stat_activity 1 -> 5)
 
-**Checkpoint aberto:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`).
-O gate automatizado da fase esta verde e commitado (`f926667`). O plano 01-05 **nao** esta
-concluido: falta a Parte A (contagem de conexoes do Postgres sob carga, criterio de sucesso #1)
-e a Parte B (ausencia de regressao em admin/registro/catalogo, criterio #4). O servidor de
-producao foi buildado e subido em `http://localhost:3000` para a medicao.
+**Checkpoint fechado:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`)
+foi **aprovado** pelo operador em 2026-08-31. Parte A: `pg_stat_activity` foi de **1** conexao
+antes para **5** depois de ~2 min de carga mista admin+API contra `npm run build` + `npm start`
+— abaixo do `max` default de 10 do pool, sem crescimento continuo (criterio de sucesso #1,
+INFRA-01 fechado). Parte B: os 5 fluxos (registro, admin, logout+login, catalogo anonimo,
+lentidao) passaram sem problema (criterio #4). Parte C: ciencia de D-01/T-01-10 registrada.
+`01-VALIDATION.md` esta com `nyquist_compliant: true` e 13/13 linhas verdes. O servidor de
+producao usado na medicao foi encerrado.
 
-Progress: [████████░░] 80%
+**A conclusao formal da Fase 1 no ROADMAP.md e do orquestrador**, apos a verificacao de fase —
+por isso o checkbox da Phase 1 continua desmarcado ali de proposito.
+
+Progress: [██████████] 100% (planos da fase 01)
 
 ## Performance Metrics
 
@@ -62,6 +68,7 @@ Progress: [████████░░] 80%
 | Phase 01 P02 | 5m | 2 tasks | 2 files |
 | Phase 01 P03 | 6m | 3 tasks | 5 files |
 | Phase 01 P04 | 9m | 3 tasks | 6 files |
+| Phase 01 P05 | 58m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -87,6 +94,11 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-04] Warning de lint do 'Link' nao usado em app/registro/page.tsx mantido — remove-lo estouraria o teto de diff do acceptance criteria
 - [Phase ?]: [01-05] Gate automatizado da fase 1 verde no mesmo estado do repo (lint 0, tsc 0, 463 testes unitarios, 20 e2e locais); nyquist_compliant segue false ate a medicao humana de pg_stat_activity
 - [Phase ?]: [01-05] Fase 1 NAO pode ser declarada concluida sem os dois numeros de pg_stat_activity (T-01-16) — checkpoint bloqueante, nao auto-aprovavel
+- [Phase ?]: [01-05] Fase 1 fechada com evidencia real: pg_stat_activity 1 -> 5 conexoes sob carga mista contra build de producao (criterio #1 comprovado, INFRA-01 fechado)
+- [Phase ?]: [01-05] INFRA-02 atendido nesta fase apenas pela INFRAESTRUTURA de revalidacao (D-02); a metade 'status de pagamento' do requisito e reaberta na Fase 2 para plugar avaliarAcesso dentro de revalidarConta (D-04)
+- [Phase ?]: [01-05] Sizing do max do pool (default 10) e escolha entre DATABASE_URL pooled vs. direta ficam para a fase de deploy/hosting, quando worker (Fase 5) e webhooks (Fase 3) existirem
+- [Phase ?]: [01-05] Nota operacional D-01/T-01-10: pico de 401 e redirects em producao pode significar Postgres fora do ar, nao sessoes revogadas — distinguir pelo prefixo [auth-guard] nos logs
+- [Phase ?]: [01-05] Todo JWT de 7 dias ja emitido passa a ser revalidado no primeiro request apos o deploy: contas ativas nao notam diferenca, contas revogadas caem na hora (esse e o objetivo)
 
 ### Pending Todos
 
@@ -111,6 +123,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:26:01.835Z
+Last session: 2026-08-31T17:25:26.795Z
 Stopped at: Completed 01-04-PLAN.md
 Resume file: None
