@@ -32,10 +32,13 @@ enum StatusAcesso {
 
 // D-14: apenas os valores que existem HOJE. Novas causas entram por migration
 // propria na fase em que passarem a existir.
+// Fase 3 (GTW-03) exerceu esse ponto de extensao: WEBHOOK_PAGAMENTO entrou por
+// migration propria, sem DML que use o valor na mesma transacao (Pitfall 7).
 enum CausaTransicaoAcesso {
   REGISTRO
   BACKFILL
   AVALIACAO_SESSAO
+  WEBHOOK_PAGAMENTO
 }
 
 model Empresa {
@@ -68,6 +71,15 @@ model Empresa {
   // acima. Existe so para detectar transicao sem uma segunda query por request.
   ultimoStatusAuditado StatusAcesso?
 
+  // Identificadores externos do Asaas (GTW-04). NAO sao fatos de billing e
+  // avaliarAcesso() nunca os le: nenhuma decisao de acesso depende deles.
+  // Existem exclusivamente para resolver o empresaId de um evento de webhook
+  // pelo mapa LOCAL, em vez de confiar no que o payload afirma (Pattern 5 /
+  // C-08). A unicidade de asaasSubscriptionId e o que impede um "sub_..."
+  // forjado de apontar para duas empresas.
+  asaasCustomerId     String?
+  asaasSubscriptionId String? @unique
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -77,6 +89,7 @@ model Empresa {
   combos           Combo[]
   promocoes        Promocao[]
   auditoriasAcesso AuditoriaAcesso[]
+  checkoutsAsaas   CheckoutAsaas[]
 
   @@index([slug])
 }
@@ -279,4 +292,77 @@ model AuditoriaAcesso {
   // D-17: sem snapshot dos fatos de billing.
 
   @@index([empresaId, createdAt])
+}
+
+// Mapa checkout -> empresa (GTW-04, Pattern 5).
+//
+// D-07: a linha so nasce DEPOIS do 2xx do Asaas. Nunca existe checkout parcial
+// no banco — se a chamada de criacao falhar, nao ha o que reconciliar depois.
+//
+// Pitfall 8: o payload de CHECKOUT_PAID traz checkout.id e checkout.customer,
+// mas o objeto checkout.subscription carrega apenas a CONFIGURACAO da
+// recorrencia (cycle, nextDueDate, endDate) — nao o id "sub_..." da assinatura
+// criada. Por isso este mapa, gravado no momento da criacao do checkout, e a
+// unica associacao certa entre um checkout e uma Empresa.
+model CheckoutAsaas {
+  id String @id @default(uuid())
+
+  asaasCheckoutId String @unique
+
+  empresaId String
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // String livre, deliberadamente NAO enum: ACTIVE/PAID/CANCELED/EXPIRED sao
+  // vocabulario de terceiro e podem crescer sem aviso. Travar em enum
+  // reproduziria o defeito do Pitfall 3 no nivel do schema — um status novo
+  // passaria a derrubar a ingestao em vez de ser apenas desconhecido.
+  status String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([empresaId, createdAt])
+}
+
+// Ledger append-only de eventos de webhook do Asaas (GTW-01/GTW-02/GTW-04).
+model EventoWebhookAsaas {
+  id String @id @default(uuid())
+
+  // id do envelope do Asaas ("evt_<hash>&<seq>"), estavel entre reenvios do
+  // mesmo evento. A constraint UNICA e a UNICA defesa correta contra entrega
+  // concorrente: um findFirst antes do insert perde a corrida porque as duas
+  // entregas passam pela leitura juntas. So o Postgres resolve isso
+  // (GTW-02/GTW-04, Don't Hand-Roll). Duplicata => P2002 => 200 + no-op.
+  eventoId String @unique
+
+  evento String
+
+  // Versao REDIGIDA do envelope, NUNCA o corpo bruto (GTW-01, Pitfall 9).
+  // creditCard, customerData, cpfCnpj, pixTransaction, pixQrCodeId,
+  // bankSlipUrl, invoiceUrl e transactionReceiptUrl sao descartados antes de
+  // persistir. A redacao e implementada e testada no plano 03-05.
+  payload Json
+
+  // DELIBERADAMENTE sem @relation/FK, divergindo da convencao do projeto.
+  // O ledger e append-only e precisa sobreviver a remocao de uma Empresa; um
+  // onDelete: Cascade apagaria a trilha de auditoria financeira exatamente no
+  // caso em que ela mais importa. Nulo tambem e estado legitimo: um evento
+  // pode chegar antes de qualquer tenant ter sido resolvido (Pattern 5, passo
+  // 4). Custo aceito e consciente (T-03-04): integridade referencial nao e
+  // imposta pelo banco nesta coluna.
+  empresaId String?
+
+  // Interface de recuperacao consumida pela FASE 5 (WRK-01): a fila de
+  // retrabalho e WHERE "processadoEm" IS NULL. Esta fase entrega apenas as
+  // colunas e o indice — DRENAR a fila nao e escopo daqui (Pitfall 10).
+  // "erro" precisa ser gravado, nao apenas logado: depois do 200 o Asaas nunca
+  // reenvia, entao um evento que falhou em silencio some para sempre.
+  processadoEm DateTime?
+  erro         String?
+  tentativas   Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([processadoEm])
+  @@index([evento, createdAt])
 }
