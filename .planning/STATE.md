@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-08-31T16:19:01.189Z"
+last_updated: "2026-08-31T16:26:28.830Z"
 last_activity: 2026-08-31 -- Phase 01 execution started
 progress:
   total_phases: 7
@@ -27,8 +27,14 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
-Last activity: 2026-08-31 -- Phase 01 execution started
+Status: PAUSADO no checkpoint bloqueante (01-05 Task 2)
+Last activity: 2026-08-31 -- 01-05 Task 1 verde; aguardando medicao humana de pg_stat_activity
+
+**Checkpoint aberto:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`).
+O gate automatizado da fase esta verde e commitado (`f926667`). O plano 01-05 **nao** esta
+concluido: falta a Parte A (contagem de conexoes do Postgres sob carga, criterio de sucesso #1)
+e a Parte B (ausencia de regressao em admin/registro/catalogo, criterio #4). O servidor de
+producao foi buildado e subido em `http://localhost:3000` para a medicao.
 
 Progress: [████████░░] 80%
 
@@ -79,6 +85,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-04] Guardas publicas de login/registro usam getVerifiedSession — a tela publica passa a usar a mesma verdade da tela protegida (fim do loop de redirect)
 - [Phase ?]: [01-04] Login (API e Server Action) rejeita usuario.empresa.deletedAt por veracidade, nao por comparacao com null
 - [Phase ?]: [01-04] Warning de lint do 'Link' nao usado em app/registro/page.tsx mantido — remove-lo estouraria o teto de diff do acceptance criteria
+- [Phase ?]: [01-05] Gate automatizado da fase 1 verde no mesmo estado do repo (lint 0, tsc 0, 463 testes unitarios, 20 e2e locais); nyquist_compliant segue false ate a medicao humana de pg_stat_activity
+- [Phase ?]: [01-05] Fase 1 NAO pode ser declarada concluida sem os dois numeros de pg_stat_activity (T-01-16) — checkpoint bloqueante, nao auto-aprovavel
 
 ### Pending Todos
 
@@ -103,6 +111,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:18:50.106Z
+Last session: 2026-08-31T16:26:01.835Z
 Stopped at: Completed 01-04-PLAN.md
 Resume file: None
