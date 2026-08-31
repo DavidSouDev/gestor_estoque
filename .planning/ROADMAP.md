@@ -48,7 +48,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Eliminar o loop de redirect nas guardas públicas, alinhar o login ao DAL e provar por e2e
+- [x] 01-04-PLAN.md — Eliminar o loop de redirect nas guardas públicas, alinhar o login ao DAL e provar por e2e
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -155,7 +155,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pré-requisitos de Produção | 3/5 | In Progress|  |
+| 1. Pré-requisitos de Produção | 4/5 | In Progress|  |
 | 2. Modelo de Dados e Motor de Acesso | 0/TBD | Not started | - |
 | 3. Gateway Asaas e Ingestão de Webhooks | 0/TBD | Not started | - |
 | 4. Aplicação do Bloqueio | 0/TBD | Not started | - |

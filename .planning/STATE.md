@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-08-31T16:10:25.130Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-08-31T16:19:01.189Z"
 last_activity: 2026-08-31 -- Phase 01 execution started
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 01 (pr-requisitos-de-produ-o) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-08-31 -- Phase 01 execution started
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 6m | 2 tasks | 3 files |
 | Phase 01 P02 | 5m | 2 tasks | 2 files |
 | Phase 01 P03 | 6m | 3 tasks | 5 files |
+| Phase 01 P04 | 9m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [01-03] Retorno de requireAdminSession/requireAuth continua AuthTokenPayload — devolver ContaAtiva quebraria ~40 call sites
 - [Phase ?]: [01-03] Mensagem unica 'Sessao invalida.' para conta inativa, empresa removida e erro de banco (T-01-06)
 - [Phase ?]: [01-03] Stub default de conta ativa no setup global bastou — nenhum dos 12 arquivos de rota autenticada precisou de stub local
+- [Phase ?]: [01-04] Guardas publicas de login/registro usam getVerifiedSession — a tela publica passa a usar a mesma verdade da tela protegida (fim do loop de redirect)
+- [Phase ?]: [01-04] Login (API e Server Action) rejeita usuario.empresa.deletedAt por veracidade, nao por comparacao com null
+- [Phase ?]: [01-04] Warning de lint do 'Link' nao usado em app/registro/page.tsx mantido — remove-lo estouraria o teto de diff do acceptance criteria
 
 ### Pending Todos
 
@@ -99,6 +103,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:10:08.175Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-08-31T16:18:50.106Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
