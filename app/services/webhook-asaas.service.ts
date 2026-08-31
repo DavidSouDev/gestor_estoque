@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { CausaTransicaoAcesso, Prisma } from "@prisma/client";
 import {
   assinaturaSchema,
   checkoutSchema,
+  pagamentoSchema,
   redigirEnvelope,
 } from "@/lib/billing/asaas/eventos";
+import { asaasClient } from "@/lib/billing/asaas/client";
+import { acessoAteAposPagamento } from "@/lib/billing/asaas/datas";
+import { acessoService } from "@/app/services/acesso.service";
+import { avaliarAcesso } from "@/lib/avaliar-acesso";
+import type { AsaasPayment } from "@/lib/billing/asaas/tipos";
 
 /**
  * Ledger de eventos de webhook do Asaas: registro, despacho e marcação de
@@ -40,20 +46,20 @@ import {
  * 4. **A empresa afetada vem SEMPRE do mapa local, nunca do payload** (C-08,
  *    Pattern 5). Ver o comentário longo de `resolverEmpresaId`.
  *
+ * 5. **`acessoAte` só cresce, e a guarda mora no banco.** Ver as três
+ *    invariantes de `aplicarPagamentoConfirmado`.
+ *
  * ============================================================================
- * FRONTEIRA DESTA WAVE (plano 03-06, wave 3 — parcial).
+ * INVARIANTE DE TERMINAÇÃO — vale para TODO caminho de `processar`.
  * ============================================================================
  *
- * `SUBSCRIPTION_CREATED` e `CHECKOUT_PAID` já têm handler: eles capturam os
- * identificadores externos do Asaas, que são exatamente o mapa local que a
- * resolução de tenant consulta depois.
+ * Todo ramo termina em `marcarProcessado` (concluído) OU em `marcarErro` (fica
+ * na fila de retrabalho `WHERE processadoEm IS NULL`, que a Fase 5 / WRK-01
+ * drena). Nunca em nenhum dos dois. Um evento sem `processadoEm` e sem `erro`
+ * seria invisível tanto para a fila quanto para o operador: o Asaas não
+ * reenviaria (o 200 já foi respondido) e ninguém saberia que ele existiu.
  *
- * Os dois eventos de pagamento (`PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`)
- * continuam DELIBERADAMENTE não-processados: `marcarErro` é chamado,
- * `processadoEm` permanece `null`. Assim, se a execução parar no meio do plano,
- * nenhum evento é perdido — eles ficam na fila de retrabalho
- * `WHERE processadoEm IS NULL` que a Fase 5 (WRK-01) drena. Marcá-los como
- * concluídos seria a única forma de perdê-los para sempre.
+ * Ao adicionar um ramo novo, conferir os dois pontos de saída antes do `return`.
  */
 
 /** Prefixo obrigatório de todo log deste subsistema. Nunca logar o corpo. */
@@ -79,6 +85,24 @@ interface DadosDeResolucao {
   /** Definido por nós como `empresaId`. CROSS-CHECK apenas — nunca autoridade. */
   externalReference?: string | null;
 }
+
+/**
+ * Status do Asaas que significam "o dinheiro entrou" e portanto concedem acesso.
+ *
+ * `CONFIRMED` está na lista, e é o gatilho principal, porque no cartão de
+ * crédito o fluxo é `CREATED → CONFIRMED → (~30 dias) → RECEIVED`: `CONFIRMED`
+ * é a captura aprovada, `RECEIVED` é o repasse do dinheiro para a conta Asaas.
+ * Esperar por `RECEIVED` deixaria um cliente pagante bloqueado por um mês.
+ *
+ * Declarado como `readonly string[]` (e não tupla de literais) de propósito: o
+ * vocabulário de status é de terceiro e pode crescer sem aviso — a comparação
+ * precisa aceitar qualquer string, não só as conhecidas pelo compilador.
+ */
+const STATUS_QUE_CONCEDEM_ACESSO: readonly string[] = [
+  "CONFIRMED",
+  "RECEIVED",
+  "RECEIVED_IN_CASH",
+];
 
 /** Extrai um sub-objeto do payload persistido sem confiar na forma dele. */
 function subObjetoDoPayload(payload: unknown, chave: string): unknown {
@@ -180,6 +204,177 @@ class WebhookAsaasService {
     }
 
     return empresaId;
+  }
+
+  /**
+   * Ramo de `PAYMENT_CONFIRMED` / `PAYMENT_RECEIVED`: aqui dinheiro vira acesso
+   * (GTW-03, GTW-04).
+   *
+   * ==========================================================================
+   * TRÊS INVARIANTES ESTRUTURAIS. Nenhuma delas é uma checagem defensiva.
+   * ==========================================================================
+   *
+   * **(a) O re-fetch é controle de segurança, não redundância** (Pitfall 1,
+   * T-03-32). O Asaas não assina o corpo do webhook: a autenticidade se apoia
+   * num bearer estático, replayável por quem o capturar. Um payload forjado
+   * afirmando "pago" concederia acesso grátis para sempre. Reconferir a cobrança
+   * na API — com a nossa chave, contra o servidor deles — é o que faz a forja
+   * não sobreviver. Por isso o `dueDate` usado no cálculo é o do RE-FETCH, e
+   * nunca o do payload: aceitar o vencimento afirmado permitiria comprar anos de
+   * acesso com um único corpo forjado.
+   *
+   * **(b) `acessoAte` é função PURA do `dueDate`** (Pitfall 5). Derivar de
+   * `new Date()` faria cada reentrega do MESMO evento avançar o acesso mais um
+   * mês, e o nosso calendário se desalinharia permanentemente do calendário de
+   * cobrança do gateway. Sendo puro, o webhook reentregue produz exatamente o
+   * mesmo instante — e é isso que transforma a escrita abaixo num no-op.
+   *
+   * **(c) A guarda de monotonicidade mora no `WHERE`, nunca num `if`.** Ver o
+   * comentário no passo 6.
+   *
+   * `param payment` chega como `unknown` porque é payload de terceiro lido do
+   * ledger: só passa a ter forma depois do `safeParse`. O objeto com forma
+   * garantida neste método é `autoritativo`, que veio da API.
+   */
+  async aplicarPagamentoConfirmado(
+    eventoId: string,
+    payment: unknown
+  ): Promise<void> {
+    const validado = pagamentoSchema.safeParse(payment);
+
+    if (!validado.success) {
+      await this.marcarErro(
+        eventoId,
+        "payload de pagamento sem os campos exigidos"
+      );
+      return;
+    }
+
+    // 1. RE-FETCH AUTORITATIVO — invariante (a).
+    let autoritativo: AsaasPayment;
+
+    try {
+      autoritativo = await asaasClient.buscarPagamento(validado.data.id);
+    } catch (erro) {
+      // Falha do gateway não pode derrubar o processamento nem propagar: este
+      // método roda depois do 200, dentro do trabalho pós-resposta (T-03-37).
+      // O evento fica na fila `processadoEm IS NULL` para a Fase 5 retentar.
+      await this.marcarErro(
+        eventoId,
+        `falha ao reconferir a cobranca no gateway: ${
+          erro instanceof Error ? erro.message : String(erro)
+        }`
+      );
+      return;
+    }
+
+    // 2. GUARDA DE STATUS. Um payload que afirma "pago" só vale se o gateway
+    // concordar. Qualquer outro status é anomalia registrada, não silêncio.
+    if (!STATUS_QUE_CONCEDEM_ACESSO.includes(autoritativo.status)) {
+      await this.marcarErro(
+        eventoId,
+        `cobranca nao esta paga no gateway: ${autoritativo.status}`
+      );
+      return;
+    }
+
+    // 3. TENANT PELO MAPA LOCAL — os identificadores vêm do objeto autoritativo,
+    // e mesmo assim nenhum deles autoriza por si (ver `resolverEmpresaId`).
+    const empresaId = await this.resolverEmpresaId({
+      subscription: autoritativo.subscription,
+      customer: autoritativo.customer,
+      externalReference: autoritativo.externalReference,
+    });
+
+    if (!empresaId) {
+      await this.marcarErro(
+        eventoId,
+        "empresa nao resolvida para evento de pagamento"
+      );
+      return;
+    }
+
+    // 4. FATOS ATUAIS, com `select` explícito (C-07). `ultimoStatusAuditado` não
+    // é fato de billing: entra só como `anterior` do compare-and-swap.
+    const fatos = await prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: {
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
+        ultimoStatusAuditado: true,
+      },
+    });
+
+    if (!fatos) {
+      await this.marcarErro(
+        eventoId,
+        "empresa resolvida nao encontrada ao ler os fatos de billing"
+      );
+      return;
+    }
+
+    // 5. CÁLCULO PURO — invariante (b). Proibido `new Date()` / `Date.now()`
+    // nesta derivação.
+    const novoAcessoAte = acessoAteAposPagamento(autoritativo.dueDate);
+
+    // 6. ESCRITA MONOTÔNICA — invariante (c).
+    //
+    // A guarda está no `WHERE` e não num `if` porque um `if` em memória lê,
+    // decide e escreve em três momentos distintos: entre a leitura e a escrita,
+    // o worker diário da Fase 5 (ou outra entrega concorrente) pode ter movido
+    // `acessoAte`, e a decisão já nasce velha. No `WHERE`, o Postgres avalia a
+    // condição e aplica a escrita no MESMO comando — sem lock, sem coluna de
+    // versão, sem transação.
+    //
+    // O efeito concreto: um `PAYMENT_CONFIRMED` de janeiro reentregue em março
+    // produz um `novoAcessoAte` de fevereiro, que é MENOR que o valor corrente
+    // de novembro. Nenhuma linha casa, `count === 0`, e nada acontece — nem
+    // escrita nem auditoria. Uma empresa em dia não pode ser bloqueada por
+    // reentrega (GTW-04). O ramo `acessoAte: null` cobre a primeira cobrança de
+    // quem nunca pagou, cujo valor corrente não é comparável com `lt`.
+    const { count } = await prisma.empresa.updateMany({
+      where: {
+        id: empresaId,
+        OR: [{ acessoAte: null }, { acessoAte: { lt: novoAcessoAte } }],
+      },
+      data: { acessoAte: novoAcessoAte },
+    });
+
+    // 7. Fora de ordem: o evento foi TRATADO, apenas não havia o que mudar.
+    // Deixá-lo na fila de retrabalho faria a Fase 5 retentá-lo para sempre.
+    if (count === 0) {
+      await this.marcarProcessado(eventoId, empresaId);
+      return;
+    }
+
+    // 8. AUDITORIA. O status novo é DERIVADO dos fatos já atualizados — nunca um
+    // literal. Escrever "pagou, logo está em dia" quebraria a invariante
+    // BILL-01/D-16 da Fase 2 e daria a resposta errada para quem pagou durante o
+    // trial (D-05) ou tem acesso vitalício (D-03).
+    //
+    // Note também o que NÃO é feito aqui: nenhuma linha de auditoria é criada
+    // direto na tabela. O compare-and-swap já existe em `acessoService` e
+    // duplicá-lo produziria linhas repetidas sob concorrência (T-02-15).
+    const novo = avaliarAcesso(
+      {
+        acessoAte: novoAcessoAte,
+        trialFim: fatos.trialFim,
+        canceladoEm: fatos.canceladoEm,
+        acessoVitalicio: fatos.acessoVitalicio,
+      },
+      new Date()
+    ).status;
+
+    await acessoService.registrarTransicao({
+      empresaId,
+      anterior: fatos.ultimoStatusAuditado,
+      novo,
+      causa: CausaTransicaoAcesso.WEBHOOK_PAGAMENTO,
+    });
+
+    await this.marcarProcessado(eventoId, empresaId);
   }
 
   /**
@@ -475,14 +670,17 @@ class WebhookAsaasService {
           return;
 
         // ==================================================================
-        // GRUPO 3 — MUTADORES DE FATO DE BILLING. Ligados na Task 2.
+        // GRUPO 3 — MUTADORES DE FATO DE BILLING. O único caminho do dinheiro.
         // ==================================================================
         case "PAYMENT_CONFIRMED":
         case "PAYMENT_RECEIVED":
-          // Até `aplicarPagamentoConfirmado` existir, o evento fica
-          // INTENCIONALMENTE na fila `processadoEm IS NULL`. `marcarProcessado`
-          // aqui seria o único jeito de perdê-lo caso a execução parasse.
-          await this.marcarErro(eventoId, "handler de pagamento pendente");
+          // Os dois compartilham handler porque a guarda de status é feita
+          // sobre a resposta AUTORITATIVA, não sobre o nome do evento — e a
+          // escrita monotônica torna o segundo, do mesmo vencimento, um no-op.
+          await this.aplicarPagamentoConfirmado(
+            eventoId,
+            subObjetoDoPayload(registro.payload, "payment")
+          );
           return;
 
         // ==================================================================
