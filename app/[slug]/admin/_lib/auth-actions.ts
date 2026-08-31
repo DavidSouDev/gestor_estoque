@@ -22,7 +22,11 @@ export async function login(
 
   const usuario = await usuarioService.validatePassword(email, senha);
 
-  if (!usuario || !usuario.ativo) {
+  // Mesma condição que o DAL aplica na revalidação: quem for rejeitado lá no
+  // request seguinte já é rejeitado aqui na entrada, sem criar sessão. Checagem
+  // por veracidade (e não `!== null`) para tratar o campo ausente como
+  // "não removida". Mensagem única — não distinguir o motivo da rejeição.
+  if (!usuario || !usuario.ativo || usuario.empresa.deletedAt) {
     return { error: "Email ou senha inválidos." };
   }
 
