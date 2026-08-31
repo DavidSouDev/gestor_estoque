@@ -22,6 +22,7 @@ const usuarioAtivo = {
   empresa: {
     id: "empresa-1",
     slug: "empresa-teste",
+    deletedAt: null,
   },
 };
 
@@ -57,6 +58,26 @@ describe("POST /api/auth/login", () => {
     );
 
     expect(response.status).toBe(401);
+  });
+
+  it("retorna 401 quando a empresa do usuário foi removida", async () => {
+    // Alinhamento com o DAL (`empresa: { deletedAt: null }`): sem isso o login
+    // emitiria um token de 7 dias que a revalidação rejeitaria no request
+    // seguinte — "entra e é expulso na hora" (T-01-01).
+    vi.mocked(usuarioService.validatePassword).mockResolvedValue({
+      ...usuarioAtivo,
+      empresa: { ...usuarioAtivo.empresa, deletedAt: new Date("2026-01-01T00:00:00Z") },
+    } as never);
+
+    const response = await POST(
+      buildRequest({ method: "POST", body: { email: "admin@teste.com", senha: "123456" } })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    // Mesma mensagem genérica de credencial inválida: o cliente não deve
+    // conseguir distinguir o motivo da rejeição (T-01-06).
+    expect(body.message).toBe("Email ou senha inválidos.");
   });
 
   it("retorna 200 com token e dados do usuário em caso de sucesso", async () => {
