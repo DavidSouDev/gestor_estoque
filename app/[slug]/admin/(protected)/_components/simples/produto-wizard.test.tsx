@@ -3,10 +3,18 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ProdutoAdmin } from "../../../_lib/types";
 
-const { refreshMock, criarProdutoSimplesMock, atualizarProdutoSimplesMock } = vi.hoisted(() => ({
+const {
+  refreshMock,
+  criarProdutoSimplesMock,
+  atualizarProdutoSimplesMock,
+  uploadImagemProdutoMock,
+  removerImagemProdutoMock,
+} = vi.hoisted(() => ({
   refreshMock: vi.fn(),
   criarProdutoSimplesMock: vi.fn(),
   atualizarProdutoSimplesMock: vi.fn(),
+  uploadImagemProdutoMock: vi.fn(),
+  removerImagemProdutoMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -16,6 +24,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("../../_lib/simples-actions", () => ({
   criarProdutoSimples: criarProdutoSimplesMock,
   atualizarProdutoSimples: atualizarProdutoSimplesMock,
+  uploadImagemProduto: uploadImagemProdutoMock,
+  removerImagemProduto: removerImagemProdutoMock,
 }));
 
 import { ProdutoWizard } from "./produto-wizard";
@@ -89,7 +99,8 @@ describe("ProdutoWizard", () => {
     expect(screen.getByRole("spinbutton")).toHaveValue(1);
   });
 
-  it("mostra 'Pular' quando não há foto e 'Próximo' quando há uma foto informada", async () => {
+  it("mostra 'Pular' quando não há foto e 'Próximo' após enviar uma foto", async () => {
+    uploadImagemProdutoMock.mockResolvedValue({ url: "https://exemplo.com/x.png" });
     const user = userEvent.setup();
     render(<ProdutoWizard slug="loja" onDone={vi.fn()} onCancel={vi.fn()} />);
 
@@ -101,8 +112,12 @@ describe("ProdutoWizard", () => {
 
     expect(screen.getByRole("button", { name: "Pular" })).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText("https://..."), "https://exemplo.com/x.png");
-    expect(screen.getByRole("button", { name: "Próximo" })).toBeInTheDocument();
+    const file = new File(["conteudo"], "foto.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+
+    expect(await screen.findByRole("button", { name: "Próximo" })).toBeInTheDocument();
+    expect(uploadImagemProdutoMock).toHaveBeenCalledWith("loja", expect.any(FormData));
   });
 
   it("mostra o resumo correto na etapa de confirmação", async () => {
@@ -157,6 +172,40 @@ describe("ProdutoWizard", () => {
       fotoCapa: "https://exemplo.com/foto.png",
     });
     expect(screen.queryByRole("button", { name: "Adicionar outro" })).not.toBeInTheDocument();
+    expect(removerImagemProdutoMock).not.toHaveBeenCalled();
+  });
+
+  it("apaga a foto antiga do bucket ao trocar a foto de um produto existente", async () => {
+    atualizarProdutoSimplesMock.mockResolvedValue({ success: true });
+    uploadImagemProdutoMock.mockResolvedValue({ url: "https://exemplo.com/nova-foto.png" });
+    const user = userEvent.setup();
+    render(<ProdutoWizard slug="minha-loja" existing={existing} onDone={vi.fn()} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+
+    await user.click(screen.getByRole("button", { name: "Trocar imagem" }));
+
+    const file = new File(["conteudo"], "nova-foto.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+
+    await screen.findByRole("button", { name: "Próximo" });
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    expect(await screen.findByText("Produto atualizado!")).toBeInTheDocument();
+    expect(atualizarProdutoSimplesMock).toHaveBeenCalledWith("minha-loja", "p1", {
+      nome: "Arroz 5kg",
+      precoVarejo: 25.5,
+      estoque: 8,
+      fotoCapa: "https://exemplo.com/nova-foto.png",
+    });
+    expect(removerImagemProdutoMock).toHaveBeenCalledWith(
+      "minha-loja",
+      "https://exemplo.com/foto.png"
+    );
   });
 
   it("mostra o erro retornado pela action e não avança para a tela de sucesso", async () => {

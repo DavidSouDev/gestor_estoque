@@ -6,9 +6,35 @@ import { requireAdminSession } from "@/lib/session";
 import { comboService } from "@/app/services/combo.service";
 import { produtoService } from "@/app/services/produto.service";
 import { assertBelongsToEmpresa } from "../../_lib/guards";
+import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
 
 export interface ComboFormState {
   error?: string;
+}
+
+async function resolveFotoCapa(formData: FormData): Promise<string | undefined> {
+  const atual = String(formData.get("fotoCapa") ?? "").trim() || undefined;
+  const file = formData.get("fotoCapaFile");
+
+  if (file instanceof File && file.size > 0) {
+    const nova = await uploadImage(file, "combos");
+
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return nova;
+  }
+
+  if (formData.get("removerFotoCapa") === "on") {
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return undefined;
+  }
+
+  return atual;
 }
 
 function parseComboForm(formData: FormData) {
@@ -16,7 +42,6 @@ function parseComboForm(formData: FormData) {
     nome: String(formData.get("nome") ?? "").trim(),
     descricao: String(formData.get("descricao") ?? "").trim() || undefined,
     preco: Number(formData.get("preco")),
-    fotoCapa: String(formData.get("fotoCapa") ?? "").trim() || undefined,
     destaque: formData.get("destaque") === "on",
     visivel: formData.get("visivel") === "on",
   };
@@ -78,13 +103,21 @@ export async function createCombo(
     return { error: erro };
   }
 
+  let fotoCapa: string | undefined;
+
+  try {
+    fotoCapa = await resolveFotoCapa(formData);
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+
   const itens = await itensValidosDaEmpresa(parseItens(formData), auth.empresaId);
 
   if (itens.length === 0) {
     return { error: "Selecione ao menos um produto para o combo." };
   }
 
-  const combo = await comboService.create({ ...dados, empresaId: auth.empresaId });
+  const combo = await comboService.create({ ...dados, fotoCapa, empresaId: auth.empresaId });
   await comboService.updateItens(combo.id, itens);
 
   revalidatePath(`/${slug}/admin/combos`);
@@ -108,13 +141,21 @@ export async function updateCombo(
     return { error: erro };
   }
 
+  let fotoCapa: string | undefined;
+
+  try {
+    fotoCapa = await resolveFotoCapa(formData);
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+
   const itens = await itensValidosDaEmpresa(parseItens(formData), auth.empresaId);
 
   if (itens.length === 0) {
     return { error: "Selecione ao menos um produto para o combo." };
   }
 
-  await comboService.update(id, dados);
+  await comboService.update(id, { ...dados, fotoCapa });
   await comboService.updateItens(id, itens);
 
   revalidatePath(`/${slug}/admin/combos`);
@@ -125,9 +166,14 @@ export async function updateCombo(
 
 export async function deleteCombo(slug: string, id: string) {
   const auth = await requireAdminSession(slug);
-  await assertBelongsToEmpresa(await comboService.findById(id), auth.empresaId);
+  const combo = await comboService.findById(id);
+  await assertBelongsToEmpresa(combo, auth.empresaId);
 
   await comboService.delete(id);
+
+  if (combo?.fotoCapa) {
+    await deleteImage(combo.fotoCapa);
+  }
 
   revalidatePath(`/${slug}/admin/combos`);
   revalidatePath(`/${slug}`);

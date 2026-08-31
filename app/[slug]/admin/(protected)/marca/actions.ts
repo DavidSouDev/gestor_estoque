@@ -5,10 +5,36 @@ import { requireAdminSession } from "@/lib/session";
 import { empresaService } from "@/app/services/empresa.service";
 import { usuarioService } from "@/app/services/usuario.service";
 import type { ModoInterface } from "@prisma/client";
+import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
 
 export interface BrandingFormState {
   error?: string;
   success?: boolean;
+}
+
+async function resolveLogo(formData: FormData): Promise<string | undefined> {
+  const atual = String(formData.get("logo") ?? "").trim() || undefined;
+  const file = formData.get("logoFile");
+
+  if (file instanceof File && file.size > 0) {
+    const nova = await uploadImage(file, "empresas/logos");
+
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return nova;
+  }
+
+  if (formData.get("removerLogo") === "on") {
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return undefined;
+  }
+
+  return atual;
 }
 
 export async function updateBranding(
@@ -36,10 +62,18 @@ export async function updateBranding(
     return { error: "Selecione um modo de uso válido." };
   }
 
+  let logo: string | undefined;
+
+  try {
+    logo = await resolveLogo(formData);
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+
   await empresaService.update(auth.empresaId, {
     nome,
     descricao: String(formData.get("descricao") ?? "").trim() || undefined,
-    logo: String(formData.get("logo") ?? "").trim() || undefined,
+    logo,
     telefone: String(formData.get("telefone") ?? "").trim() || undefined,
     instagram: String(formData.get("instagram") ?? "").trim() || undefined,
     primaryColor: String(formData.get("primaryColor") ?? "").trim() || undefined,

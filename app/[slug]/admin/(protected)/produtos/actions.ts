@@ -6,9 +6,35 @@ import { Prisma } from "@prisma/client";
 import { requireAdminSession } from "@/lib/session";
 import { produtoService } from "@/app/services/produto.service";
 import { assertBelongsToEmpresa } from "../../_lib/guards";
+import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
 
 export interface ProdutoFormState {
   error?: string;
+}
+
+async function resolveFotoCapa(formData: FormData): Promise<string | undefined> {
+  const atual = String(formData.get("fotoCapa") ?? "").trim() || undefined;
+  const file = formData.get("fotoCapaFile");
+
+  if (file instanceof File && file.size > 0) {
+    const nova = await uploadImage(file, "produtos");
+
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return nova;
+  }
+
+  if (formData.get("removerFotoCapa") === "on") {
+    if (atual) {
+      await deleteImage(atual);
+    }
+
+    return undefined;
+  }
+
+  return atual;
 }
 
 function parseProdutoForm(formData: FormData) {
@@ -24,7 +50,6 @@ function parseProdutoForm(formData: FormData) {
     precoVarejo,
     precoAtacado: precoAtacadoRaw ? Number(precoAtacadoRaw) : undefined,
     estoque: Number.isNaN(estoque) ? 0 : estoque,
-    fotoCapa: String(formData.get("fotoCapa") ?? "").trim() || undefined,
     destaque: formData.get("destaque") === "on",
     visivelCatalogo: formData.get("visivelCatalogo") === "on",
   };
@@ -59,12 +84,21 @@ export async function createProduto(
     return { error: erro };
   }
 
+  let fotoCapa: string | undefined;
+
+  try {
+    fotoCapa = await resolveFotoCapa(formData);
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+
   const codigo = dados.codigo || (await produtoService.generateUniqueCodigo(auth.empresaId, dados.nome));
   const precoAtacado = dados.precoAtacado ?? dados.precoVarejo;
 
   try {
     await produtoService.create({
       ...dados,
+      fotoCapa,
       codigo,
       precoAtacado,
       empresaId: auth.empresaId,
@@ -98,9 +132,18 @@ export async function updateProduto(
     return { error: erro };
   }
 
+  let fotoCapa: string | undefined;
+
+  try {
+    fotoCapa = await resolveFotoCapa(formData);
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
+  }
+
   try {
     await produtoService.update(id, {
       ...dados,
+      fotoCapa,
       precoAtacado: dados.precoAtacado ?? dados.precoVarejo,
     });
   } catch (error) {
@@ -119,9 +162,14 @@ export async function updateProduto(
 
 export async function deleteProduto(slug: string, id: string) {
   const auth = await requireAdminSession(slug);
-  await assertBelongsToEmpresa(await produtoService.findById(id), auth.empresaId);
+  const produto = await produtoService.findById(id);
+  await assertBelongsToEmpresa(produto, auth.empresaId);
 
   await produtoService.delete(id);
+
+  if (produto?.fotoCapa) {
+    await deleteImage(produto.fotoCapa);
+  }
 
   revalidatePath(`/${slug}/admin/produtos`);
   revalidatePath(`/${slug}`);
