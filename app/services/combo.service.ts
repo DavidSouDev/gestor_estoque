@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PRODUTO_CATALOGO_SELECT } from "./produto.service";
+import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
 
 export interface CreateComboDTO {
   empresaId: string;
@@ -71,16 +72,58 @@ class ComboService {
     });
   }
 
+  /**
+   * ACC-03 / D-07. Analog byte-paralelo de `produtoService.findCatalogoById` —
+   * o que existe lá tem que existir aqui, e vice-versa. A única diferença
+   * legítima é `visivel` (combo) vs `visivelCatalogo` (produto); os dois campos
+   * NÃO devem ser uniformizados.
+   *
+   * `COMBO_CATALOGO_SELECT` também expõe `empresaId` no corpo público, então a
+   * sondagem por id documentada em T-04-04 vale igual para combos.
+   *
+   * D-06: `CANCELADO` e `BLOQUEADO` convergem no mesmo `null`.
+   *
+   * Os fatos de billing vêm no MESMO `findFirst`: uma segunda query só no
+   * caminho de rejeição criaria o canal lateral de tempo de T-04-02.
+   *
+   * T-04-05: `empresa: { deletedAt: null }` fecha o mesmo buraco pré-existente
+   * de tenant que o método de produto tinha.
+   */
   async findCatalogoById(id: string) {
-    return prisma.combo.findFirst({
+    const combo = await prisma.combo.findFirst({
       where: {
         id,
         ativo: true,
         visivel: true,
         deletedAt: null,
+        // BUG PRÉ-EXISTENTE fechado neste mesmo patch (T-04-05): sem esta linha,
+        // os combos de uma empresa removida por soft delete continuam
+        // publicamente legíveis por id.
+        empresa: { deletedAt: null },
       },
-      select: COMBO_CATALOGO_SELECT,
+      // Select aninhado montado AQUI, no call site: `COMBO_CATALOGO_SELECT` é
+      // reutilizada por `listCatalogo`, e mexer nela mudaria o corpo público de
+      // outro endpoint.
+      select: {
+        ...COMBO_CATALOGO_SELECT,
+        empresa: { select: EMPRESA_PUBLICAVEL_SELECT },
+      },
     });
+
+    if (!combo) {
+      return null;
+    }
+
+    if (!empresaPodePublicar(combo.empresa, new Date())) {
+      return null;
+    }
+
+    // A chave `empresa` é interna ao gate e sai do retorno: formato da resposta
+    // pública idêntico ao de antes deste patch (T-04-01).
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { empresa, ...publico } = combo;
+
+    return publico;
   }
 
   async list(empresaId: string) {
