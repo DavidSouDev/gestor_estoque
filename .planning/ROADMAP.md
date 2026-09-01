@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Modelo de Dados e Motor de Acesso** - Fatos de billing na Empresa + função pura `avaliarAcesso` com auditoria (completed 2026-08-31)
 - [x] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
 - [x] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
-- [ ] **Phase 5: Worker Diário de Reconciliação** - Endpoint protegido que expira trials, inicia carências e aplica bloqueios
+- [x] **Phase 5: Worker Diário de Reconciliação** - Endpoint protegido que expira trials, inicia carências e aplica bloqueios (completed 2026-09-01)
 - [ ] **Phase 6: Termos de Uso e Aceite** - Termos versionados, papel SUPERADMIN e modal obrigatório de aceite
 - [ ] **Phase 7: Gestão de Assinatura** - Tela de status e cancelamento com data exata de fim de acesso
 
@@ -208,7 +208,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 05-05-PLAN.md — Os seis gates estáticos da fase como script executável + fechamento de `05-VALIDATION.md` (WRK-01, WRK-02)
+- [x] 05-05-PLAN.md — Os seis gates estáticos da fase como script executável + fechamento de `05-VALIDATION.md` (WRK-01, WRK-02)
 
 **Research flag**: resolvido em `05-RESEARCH.md` — D-07 mantém a decisão de hosting adiada e o endpoint agnóstico por construção; o Vercel Cron dispara `GET` com `Authorization: Bearer`, o que fixa método e header sem acoplar código à plataforma. O pooling do Prisma continua sem dimensionamento (mitigado por lotes de concorrência ≤5).
 
@@ -255,7 +255,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
-| 5. Worker Diário de Reconciliação | 4/5 | In Progress|  |
+| 5. Worker Diário de Reconciliação | 5/5 | Complete   | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
