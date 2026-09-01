@@ -25,6 +25,8 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - ✓ Bloqueio após os 10 dias de carência: perda de acesso ao painel admin **e** despublicação do catálogo público daquela empresa (sem mensagem de pagamento no catálogo — apenas indisponível/idêntico a "não existe"). O catálogo tem **6** caminhos de leitura públicos (corrigido pela pesquisa da Fase 4 — o roadmap original citava 5; `GET /api/empresas/slug/[slug]` também é público) — todos gateados pelo mesmo funil de serviço — Validado na Fase 4: Aplicação do Bloqueio (ACC-02, ACC-03)
 - ✓ Reativação automática ao pagar a cobrança corrente do gateway (não é cobrado retroativamente pelos meses em que ficou bloqueada) — Validado na Fase 4: Aplicação do Bloqueio (ACC-04), apoiado na extensão monotônica de `acessoAte` já provada na Fase 3
 - ✓ Webhook do gateway é idempotente (não processa o mesmo evento duas vezes) e sempre responde 200 rapidamente, processando de forma assíncrona — Validado na Fase 3: Gateway Asaas e Ingestão de Webhooks (GTW-04), com reentrega real testada contra o Asaas Sandbox
+- ✓ Worker diário reconcilia todas as empresas (expira trials, inicia carências, aplica bloqueios), idempotente e seguro mesmo rodando duas vezes no mesmo dia ou pulando um dia — Validado na Fase 5: Worker Diário de Reconciliação (WRK-01), com prova ao vivo contra Postgres real (idempotência observada em duas chamadas HTTP consecutivas, não apenas em mock)
+- ✓ Worker exposto como endpoint HTTP (`GET /api/cron/reconciliacao-diaria`) protegido por `CRON_SECRET` (gate time-safe), funcionando independente da decisão final de hosting (Vercel Cron, VPS cron) — Validado na Fase 5: Worker Diário de Reconciliação (WRK-02); a decisão de hosting em si (D-07) continua adiada
 
 ### Active
 
@@ -32,7 +34,6 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - [ ] Campo de status de pagamento por Empresa (projeção derivada, não fonte da verdade): `em_dia`, `atrasado`, `vitalicio`, `cancelado`, `bloqueado`, `trial`
 - [ ] Período de trial de 14 dias para empresas novas, sem exigir pagamento no registro
 - [ ] Status `vitalicio` só pode ser ativado manualmente no banco de dados (sem UI de admin/superadmin para isso em v1)
-- [ ] Worker diário que avalia o status de pagamento de cada empresa e aplica as regras de carência/bloqueio
 - [ ] Integração com gateway de pagamento externo para assinatura recorrente automática (cobrança mensal, sem armazenar dados de cartão/pagamento no nosso sistema)
 - [ ] Webhook do gateway atualiza o status de pagamento da empresa (sucesso/falha de cobrança)
 - [ ] Gateway de pagamento: Asaas (checkout hospedado com assinatura recorrente) — decidido após pesquisa (ver `.planning/research/STACK.md`)
@@ -63,7 +64,7 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 
 **Motivação:** o sistema hoje só verifica se o admin está logado, sem nenhum controle de cobrança. Esta é a primeira monetização real do produto.
 
-**Estado atual:** Fase 4 (Aplicação do Bloqueio) concluída em 2026-09-01 — banner de carência, tela de bloqueio, e os 6 caminhos públicos do catálogo (não 5, corrigido pela pesquisa) gateados pelo status de acesso derivado; checkpoint humano de contagem prévia de empresas afetadas aprovado (o bloqueio é imediato e retroativo no primeiro request após o merge, não gradual — ver aviso no ROADMAP.md §Fase 5). 876 testes unitários + 22 e2e verdes. Próxima: Fase 5 (Worker Diário de Reconciliação).
+**Estado atual:** Fase 5 (Worker Diário de Reconciliação) concluída em 2026-09-01 — `GET /api/cron/reconciliacao-diaria` reconcilia todas as empresas por lote, idempotente, com freio composto (>20% E ≥5 perdas) contra bloqueio em massa; hosting continua adiado (D-07) e o endpoint é agnóstico por construção. Checkpoint humano de `CRON_SECRET` aprovado. 916 testes unitários + 24 e2e verdes, gates estáticos das Fases 4 e 5 em 6/6 cada. Código revisado sem achados críticos (3 warnings advisórios sobre os gates não estarem no CI ainda). Próxima: Fase 6 (Termos de Uso e Aceite).
 
 ## Constraints
 
@@ -83,7 +84,7 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 | Aceite de termos de uso por Usuario (não por Empresa) | Cada login precisa concordar individualmente com os termos vigentes | — Pending |
 | Gateway de pagamento: Asaas | Pesquisa recomendou Asaas sobre Stripe — Pix sem exigir aprovação/convite no Brasil (Stripe exige), sem mensalidade, ~4% de taxa, NFS-e nativa, cobranças por período mapeiam bem para o modelo de acesso | — Pending |
 | Reativação cobra apenas o mês corrente, não os meses em atraso | Gateways de assinatura não suportam cobrança retroativa nativamente; cobrar por período sem prestação de serviço é arriscado sob o CDC | — Pending |
-| Status de acesso derivado de datas (`acessoAte`, `trialFim`), não de um campo de status já calculado | O worker diário vira uma rede de segurança (reconciliador), não a autoridade — uma falha no cron não libera nem bloqueia incorretamente | — Pending |
+| Status de acesso derivado de datas (`acessoAte`, `trialFim`), não de um campo de status já calculado | O worker diário vira uma rede de segurança (reconciliador), não a autoridade — uma falha no cron não libera nem bloqueia incorretamente | Confirmado na Fase 5 — `ultimoStatusAuditado` é bookkeeping do compare-and-swap, nunca fonte de decisão (gate estático `gates:fase-05` prova isso) |
 
 ## Evolution
 
@@ -103,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-01 after Phase 4 completion*
+*Last updated: 2026-09-01 after Phase 5 completion*
