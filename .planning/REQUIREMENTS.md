@@ -31,10 +31,10 @@ Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais pa
 
 ### Controle de Acesso
 
-- [ ] **ACC-01**: Banner de aviso em destaque aparece em todas as telas do admin (exceto catálogo público) durante a carência, mostrando dias restantes e pedindo o pagamento
-- [ ] **ACC-02**: Após os 10 dias de carência, todos os usuários daquela Empresa perdem acesso ao painel admin
-- [ ] **ACC-03**: Catálogo público da Empresa bloqueada fica indisponível (sem mensagem de pagamento) — o guard é aplicado nos 5 caminhos de leitura pública existentes, não só na página principal
-- [ ] **ACC-04**: Reativação acontece automaticamente ao pagar a cobrança do período corrente do gateway — sem cobrança retroativa dos meses em que ficou bloqueada
+- [x] **ACC-01**: Banner de aviso em destaque aparece em todas as telas do admin (exceto catálogo público) durante a carência, mostrando dias restantes e pedindo o pagamento
+- [x] **ACC-02**: Após os 10 dias de carência, todos os usuários daquela Empresa perdem acesso ao painel admin
+- [x] **ACC-03**: Catálogo público da Empresa bloqueada fica indisponível (sem mensagem de pagamento) — o guard é aplicado nos 5 caminhos de leitura pública existentes, não só na página principal
+- [x] **ACC-04**: Reativação acontece automaticamente ao pagar a cobrança do período corrente do gateway — sem cobrança retroativa dos meses em que ficou bloqueada
 
 ### Worker Diário
 
@@ -102,10 +102,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GTW-02 | Phase 3 | Complete |
 | GTW-03 | Phase 3 | Complete |
 | GTW-04 | Phase 3 | Complete |
-| ACC-01 | Phase 4 | Pending |
-| ACC-02 | Phase 4 | Pending |
-| ACC-03 | Phase 4 | Pending |
-| ACC-04 | Phase 4 | Pending |
+| ACC-01 | Phase 4 | Complete |
+| ACC-02 | Phase 4 | Complete |
+| ACC-03 | Phase 4 | Complete |
+| ACC-04 | Phase 4 | Complete |
 | WRK-01 | Phase 5 | Pending |
 | WRK-02 | Phase 5 | Pending |
 | TERM-01 | Phase 6 | Pending |

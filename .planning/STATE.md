@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 04 wave 3/5 complete (plans 04-06, 04-07)
-last_updated: "2026-09-01T14:52:14.513Z"
+stopped_at: Phase 04 wave 4/5 complete (plan 04-08)
+last_updated: "2026-09-01T15:05:18.005Z"
 last_activity: 2026-09-01 -- Phase 03 homologada contra o Asaas Sandbox
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
   percent: 43
 ---
 
@@ -80,6 +80,7 @@ Progress: [██████████] 100% (7/7 planos da fase 03)
 | Phase 02 P05 | 8min | 2 tasks | 3 files |
 | Phase 02 P06 | 9min | 3 tasks | 3 files |
 | Phase 03 P07 | ~4h | 3 tasks | 10 files |
+| Phase 04 P08 | ~25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-07] Reenvio pelo painel do Asaas NAO reprocessa evento ja registrado (colide no @unique do ledger) — recuperacao e trabalho do worker da Fase 5 sobre `processadoEm IS NULL`, nao do botao
 - [Phase 03]: [03-07] Chave de API do Asaas comeca com `$` e o `@next/env` a expande como referencia de variavel: sem escape `\$` ela vira string vazia SO dentro do next dev. Scripts do projeto passaram a usar o mesmo leitor da aplicacao
 - [Phase 03]: [03-07] Nenhum runner de TypeScript instalado — Node 22+ executa `.ts` nativamente; alias `@/` e extensao implicita resolvidos por hook proprio em `scripts/resolvedor-ts.mjs`
+- [Phase 04]: [04-08] O habilitador de teste de billing e um script versionado em scripts/ com guarda de NODE_ENV=production, nunca um endpoint de teste: o allowlist de BILL-04 permanece intacto e a divida fica fora do codigo de producao
+- [Phase 04]: [04-08] O e2e afirma as formas flexionadas (suspenso/suspensa/suspensao) e nao o radical suspens: o payload RSC do next dev carrega um marcador interno do React cujo nome compartilha esse radical
+- [Phase 04]: [04-08] A tela de login de empresa bloqueada e medida em contexto de browser anonimo: a guarda 'ja estou logado' devolveria a sessao ativa ao painel antes de renderizar, e limpar cookies destruiria a sessao que prova a reativacao sem novo login
 
 ### Pending Todos
 
@@ -169,6 +173,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-01T14:52:14.502Z
-Stopped at: Phase 04 wave 3/5 complete (plans 04-06, 04-07)
-Resume file: .planning/phases/04-aplica-o-do-bloqueio/04-07-SUMMARY.md
+Last session: 2026-09-01T15:04:58.545Z
+Stopped at: Phase 04 wave 4/5 complete (plan 04-08)
+Resume file: .planning/phases/04-aplica-o-do-bloqueio/04-08-SUMMARY.md
