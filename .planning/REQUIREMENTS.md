@@ -38,8 +38,8 @@ Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais pa
 
 ### Worker Diário
 
-- [ ] **WRK-01**: Worker diário reconcilia todas as empresas (expira trials, inicia carências, aplica bloqueios); é idempotente e seguro mesmo se rodar mais de uma vez ou pular uma execução
-- [ ] **WRK-02**: Worker é exposto como endpoint HTTP protegido por segredo (`CRON_SECRET`), funcionando independente da decisão final de hosting (Vercel Cron, VPS cron, etc.)
+- [x] **WRK-01**: Worker diário reconcilia todas as empresas (expira trials, inicia carências, aplica bloqueios); é idempotente e seguro mesmo se rodar mais de uma vez ou pular uma execução
+- [x] **WRK-02**: Worker é exposto como endpoint HTTP protegido por segredo (`CRON_SECRET`), funcionando independente da decisão final de hosting (Vercel Cron, VPS cron, etc.)
 
 ### Termos de Uso
 
@@ -106,8 +106,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACC-02 | Phase 4 | Complete |
 | ACC-03 | Phase 4 | Complete |
 | ACC-04 | Phase 4 | Complete |
-| WRK-01 | Phase 5 | Pending |
-| WRK-02 | Phase 5 | Pending |
+| WRK-01 | Phase 5 | Complete |
+| WRK-02 | Phase 5 | Complete |
 | TERM-01 | Phase 6 | Pending |
 | TERM-02 | Phase 6 | Pending |
 | TERM-03 | Phase 6 | Pending |
