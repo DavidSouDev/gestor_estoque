@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildRequest } from "@/tests/helpers/request";
 import { buildAuthToken, testAuthPayload } from "@/tests/helpers/auth";
 import { HttpError } from "@/lib/http-error";
+import { prismaMock } from "@/tests/setup/prisma-mock";
 
 vi.mock("@/app/services/assinatura.service", () => ({
   assinaturaService: { criarCheckout: vi.fn() },
@@ -91,6 +92,68 @@ describe("POST /api/assinaturas/checkout", () => {
     const response = await POST(buildRequest({ method: "POST", url: URL_CHECKOUT, token }));
 
     expect(response.status).toBe(404);
+  });
+
+  it("Pitfall 1: empresa BLOQUEADA consegue iniciar o checkout", async () => {
+    const token = await buildAuthToken();
+
+    // Assinatura vencida há muito: exatamente o cliente que precisa pagar.
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "admin@teste.com",
+      role: "ADMIN",
+      empresaId: "empresa-1",
+      empresa: {
+        slug: "empresa-teste",
+        acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+        trialFim: null,
+        canceladoEm: null,
+        acessoVitalicio: false,
+        ultimoStatusAuditado: "BLOQUEADO",
+      },
+    } as never);
+
+    const response = await POST(buildRequest({ method: "POST", url: URL_CHECKOUT, token }));
+
+    // Bloquear o caminho de pagamento trancaria o cliente do lado de fora sem
+    // como voltar (T-04-10): este é o único endpoint que opta por sair da guarda.
+    expect(response.status).not.toBe(402);
+    expect(response.status).toBe(200);
+    expect(assinaturaService.criarCheckout).toHaveBeenCalledWith(testAuthPayload.empresaId);
+  });
+
+  it("empresa CANCELADA também consegue iniciar o checkout", async () => {
+    const token = await buildAuthToken();
+
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "admin@teste.com",
+      role: "ADMIN",
+      empresaId: "empresa-1",
+      empresa: {
+        slug: "empresa-teste",
+        acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+        trialFim: null,
+        canceladoEm: new Date("2020-06-01T03:00:00.000Z"),
+        acessoVitalicio: false,
+        ultimoStatusAuditado: "CANCELADO",
+      },
+    } as never);
+
+    const response = await POST(buildRequest({ method: "POST", url: URL_CHECKOUT, token }));
+
+    expect(response.status).toBe(200);
+    expect(assinaturaService.criarCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it("o opt-out não dispensa a revalidação: conta revogada continua 401", async () => {
+    const token = await buildAuthToken();
+    prismaMock.usuario.findFirst.mockResolvedValue(null as never);
+
+    const response = await POST(buildRequest({ method: "POST", url: URL_CHECKOUT, token }));
+
+    expect(response.status).toBe(401);
+    expect(assinaturaService.criarCheckout).not.toHaveBeenCalled();
   });
 
   it("erro inesperado: 500 genérico ao cliente, detalhe apenas no console.error", async () => {
