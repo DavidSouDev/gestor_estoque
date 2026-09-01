@@ -50,6 +50,79 @@ const payload: AuthTokenPayload = {
   role: "ADMIN",
 };
 
+/** Os 4 fatos de billing da Empresa, na forma em que a query os projeta. */
+interface FatosDoStub {
+  acessoAte: Date | null;
+  trialFim: Date | null;
+  canceladoEm: Date | null;
+  acessoVitalicio: boolean;
+}
+
+const UM_DIA_EM_MS = 86_400_000;
+
+/**
+ * Fatos que produzem cada status. `acessoAte` da carência é calculado a partir
+ * do relógio (2 dias atrás, bem dentro dos 10 de `DIAS_DE_CARENCIA`) e não é um
+ * literal fixo: um literal envelheceria e o caso viraria BLOQUEADO sozinho um
+ * dia qualquer.
+ */
+const BILLING: Record<string, FatosDoStub> = {
+  BLOQUEADO: {
+    acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  CANCELADO: {
+    acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: new Date("2020-06-01T03:00:00.000Z"),
+    acessoVitalicio: false,
+  },
+  CARENCIA: {
+    acessoAte: new Date(Date.now() - 2 * UM_DIA_EM_MS),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  TRIAL: {
+    acessoAte: null,
+    trialFim: new Date("2099-01-01T03:00:00.000Z"),
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  EM_DIA: {
+    acessoAte: new Date("2099-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  VITALICIO: {
+    acessoAte: null,
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: true,
+  },
+};
+
+/**
+ * Sobrescreve o stub default do prisma-mock com os fatos de um status.
+ *
+ * `ultimoStatusAuditado` recebe o MESMO status esperado de propósito: com os
+ * dois iguais, `revalidarConta` não agenda linha de auditoria e o teste mede
+ * apenas a guarda, sem efeito colateral de escrita atravessando o caso.
+ */
+function stubComStatus(status: keyof typeof BILLING) {
+  prismaMock.usuario.findFirst.mockResolvedValue({
+    ...contaAtiva,
+    empresa: {
+      slug: "empresa-teste",
+      ...BILLING[status],
+      ultimoStatusAuditado: status,
+    },
+  } as never);
+}
+
 describe("session", () => {
   beforeEach(() => {
     process.env.JWT_SECRET = "test-jwt-secret";
@@ -187,6 +260,86 @@ describe("session", () => {
       // Request 2: já é rejeitado.
       await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
         "REDIRECT:/empresa-teste/admin/login"
+      );
+    });
+  });
+
+  describe("requireAdminSession — gate de assinatura", () => {
+    it("BLOQUEADO: redireciona para a tela de bloqueio (ACC-02)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("BLOQUEADO");
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/bloqueado"
+      );
+    });
+
+    it("CANCELADO: mesmo destino de BLOQUEADO, sem distinção (D-06)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("CANCELADO");
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/bloqueado"
+      );
+    });
+
+    it("TRIAL: devolve o payload, sem redirect", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("TRIAL");
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("EM_DIA: devolve o payload, sem redirect", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("EM_DIA");
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("CARENCIA: devolve o payload — carência NÃO bloqueia (D-03)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("CARENCIA");
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("VITALICIO: devolve o payload, sem redirect", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("VITALICIO");
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("sem sessão: continua indo para o login, nunca para a tela de bloqueio", async () => {
+      cookieStore.get.mockReturnValue(undefined);
+      stubComStatus("BLOQUEADO");
+
+      // Ordem dos dois redirects: mesmo com a empresa bloqueada no banco, uma
+      // sessão inexistente sai pelo login — e sem consultar o banco.
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+      expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("sessão de outro tenant + empresa bloqueada: login, não bloqueio", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComStatus("BLOQUEADO");
+
+      await expect(requireAdminSession("outra-empresa")).rejects.toThrow(
+        "REDIRECT:/outra-empresa/admin/login"
       );
     });
   });
