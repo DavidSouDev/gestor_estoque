@@ -191,8 +191,26 @@ cada request autenticado; o worker diário é rede de segurança para empresas q
   3. O endpoint do worker recusa qualquer chamada sem o `CRON_SECRET` e funciona igual atrás de Vercel Cron ou de um crontab em VPS, sem mudança de código
   4. Uma falha do gateway ou um erro em uma empresa específica não interrompe o processamento das demais e não gera bloqueio em massa — a anomalia é sinalizada em vez de aplicada silenciosamente
 
-**Plans**: TBD
-**Research flag**: yes — decisão de hosting/scheduler ainda em aberto (pooling do Prisma e plataforma de cron)
+**Plans**: 5 plans
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Enum `WORKER_DIARIO` + migration aplicada contra Postgres real + correção do débito documental D-10 (WRK-01)
+- [ ] 05-02-PLAN.md — `cronSecret()` fail-closed e `planejarReconciliacao` puro com o freio composto de D-01 (WRK-01, WRK-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-03-PLAN.md — `GET /api/cron/reconciliacao-diaria`: gate time-safe, duas passadas, escrita em lotes de 5 e corpo de observabilidade (WRK-01, WRK-02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 05-04-PLAN.md — Flag `--auditado` no seed, `CRON_SECRET` no CI e e2e do worker contra Postgres real (WRK-01, WRK-02)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 05-05-PLAN.md — Os seis gates estáticos da fase como script executável + fechamento de `05-VALIDATION.md` (WRK-01, WRK-02)
+
+**Research flag**: resolvido em `05-RESEARCH.md` — D-07 mantém a decisão de hosting adiada e o endpoint agnóstico por construção; o Vercel Cron dispara `GET` com `Authorization: Bearer`, o que fixa método e header sem acoplar código à plataforma. O pooling do Prisma continua sem dimensionamento (mitigado por lotes de concorrência ≤5).
 
 ### Phase 6: Termos de Uso e Aceite
 
@@ -237,7 +255,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
-| 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
+| 5. Worker Diário de Reconciliação | 0/5 | Planned     | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
