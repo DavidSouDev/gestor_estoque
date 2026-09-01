@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Pré-requisitos de Produção** - Prisma singleton corrigido e sessão do admin relendo o banco a cada request (completed 2026-08-31)
 - [x] **Phase 2: Modelo de Dados e Motor de Acesso** - Fatos de billing na Empresa + função pura `avaliarAcesso` com auditoria (completed 2026-08-31)
-- [ ] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
+- [x] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
 - [ ] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
 - [ ] **Phase 5: Worker Diário de Reconciliação** - Endpoint protegido que expira trials, inicia carências e aplica bloqueios
 - [ ] **Phase 6: Termos de Uso e Aceite** - Termos versionados, papel SUPERADMIN e modal obrigatório de aceite
@@ -116,9 +116,16 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03-07-PLAN.md — Credenciais sandbox (human-action), registro do webhook e homologação end-to-end (GTW-01..04)
+- [x] 03-07-PLAN.md — Credenciais sandbox (human-action), registro do webhook e homologação end-to-end (GTW-01..04)
 
 **Research flag**: resolvido em `03-RESEARCH.md` — a autenticação do webhook é um token estático no header `asaas-access-token` (não HMAC), e `PAYMENT_OVERDUE` é no-op de estado porque `avaliarAcesso` já deriva CARENCIA de `acessoAte`
+
+**Progresso**: 7/7 planos completos. Homologado contra o Asaas Sandbox em 2026-09-01 com
+pagamento real: `acessoAte` `NULL → 2026-10-01 03:00:00`, auditoria `CARENCIA → EM_DIA` com
+causa `WEBHOOK_PAGAMENTO`, `penalizedRequestsCount = 0`, reentrega sem efeito. A homologação
+refutou a suposição A3 (`externalReference` não propaga) e a premissa de ordenação do
+`sendType`, expondo um impasse de resolução de tenant que foi corrigido no plano 03-07 —
+ver `03-07-SUMMARY.md`.
 
 ### Phase 4: Aplicação do Bloqueio
 

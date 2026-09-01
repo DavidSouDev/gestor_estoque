@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-08-31T22:10:49.737Z"
-last_activity: 2026-08-31 -- Phase 03 execution started
+stopped_at: Completed 03-07-PLAN.md (Phase 03 — 7/7 plans)
+last_updated: "2026-09-01T12:40:00.000Z"
+last_activity: 2026-09-01 -- Phase 03 homologada contra o Asaas Sandbox
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 18
-  completed_plans: 11
-  percent: 29
+  completed_plans: 18
+  percent: 43
 ---
 
 # Project State
@@ -21,34 +21,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 03 — gateway-asaas-e-ingest-o-de-webhooks
+**Current focus:** Phase 04 — aplicação do bloqueio (próxima)
 
 ## Current Position
 
-Phase: 03 (gateway-asaas-e-ingest-o-de-webhooks) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 03
-Last activity: 2026-08-31 -- Phase 03 execution started
+Phase: 03 (gateway-asaas-e-ingest-o-de-webhooks) — **COMPLETA (7/7 planos)**
+Plan: 7 of 7
+Status: Fase 03 homologada contra o gateway real; pronta para a verificacao de fase
+Last activity: 2026-09-01 -- Phase 03 homologada contra o Asaas Sandbox
 
-**Checkpoint fechado:** `01-05-PLAN.md` Task 2 (`checkpoint:human-verify`, `gate="blocking"`)
-foi **aprovado** pelo operador em 2026-08-31. Parte A: `pg_stat_activity` foi de **1** conexao
-antes para **5** depois de ~2 min de carga mista admin+API contra `npm run build` + `npm start`
-— abaixo do `max` default de 10 do pool, sem crescimento continuo (criterio de sucesso #1,
-INFRA-01 fechado). Parte B: os 5 fluxos (registro, admin, logout+login, catalogo anonimo,
-lentidao) passaram sem problema (criterio #4). Parte C: ciencia de D-01/T-01-10 registrada.
-`01-VALIDATION.md` esta com `nyquist_compliant: true` e 13/13 linhas verdes. O servidor de
-producao usado na medicao foi encerrado.
+**Checkpoint fechado:** `03-07-PLAN.md` — homologacao end-to-end contra o Asaas Sandbox,
+com quatro acoes humanas encadeadas (criar/completar a conta de sandbox, corrigir a expansao
+de `$` no `.env`, decidir o escopo da correcao de resolucao de tenant, reenviar o evento pelo
+painel). Evidencia numerica: `acessoAte` **NULL -> 2026-10-01 03:00:00**, auditoria
+**CARENCIA -> EM_DIA** com causa `WEBHOOK_PAGAMENTO`, `penalizedRequestsCount = 0`, 401 nos
+dois testes de rejeicao, reentrega sem efeito. `03-VALIDATION.md` esta com `status: approved`
+e nenhuma linha pendente.
 
-**A conclusao formal da Fase 1 no ROADMAP.md e do orquestrador**, apos a verificacao de fase —
-por isso o checkbox da Phase 1 continua desmarcado ali de proposito.
+**Achado critico da fase:** a homologacao refutou a suposicao A3 (`externalReference` NAO
+propaga do checkout para a cobranca/assinatura) e a premissa de que `sendType: SEQUENTIALLY`
+preserva ordem cronologica entre recursos. As duas juntas produziam um impasse: um cliente
+que pagou nao recebia acesso. Corrigido no proprio 03-07 pela ponte do `checkoutSession`
+autoritativo — ver `03-07-SUMMARY.md`.
 
-Progress: [██████████] 100% (planos da fase 01)
+Progress: [██████████] 100% (7/7 planos da fase 03)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 18
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -58,6 +60,7 @@ Progress: [██████████] 100% (planos da fase 01)
 |-------|-------|-------|----------|
 | 01 | 5 | - | - |
 | 02 | 6 | - | - |
+| 03 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -76,6 +79,7 @@ Progress: [██████████] 100% (planos da fase 01)
 | Phase 02 P04 | 5min | 2 tasks | 4 files |
 | Phase 02 P05 | 8min | 2 tasks | 3 files |
 | Phase 02 P06 | 9min | 3 tasks | 3 files |
+| Phase 03 P07 | ~4h | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -132,6 +136,13 @@ Recent decisions affecting current work:
 - [Phase ?]: [02-06] A comparacao com ultimoStatusAuditado (D-16) mora no chamador impuro, nao na funcao pura: revalidarConta so agenda auditoria quando o status calculado difere do persistido
 - [Phase ?]: [02-06] Gate de grep de ultimoStatusAuditado verde (0 violacoes fora da lista de 9 arquivos) — conformidade a BILL-01/OQ-2 provada de forma executavel
 - [Phase ?]: [02-06] human-check 02-06-H1 (after() dentro de React.cache contra Postgres real) PENDENTE — colhido no UAT de fim de fase; se falhar, o fallback inline mantem a auditoria correta, so sem ganho de TTFB
+- [Phase 03]: [03-07] A3 REFUTADA contra o gateway real: `externalReference` NAO propaga do checkout para a cobranca nem para a assinatura (null nos dois, e consulta por ele devolve totalCount 0)
+- [Phase 03]: [03-07] `sendType: SEQUENTIALLY` NAO preserva ordem cronologica entre recursos — `PAYMENT_CONFIRMED` foi entregue ANTES de `SUBSCRIPTION_CREATED` apesar de ter `dateCreated` posterior; sao filas por recurso
+- [Phase 03]: [03-07] Resolucao de tenant ganhou a ponte `checkoutSession` (do objeto RE-BUSCADO na API, nunca do payload) — sem ela o PRIMEIRO pagamento de todo cliente e insoluvel e quem pagou fica sem acesso
+- [Phase 03]: [03-07] `checkout.customer` vem null no `CHECKOUT_PAID`; o `cus_…` so existe em `SUBSCRIPTION_CREATED`
+- [Phase 03]: [03-07] Reenvio pelo painel do Asaas NAO reprocessa evento ja registrado (colide no @unique do ledger) — recuperacao e trabalho do worker da Fase 5 sobre `processadoEm IS NULL`, nao do botao
+- [Phase 03]: [03-07] Chave de API do Asaas comeca com `$` e o `@next/env` a expande como referencia de variavel: sem escape `\$` ela vira string vazia SO dentro do next dev. Scripts do projeto passaram a usar o mesmo leitor da aplicacao
+- [Phase 03]: [03-07] Nenhum runner de TypeScript instalado — Node 22+ executa `.ts` nativamente; alias `@/` e extensao implicita resolvidos por hook proprio em `scripts/resolvedor-ts.mjs`
 
 ### Pending Todos
 
@@ -141,10 +152,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Preço mensal ainda não definido em PROJECT.md — necessário antes da Phase 3
-- Confirmação do Asaas (sandbox, header de autenticação do webhook, aprovação do checkout) — necessária antes da Phase 3
+- ~~Preço mensal ainda não definido em PROJECT.md~~ — RESOLVIDO: R$ 29,90 (D-02), cobrado de verdade no sandbox
+- ~~Confirmação do Asaas (sandbox, header de autenticação do webhook, aprovação do checkout)~~ — RESOLVIDO no plano 03-07 com pagamento real
 - Decisão de hosting/scheduler e estratégia de pooling do Prisma — necessária antes da Phase 5
 - Revisão jurídica (CDC) sobre bloqueio e não-cobrança retroativa — fora do escopo técnico
+- `.env.example` precisa de dois ajustes que o executor não pôde aplicar (permissão negada no diretório): escape `\$` em `ASAAS_API_KEY` e nota sobre a forma real de `ASAAS_CHECKOUT_BASE_URL`. Texto pronto em `03-07-SUMMARY.md` § Pendências
+- A conta de sandbox exige cadastro completo (`commercialInfo`/`bankAccountInfo`/`documentation` aprovados) antes de o checkout ser habilitado — repetir na conta de produção antes do go-live
 
 ## Deferred Items
 
@@ -156,6 +169,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-31T21:21:27.589Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-gateway-asaas-e-ingest-o-de-webhooks/03-CONTEXT.md
+Last session: 2026-09-01T12:40:00.000Z
+Stopped at: Completed 03-07-PLAN.md — Fase 03 completa (7/7), homologada contra o Asaas Sandbox
+Resume file: .planning/phases/03-gateway-asaas-e-ingest-o-de-webhooks/03-07-SUMMARY.md
