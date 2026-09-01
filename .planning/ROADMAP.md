@@ -148,10 +148,10 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Gate de tenant nas leituras por id de produto e combo + fecha o buraco da empresa soft-deletada
-- [ ] 04-03-PLAN.md — Gate dos endpoints públicos de lista (`?slug=` e `?empresaId=`) e remoção do resolvedor sem gate
-- [ ] 04-04-PLAN.md — Leitura de branding sem gate + login com branding genérico (D-09)
-- [ ] 04-05-PLAN.md — Caminho de pagamento (Server Action + `PagarButton`) e tela de bloqueio fora de `(protected)`
+- [x] 04-02-PLAN.md — Gate de tenant nas leituras por id de produto e combo + fecha o buraco da empresa soft-deletada
+- [x] 04-03-PLAN.md — Gate dos endpoints públicos de lista (`?slug=` e `?empresaId=`) e remoção do resolvedor sem gate
+- [x] 04-04-PLAN.md — Leitura de branding sem gate + login com branding genérico (D-09)
+- [x] 04-05-PLAN.md — Caminho de pagamento (Server Action + `PagarButton`) e tela de bloqueio fora de `(protected)`
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -225,7 +225,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
-| 4. Aplicação do Bloqueio | 1/9 | In Progress|  |
+| 4. Aplicação do Bloqueio | 5/9 | In Progress|  |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
