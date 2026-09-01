@@ -136,11 +136,36 @@ ver `03-07-SUMMARY.md`.
 
   1. Durante a carência, um banner em destaque aparece em todas as telas do admin com os dias restantes e o pedido de pagamento — e nada disso aparece no catálogo público
   2. Passados os 10 dias de carência, todos os usuários daquela Empresa perdem acesso ao painel admin e veem uma tela de bloqueio, tanto navegando pela UI quanto chamando `/api/*` diretamente
-  3. O catálogo público de uma empresa bloqueada fica indisponível pelos cinco caminhos de leitura pública — incluindo o endpoint que aceita `empresaId` direto — e não exibe nenhuma mensagem sobre pagamento
+  3. O catálogo público de uma empresa bloqueada fica indisponível pelos **seis** caminhos de leitura pública — incluindo o endpoint que aceita `empresaId` direto e `GET /api/empresas/slug/[slug]`, identificado em `04-RESEARCH.md` §Achado crítico 1 — e não exibe nenhuma mensagem sobre pagamento
   4. Empresas em dia, em trial ou vitalícias continuam com admin e catálogo funcionando normalmente após a ativação dos guards
   5. Ao pagar a cobrança do período corrente, o acesso ao admin e o catálogo voltam automaticamente, sem cobrança retroativa dos meses bloqueados e sem intervenção manual
 
-**Plans**: TBD
+**Plans**: 9 plans
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Predicados exaustivos de bloqueio + funil publicável e leitura de branding no `empresa.service`
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — Gate de tenant nas leituras por id de produto e combo + fecha o buraco da empresa soft-deletada
+- [ ] 04-03-PLAN.md — Gate dos endpoints públicos de lista (`?slug=` e `?empresaId=`) e remoção do resolvedor sem gate
+- [ ] 04-04-PLAN.md — Leitura de branding sem gate + login com branding genérico (D-09)
+- [ ] 04-05-PLAN.md — Caminho de pagamento (Server Action + `PagarButton`) e tela de bloqueio fora de `(protected)`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-06-PLAN.md — Gates autoritativos no DAL (`requireAdminSession` + `requireAuth`) com opt-out único do checkout
+- [ ] 04-07-PLAN.md — Banner de carência nos dois branches do layout protegido
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 04-08-PLAN.md — Script de seed dos fatos de billing + e2e de bloqueio por inadimplência
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 04-09-PLAN.md — Gates da fase como script executável + checkpoint humano da contagem prévia de empresas afetadas
+
 **UI hint**: yes
 
 ### Phase 5: Worker Diário de Reconciliação
