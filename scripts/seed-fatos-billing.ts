@@ -44,6 +44,23 @@ const STATUS_ACEITOS = [
 
 type StatusPedido = (typeof STATUS_ACEITOS)[number];
 
+/**
+ * Ponte entre o vocabulário da linha de comando e o enum do banco.
+ *
+ * O tipo `Record` não é decoração: ele obriga este mapa a cobrir os seis valores
+ * aceitos, então um sétimo status entrando no enum vira erro de compilação AQUI,
+ * em vez de virar um `undefined` gravado no banco em tempo de execução. É o mesmo
+ * mecanismo — e o mesmo motivo — da tabela `BLOQUEIA` de `lib/avaliar-acesso.ts`.
+ */
+const STATUS_ENUM: Record<StatusPedido, StatusAcesso> = {
+  trial: StatusAcesso.TRIAL,
+  "em-dia": StatusAcesso.EM_DIA,
+  carencia: StatusAcesso.CARENCIA,
+  bloqueado: StatusAcesso.BLOQUEADO,
+  cancelado: StatusAcesso.CANCELADO,
+  vitalicio: StatusAcesso.VITALICIO,
+};
+
 const UM_DIA_EM_MS = 86_400_000;
 
 function erro(mensagem: string): void {
@@ -126,6 +143,20 @@ async function principal(): Promise<void> {
   const slug = argumento("slug");
   const status = argumento("status");
 
+  // POR QUE ESTA FLAG EXISTE: sem ela, a escrita abaixo alinha
+  // `ultimoStatusAuditado` ao status que `avaliarAcesso` derivou, e a empresa
+  // semeada fica — por construção — SEM transição pendente. Esse é o estado
+  // CORRETO para o e2e da Fase 4, que mede um GATE e quer o estado assentado, e
+  // é fatal para o da Fase 5: o worker diário existe justamente para aplicar
+  // transições pendentes, então um e2e sem nenhuma passaria verde contra um
+  // worker completamente quebrado (`05-RESEARCH.md` §Achado crítico 4).
+  //
+  // Passar `--auditado <status>` desalinha os dois de propósito, produzindo a
+  // única fixture capaz de provar que o worker faz alguma coisa. É recurso de
+  // TESTE: a defesa real continua sendo a guarda de `NODE_ENV=production` no
+  // topo desta função, que este caminho não afrouxa.
+  const auditado = argumento("auditado");
+
   if (!slug) {
     return erro("informe --slug <slug> da empresa.");
   }
@@ -134,6 +165,12 @@ async function principal(): Promise<void> {
     return erro(
       `informe --status <${STATUS_ACEITOS.join(" | ")}>` +
         (status ? ` — recebido "${status}".` : ".")
+    );
+  }
+
+  if (auditado !== undefined && !(STATUS_ACEITOS as readonly string[]).includes(auditado)) {
+    return erro(
+      `informe --auditado <${STATUS_ACEITOS.join(" | ")}> — recebido "${auditado}".`
     );
   }
 
@@ -148,6 +185,9 @@ async function principal(): Promise<void> {
     // depois do seed veria uma transição que nunca aconteceu de verdade e
     // gravaria uma linha de trilha espúria. Alinhar aqui deixa o e2e medindo o
     // gate, e não um efeito colateral de escrita atravessando.
+    //
+    // O default — sem a flag — é exatamente esse alinhamento, e é ele que mantém
+    // `e2e/bloqueio-por-inadimplencia.spec.ts` verde sem uma linha alterada.
     const empresa = await prisma.empresa.update({
       where: { slug },
       data: {
@@ -155,7 +195,9 @@ async function principal(): Promise<void> {
         trialFim: fatos.trialFim,
         canceladoEm: fatos.canceladoEm,
         acessoVitalicio: fatos.acessoVitalicio,
-        ultimoStatusAuditado: derivado.status,
+        ultimoStatusAuditado: auditado
+          ? STATUS_ENUM[auditado as StatusPedido]
+          : derivado.status,
       },
       select: {
         slug: true,
@@ -175,6 +217,10 @@ async function principal(): Promise<void> {
     console.log(`  acessoVitalicio      ${empresa.acessoVitalicio}`);
     console.log(`  ultimoStatusAuditado ${empresa.ultimoStatusAuditado}`);
     console.log(`  status derivado      ${derivado.status}`);
+
+    if (auditado) {
+      console.log(`  auditado forçado     ${auditado} (transição pendente de propósito)`);
+    }
 
     // Rede de segurança contra um mapa de fatos que não produza o status pedido:
     // o script tem que montar fatos que `avaliarAcesso` classifique, nunca
