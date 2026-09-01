@@ -7,6 +7,7 @@ import { HttpError } from "@/lib/http-error";
 import { CausaTransicaoAcesso, ModoInterface, Prisma, StatusAcesso } from "@prisma/client";
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
 import { DIAS_DE_TRIAL } from "@/lib/avaliar-acesso";
+import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
 import bcrypt from "bcryptjs";
 
 export interface RegisterComUsuarioDTO {
@@ -48,6 +49,30 @@ export interface UpdateEmpresaDTO {
 
   modoInterface?: ModoInterface;
 }
+
+/**
+ * Branding público + os 4 fatos de billing na MESMA projeção, de propósito: é o
+ * que permite decidir `bloqueada` sem uma segunda query (T-04-02). Os fatos
+ * crus nunca saem do service — `findBrandingBySlug` os consome e devolve apenas
+ * o booleano derivado.
+ */
+const EMPRESA_BRANDING_PUBLICO_SELECT = {
+  id: true,
+  nome: true,
+  slug: true,
+  logo: true,
+  banner: true,
+  descricao: true,
+  telefone: true,
+  instagram: true,
+  primaryColor: true,
+  accentColor: true,
+
+  acessoAte: true,
+  trialFim: true,
+  canceladoEm: true,
+  acessoVitalicio: true,
+} as const;
 
 class EmpresaService {
   async registerComUsuario(data: RegisterComUsuarioDTO) {
@@ -164,6 +189,19 @@ class EmpresaService {
     });
   }
 
+  /**
+   * ACC-03. Devolve `null` para "não existe", "removida por soft delete" E
+   * "bloqueada" — os três indistinguíveis por construção.
+   *
+   * O gate mora logo depois do `if (!empresa)` e ANTES do `Promise.all`: é isso
+   * que compra a paridade de CUSTO com o caso "slug inexistente" (1 query em
+   * qualquer desfecho de rejeição). Movê-lo para depois do fan-out reabriria o
+   * canal lateral de tempo de T-04-02, mesmo com a resposta idêntica.
+   *
+   * Os 4 fatos de billing entram no `select` mas são desestruturados para FORA
+   * do objeto devolvido: o corpo de `GET /api/empresas/slug/[slug]` é público, e
+   * datas de billing ali seriam uma divulgação de informação nova (T-04-01).
+   */
   async findBySlug(slug: string) {
     const empresa = await prisma.empresa.findFirst({
       where: {
@@ -181,6 +219,11 @@ class EmpresaService {
         instagram: true,
         primaryColor: true,
         accentColor: true,
+
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
       },
     });
 
@@ -188,17 +231,114 @@ class EmpresaService {
       return null;
     }
 
+    if (!empresaPodePublicar(empresa, new Date())) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { acessoAte, trialFim, canceladoEm, acessoVitalicio, ...publico } = empresa;
+
     const [produtos, combos, promocoes] = await Promise.all([
-      produtoService.listCatalogo(empresa.id),
-      comboService.listCatalogo(empresa.id),
-      promocaoService.listVigentesByEmpresa(empresa.id),
+      produtoService.listCatalogo(publico.id),
+      comboService.listCatalogo(publico.id),
+      promocaoService.listVigentesByEmpresa(publico.id),
     ]);
 
     return {
-      ...empresa,
+      ...publico,
       produtos,
       combos,
       promocoes,
+    };
+  }
+
+  /**
+   * ACC-03 / D-07. Funil ÚNICO de resolução de tenant para os caminhos públicos
+   * do catálogo.
+   *
+   * Devolve `null` para "não existe", "removida por soft delete" E "bloqueada",
+   * gastando exatamente UMA ida ao banco em todos os desfechos — a paridade de
+   * número de queries é parte da mitigação, não um detalhe de performance
+   * (T-04-01 / T-04-02).
+   *
+   * Só o `id` sai daqui: nenhum fato de billing atravessa o funil.
+   */
+  async findPublicavelBySlug(slug: string) {
+    const empresa = await prisma.empresa.findFirst({
+      where: {
+        slug,
+        deletedAt: null,
+      },
+      select: EMPRESA_PUBLICAVEL_SELECT,
+    });
+
+    // Uma condição só, de propósito: "não existe / removida" e "bloqueada"
+    // convergem textualmente no MESMO retorno, sem caminho separado que alguém
+    // possa mais tarde instrumentar, logar ou responder de forma diferente.
+    if (!empresa || !empresaPodePublicar(empresa, new Date())) {
+      return null;
+    }
+
+    return { id: empresa.id };
+  }
+
+  /**
+   * Mesma garantia de `findPublicavelBySlug`, resolvendo por id — é o que o
+   * caminho `?empresaId=` do catálogo precisa para que "empresaId inexistente" e
+   * "empresaId bloqueado" custem o mesmo round trip.
+   */
+  async findPublicavelById(empresaId: string) {
+    const empresa = await prisma.empresa.findFirst({
+      where: {
+        id: empresaId,
+        deletedAt: null,
+      },
+      select: EMPRESA_PUBLICAVEL_SELECT,
+    });
+
+    // Mesma condição única de `findPublicavelBySlug` — ver justificativa lá.
+    if (!empresa || !empresaPodePublicar(empresa, new Date())) {
+      return null;
+    }
+
+    return { id: empresa.id };
+  }
+
+  /**
+   * D-09. Leitura DELIBERADAMENTE não gateada por status.
+   *
+   * Uma empresa bloqueada continua respondendo aqui, com `bloqueada: true`. Isso
+   * não é um esquecimento: a tela de login do admin se alimenta desta leitura, e
+   * se ela devolvesse 404 o cliente bloqueado não conseguiria entrar para pagar
+   * — o objetivo da fase se inverteria (04-RESEARCH.md, Achado crítico 2).
+   *
+   * Devolve APENAS branding e o booleano derivado. Nunca produtos, combos ou
+   * promoções — quem quer catálogo usa `findBySlug`/`findPublicavelBySlug`, que
+   * são gateados. Os 4 fatos de billing são consumidos aqui dentro e não saem no
+   * retorno (T-04-01).
+   *
+   * O vazamento residual (existe vs. não existe) é reduzido no plano 04-04, que
+   * renderiza branding genérico quando `bloqueada === true` (T-04-12).
+   */
+  async findBrandingBySlug(slug: string) {
+    const empresa = await prisma.empresa.findFirst({
+      where: {
+        slug,
+        deletedAt: null,
+      },
+      select: EMPRESA_BRANDING_PUBLICO_SELECT,
+    });
+
+    if (!empresa) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { acessoAte, trialFim, canceladoEm, acessoVitalicio, ...branding } = empresa;
+
+    return {
+      ...branding,
+      bloqueada: !empresaPodePublicar(empresa, new Date()),
     };
   }
 
@@ -242,6 +382,10 @@ class EmpresaService {
     });
   }
 
+  // NÃO tem gate de status: resolve o id de qualquer empresa não deletada,
+  // inclusive bloqueada. Por isso está PROIBIDA em qualquer caminho de leitura
+  // pública do catálogo — use `findPublicavelBySlug`. O plano 04-03 remove esta
+  // função quando o último consumidor sair.
   async resolveIdBySlug(slug: string) {
     const empresa = await prisma.empresa.findFirst({
       where: {

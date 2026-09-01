@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { StatusAcesso } from "@prisma/client";
-import { avaliarAcesso, type FatosDeAcesso } from "./avaliar-acesso";
+import {
+  acessoBloqueado,
+  avaliarAcesso,
+  diasRestantesDeCarencia,
+  podePublicarCatalogo,
+  type FatosDeAcesso,
+} from "./avaliar-acesso";
 
 /**
  * Linha do tempo de referência. Todas as datas são instantes UTC explícitos:
@@ -340,5 +346,153 @@ describe("avaliarAcesso", () => {
     expect(fatos.trialFim?.toISOString()).toBe(TRIAL_FIM);
     expect(fatos.canceladoEm?.toISOString()).toBe(CANCELADO_EM);
     expect(agora.toISOString()).toBe("2026-10-04T03:00:00.000Z");
+  });
+});
+
+/**
+ * D-06: `BLOQUEADO` e `CANCELADO` são o MESMO comportamento.
+ * D-03: `CARENCIA` não bloqueia nada — o catálogo segue no ar e o admin só
+ * ganha um banner.
+ *
+ * A tabela abaixo é escrita à mão, status por status, DE PROPÓSITO: se ela
+ * fosse derivada da implementação (`BLOQUEIA[s]`) o teste seria uma tautologia
+ * e não pegaria uma inversão de valor.
+ */
+const BLOQUEIO_ESPERADO: Array<[StatusAcesso, boolean]> = [
+  [StatusAcesso.TRIAL, false],
+  [StatusAcesso.EM_DIA, false],
+  [StatusAcesso.CARENCIA, false],
+  [StatusAcesso.VITALICIO, false],
+  [StatusAcesso.BLOQUEADO, true],
+  [StatusAcesso.CANCELADO, true],
+];
+
+describe("acessoBloqueado", () => {
+  it.each(BLOQUEIO_ESPERADO)("%s bloqueia? %s", (status, esperado) => {
+    expect(acessoBloqueado(status)).toBe(esperado);
+  });
+
+  it("trata CANCELADO exatamente como BLOQUEADO (D-06)", () => {
+    expect(acessoBloqueado(StatusAcesso.CANCELADO)).toBe(
+      acessoBloqueado(StatusAcesso.BLOQUEADO)
+    );
+  });
+
+  it("NÃO bloqueia CARENCIA (D-03)", () => {
+    expect(acessoBloqueado(StatusAcesso.CARENCIA)).toBe(false);
+  });
+});
+
+describe("podePublicarCatalogo", () => {
+  it.each(BLOQUEIO_ESPERADO)("%s publica? (negação de %s)", (status, bloqueia) => {
+    expect(podePublicarCatalogo(status)).toBe(!bloqueia);
+  });
+});
+
+describe("exaustividade dos predicados de bloqueio (T-04-15)", () => {
+  // Trava executável: um 7º status entrando no enum quebra AQUI, e não
+  // silenciosamente em produção liberando (ou bloqueando) o valor novo.
+  it("StatusAcesso tem exatamente 6 valores", () => {
+    expect(Object.keys(StatusAcesso)).toHaveLength(6);
+  });
+
+  it("todos os 6 valores estão cobertos pela tabela escrita à mão", () => {
+    expect(BLOQUEIO_ESPERADO.map(([s]) => s).sort()).toEqual(
+      Object.values(StatusAcesso).sort()
+    );
+  });
+
+  it("acessoBloqueado e podePublicarCatalogo são negações exatas para os 6 valores", () => {
+    for (const status of Object.values(StatusAcesso)) {
+      expect(acessoBloqueado(status)).toBe(!podePublicarCatalogo(status));
+      expect(typeof acessoBloqueado(status)).toBe("boolean");
+    }
+  });
+});
+
+describe("diasRestantesDeCarencia", () => {
+  // 01/09/2026 09:00 em São Paulo (UTC-3). O fim do dia local é a meia-noite
+  // de 02/09 = 2026-09-02T03:00:00Z.
+  const AGORA = new Date("2026-09-01T12:00:00.000Z");
+
+  it("devolve 0 quando a carência vence hoje (carenciaAte = meia-noite de hoje+1)", () => {
+    expect(diasRestantesDeCarencia(new Date("2026-09-02T03:00:00.000Z"), AGORA)).toBe(0);
+  });
+
+  it("devolve 1 quando a carência vence na meia-noite de hoje+2", () => {
+    expect(diasRestantesDeCarencia(new Date("2026-09-03T03:00:00.000Z"), AGORA)).toBe(1);
+  });
+
+  it("devolve 2 quando a carência vence na meia-noite de hoje+3", () => {
+    expect(diasRestantesDeCarencia(new Date("2026-09-04T03:00:00.000Z"), AGORA)).toBe(2);
+  });
+
+  it("devolve os 10 dias cheios logo depois do vencimento do acesso", () => {
+    // acessoAte = 2026-10-01T03:00Z ⇒ carenciaAte = 2026-10-11T03:00Z.
+    // Às 09:00 BRT de 01/10 o fim do dia local é 02/10 03:00Z ⇒ 9 dias.
+    const { carenciaAte } = avaliarAcesso(
+      comoFatos({
+        acessoAte: ACESSO_ATE,
+        trialFim: null,
+        canceladoEm: null,
+        acessoVitalicio: false,
+      }),
+      new Date("2026-10-01T12:00:00.000Z")
+    );
+
+    expect(carenciaAte).not.toBeNull();
+    expect(diasRestantesDeCarencia(carenciaAte!, new Date("2026-10-01T12:00:00.000Z"))).toBe(9);
+  });
+
+  it("difere de exatamente 1 entre 23:30 e 00:30 BRT do dia seguinte (Pitfall 5)", () => {
+    const CARENCIA = new Date("2026-09-11T03:00:00.000Z");
+
+    // 23:30 de 01/09 em São Paulo.
+    const antesDaVirada = diasRestantesDeCarencia(CARENCIA, new Date("2026-09-02T02:30:00.000Z"));
+    // 00:30 de 02/09 em São Paulo — mesmo `carenciaAte`, uma hora depois.
+    const depoisDaVirada = diasRestantesDeCarencia(CARENCIA, new Date("2026-09-02T03:30:00.000Z"));
+
+    expect(antesDaVirada - depoisDaVirada).toBe(1);
+  });
+
+  it("não muda de valor ao longo do mesmo dia local (00:30 e 23:30 do MESMO dia)", () => {
+    const CARENCIA = new Date("2026-09-11T03:00:00.000Z");
+
+    // 00:30 e 23:30 do dia 02/09 em São Paulo.
+    const cedo = diasRestantesDeCarencia(CARENCIA, new Date("2026-09-02T03:30:00.000Z"));
+    const tarde = diasRestantesDeCarencia(CARENCIA, new Date("2026-09-03T02:30:00.000Z"));
+
+    expect(cedo).toBe(tarde);
+  });
+
+  it("clampa em 0 quando a carência já venceu (nunca negativo)", () => {
+    expect(diasRestantesDeCarencia(new Date("2026-08-01T03:00:00.000Z"), AGORA)).toBe(0);
+    expect(diasRestantesDeCarencia(new Date("2020-01-01T03:00:00.000Z"), AGORA)).toBe(0);
+  });
+
+  it("nunca devolve NaN, nem para uma data inválida (fail-closed)", () => {
+    for (const carencia of [
+      new Date("2026-09-02T03:00:00.000Z"),
+      new Date("2026-09-20T03:00:00.000Z"),
+      new Date("2020-01-01T03:00:00.000Z"),
+      new Date(Number.NaN),
+    ]) {
+      const dias = diasRestantesDeCarencia(carencia, AGORA);
+      expect(Number.isNaN(dias)).toBe(false);
+      expect(Number.isInteger(dias)).toBe(true);
+      expect(dias).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("não muta os argumentos e não depende do relógio real", () => {
+    const carencia = new Date("2026-09-05T03:00:00.000Z");
+    const agora = new Date(AGORA);
+
+    const primeira = diasRestantesDeCarencia(carencia, agora);
+    const segunda = diasRestantesDeCarencia(carencia, agora);
+
+    expect(primeira).toBe(segunda);
+    expect(carencia.toISOString()).toBe("2026-09-05T03:00:00.000Z");
+    expect(agora.toISOString()).toBe(AGORA.toISOString());
   });
 });

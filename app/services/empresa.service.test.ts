@@ -47,6 +47,94 @@ const AGORA_MEIO_DIA = new Date("2026-08-30T12:00:00.000Z");
 // = 14/09 03:00 UTC.
 const TRIAL_FIM_MEIO_DIA = new Date("2026-09-14T03:00:00.000Z");
 
+// 01/10/2026 09:00 em São Paulo (UTC-3). Ao contrário de `avaliarAcesso`, os
+// métodos publicáveis do service leem o relógio internamente (`new Date()`) —
+// então a única forma de fixar o status é fixar o relógio, como os testes de
+// `registerComUsuario` já fazem.
+const AGORA_PUBLICACAO = new Date("2026-10-01T12:00:00.000Z");
+
+/**
+ * Executa `fn` com o relógio parado em `AGORA_PUBLICACAO`.
+ *
+ * Precisa ser `async` e dar `await` DENTRO do try: o `new Date()` do service
+ * roda depois do primeiro `await` (a query), ou seja, num microtask posterior —
+ * restaurar o relógio antes disso devolveria o tempo real para a decisão de
+ * acesso e tornaria a suíte sensível à data em que ela roda.
+ */
+async function comRelogio<T>(fn: () => Promise<T>): Promise<T> {
+  vi.useFakeTimers();
+  vi.setSystemTime(AGORA_PUBLICACAO);
+
+  try {
+    return await fn();
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
+/**
+ * Os 4 fatos de billing que produzem cada status em `AGORA_PUBLICACAO`.
+ * Literais absolutos de propósito — derivá-los de `avaliarAcesso` tornaria o
+ * teste do gate circular com a própria regra que ele deveria travar.
+ *
+ * CARENCIA: `acessoAte` venceu em 25/09, e a carência de 10 dias vai até
+ * 05/10 — ainda no futuro em 01/10.
+ * BLOQUEADO / CANCELADO: vencidos há anos, sem ambiguidade possível.
+ */
+const BILLING = {
+  TRIAL: {
+    acessoAte: null,
+    trialFim: new Date("2026-10-15T03:00:00.000Z"),
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  EM_DIA: {
+    acessoAte: new Date("2026-11-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  CARENCIA: {
+    acessoAte: new Date("2026-09-25T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  VITALICIO: {
+    acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: new Date("2020-02-01T03:00:00.000Z"),
+    acessoVitalicio: true,
+  },
+  BLOQUEADO: {
+    acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  // D-06: rótulo distinto, comportamento idêntico ao de BLOQUEADO.
+  CANCELADO: {
+    acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: new Date("2020-02-01T03:00:00.000Z"),
+    acessoVitalicio: false,
+  },
+} as const;
+
+/** O que a projeção pública de `findBySlug` traz, sem os fatos de billing. */
+const empresaPublicaBase = {
+  id: "empresa-1",
+  nome: "Minha Loja",
+  slug: "minha-loja",
+  logo: null,
+  banner: null,
+  descricao: null,
+  telefone: null,
+  instagram: null,
+  primaryColor: "#18181b",
+  accentColor: "#f59e0b",
+};
+
 const usuarioBase = {
   id: "usuario-1",
   nome: "Responsável",
@@ -371,12 +459,15 @@ describe("empresaService.findBySlug", () => {
       instagram: null,
       primaryColor: "#18181b",
       accentColor: "#f59e0b",
+      // Os 4 fatos entram na projeção interna a partir do plano 04-01: é o que
+      // permite decidir a publicação sem uma segunda query.
+      ...BILLING.EM_DIA,
     } as never);
     prismaMock.produto.findMany.mockResolvedValue([{ id: "produto-1" }] as never);
     prismaMock.combo.findMany.mockResolvedValue([{ id: "combo-1" }] as never);
     prismaMock.promocao.findMany.mockResolvedValue([{ id: "promocao-1" }] as never);
 
-    const resultado = await empresaService.findBySlug("minha-loja");
+    const resultado = await comRelogio(() => empresaService.findBySlug("minha-loja"));
 
     expect(prismaMock.produto.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ empresaId: "empresa-1" }) })
@@ -388,6 +479,9 @@ describe("empresaService.findBySlug", () => {
       expect.objectContaining({ where: expect.objectContaining({ empresaId: "empresa-1" }) })
     );
 
+    // Asserção EXATA de propósito (T-04-01): o corpo de
+    // `GET /api/empresas/slug/[slug]` é público, e os 4 fatos de billing que
+    // agora vêm na projeção interna NÃO podem sair daqui.
     expect(resultado).toEqual({
       id: "empresa-1",
       nome: "Minha Loja",
@@ -403,6 +497,294 @@ describe("empresaService.findBySlug", () => {
       combos: [{ id: "combo-1" }],
       promocoes: [{ id: "promocao-1" }],
     });
+  });
+
+  it("não expõe nenhum fato de billing no corpo público (T-04-01)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(
+      { ...empresaPublicaBase, ...BILLING.EM_DIA } as never
+    );
+    prismaMock.produto.findMany.mockResolvedValue([] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
+    prismaMock.promocao.findMany.mockResolvedValue([] as never);
+
+    const resultado = await comRelogio(() => empresaService.findBySlug("minha-loja"));
+
+    expect(resultado).not.toHaveProperty("acessoAte");
+    expect(resultado).not.toHaveProperty("trialFim");
+    expect(resultado).not.toHaveProperty("canceladoEm");
+    expect(resultado).not.toHaveProperty("acessoVitalicio");
+  });
+
+  it("devolve null para empresa bloqueada SEM disparar o fan-out do catálogo (ACC-03, T-04-02)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      ...empresaPublicaBase,
+      ...BILLING.BLOQUEADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findBySlug("bloqueada"));
+
+    expect(resultado).toBeNull();
+    // O gate mora ANTES do Promise.all: é isso que compra a paridade de custo
+    // com "slug inexistente" e fecha o canal lateral de tempo.
+    expect(prismaMock.produto.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.combo.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.promocao.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve null para empresa cancelada, exatamente como para a bloqueada (D-06)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      ...empresaPublicaBase,
+      ...BILLING.CANCELADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findBySlug("cancelada"));
+
+    expect(resultado).toBeNull();
+    expect(prismaMock.produto.findMany).not.toHaveBeenCalled();
+  });
+
+  it("continua publicando o catálogo durante a carência (D-03)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(
+      { ...empresaPublicaBase, ...BILLING.CARENCIA } as never
+    );
+    prismaMock.produto.findMany.mockResolvedValue([] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
+    prismaMock.promocao.findMany.mockResolvedValue([] as never);
+
+    const resultado = await comRelogio(() => empresaService.findBySlug("em-carencia"));
+
+    expect(resultado).not.toBeNull();
+    expect(prismaMock.produto.findMany).toHaveBeenCalled();
+  });
+});
+
+describe("empresaService.findPublicavelBySlug", () => {
+  it("consulta por slug e deletedAt com a projeção publicável", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    await comRelogio(() => empresaService.findPublicavelBySlug("minha-loja"));
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      where: { slug: "minha-loja", deletedAt: null },
+      select: {
+        id: true,
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
+      },
+    });
+  });
+
+  it("devolve null para slug inexistente gastando exatamente 1 query", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    const resultado = await comRelogio(() => empresaService.findPublicavelBySlug("inexistente"));
+
+    expect(resultado).toBeNull();
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve null para empresa bloqueada gastando exatamente a MESMA 1 query (T-04-02)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      id: "empresa-1",
+      ...BILLING.BLOQUEADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findPublicavelBySlug("bloqueada"));
+
+    expect(resultado).toBeNull();
+    // Paridade de tempo: "não existe" e "bloqueada" custam o mesmo round trip.
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve null para empresa cancelada, indistinguível da bloqueada (D-06)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      id: "empresa-1",
+      ...BILLING.CANCELADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findPublicavelBySlug("cancelada"));
+
+    expect(resultado).toBeNull();
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["TRIAL", "EM_DIA", "CARENCIA", "VITALICIO"] as const)(
+    "devolve { id } para empresa em %s",
+    async (situacao) => {
+      prismaMock.empresa.findFirst.mockResolvedValue(
+        { id: "empresa-1", ...BILLING[situacao] } as never
+      );
+
+      const resultado = await comRelogio(() => empresaService.findPublicavelBySlug("minha-loja"));
+
+      // Asserção EXATA: nenhum fato de billing atravessa o funil.
+      expect(resultado).toEqual({ id: "empresa-1" });
+    }
+  );
+});
+
+describe("empresaService.findPublicavelById", () => {
+  it("consulta por id e deletedAt com a projeção publicável", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    await comRelogio(() => empresaService.findPublicavelById("empresa-1"));
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      where: { id: "empresa-1", deletedAt: null },
+      select: {
+        id: true,
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
+      },
+    });
+  });
+
+  it("devolve null para id inexistente gastando exatamente 1 query", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    const resultado = await comRelogio(() => empresaService.findPublicavelById("nao-existe"));
+
+    expect(resultado).toBeNull();
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve null para empresa bloqueada gastando exatamente a MESMA 1 query (T-04-02)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      id: "empresa-1",
+      ...BILLING.BLOQUEADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findPublicavelById("empresa-1"));
+
+    expect(resultado).toBeNull();
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["TRIAL", "EM_DIA", "CARENCIA", "VITALICIO"] as const)(
+    "devolve { id } para empresa em %s",
+    async (situacao) => {
+      prismaMock.empresa.findFirst.mockResolvedValue(
+        { id: "empresa-1", ...BILLING[situacao] } as never
+      );
+
+      const resultado = await comRelogio(() => empresaService.findPublicavelById("empresa-1"));
+
+      expect(resultado).toEqual({ id: "empresa-1" });
+    }
+  );
+});
+
+describe("empresaService.findBrandingBySlug", () => {
+  const brandingBase = {
+    id: "empresa-1",
+    nome: "Minha Loja",
+    slug: "minha-loja",
+    logo: null,
+    banner: null,
+    descricao: null,
+    telefone: null,
+    instagram: null,
+    primaryColor: "#18181b",
+    accentColor: "#f59e0b",
+  };
+
+  it("seleciona os campos de branding MAIS os 4 fatos de billing numa só query", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    await comRelogio(() => empresaService.findBrandingBySlug("minha-loja"));
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      where: { slug: "minha-loja", deletedAt: null },
+      select: {
+        id: true,
+        nome: true,
+        slug: true,
+        logo: true,
+        banner: true,
+        descricao: true,
+        telefone: true,
+        instagram: true,
+        primaryColor: true,
+        accentColor: true,
+        acessoAte: true,
+        trialFim: true,
+        canceladoEm: true,
+        acessoVitalicio: true,
+      },
+    });
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("devolve null para slug inexistente", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null);
+
+    await expect(
+      comRelogio(() => empresaService.findBrandingBySlug("inexistente"))
+    ).resolves.toBeNull();
+  });
+
+  it("NÃO devolve null para empresa bloqueada: devolve o branding com bloqueada true (D-09)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      ...brandingBase,
+      ...BILLING.BLOQUEADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findBrandingBySlug("bloqueada"));
+
+    // A tela de login de uma empresa bloqueada precisa continuar respondendo:
+    // sem isso o cliente não consegue logar para pagar e o objetivo da fase se
+    // inverte (04-RESEARCH.md, Achado crítico 2).
+    expect(resultado).toEqual({ ...brandingBase, bloqueada: true });
+  });
+
+  it("marca bloqueada true também para empresa cancelada (D-06)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      ...brandingBase,
+      ...BILLING.CANCELADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findBrandingBySlug("cancelada"));
+
+    expect(resultado).toMatchObject({ bloqueada: true });
+  });
+
+  it("devolve bloqueada false para empresa saudável", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(
+      { ...brandingBase, ...BILLING.EM_DIA } as never
+    );
+
+    const resultado = await comRelogio(() => empresaService.findBrandingBySlug("minha-loja"));
+
+    expect(resultado).toEqual({ ...brandingBase, bloqueada: false });
+  });
+
+  it("devolve bloqueada false durante a carência (D-03)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(
+      { ...brandingBase, ...BILLING.CARENCIA } as never
+    );
+
+    const resultado = await comRelogio(() => empresaService.findBrandingBySlug("em-carencia"));
+
+    expect(resultado).toMatchObject({ bloqueada: false });
+  });
+
+  it("não devolve os fatos de billing crus para o cliente (T-04-01)", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue({
+      ...brandingBase,
+      ...BILLING.BLOQUEADO,
+    } as never);
+
+    const resultado = await comRelogio(() => empresaService.findBrandingBySlug("bloqueada"));
+
+    expect(resultado).not.toHaveProperty("acessoAte");
+    expect(resultado).not.toHaveProperty("trialFim");
+    expect(resultado).not.toHaveProperty("canceladoEm");
+    expect(resultado).not.toHaveProperty("acessoVitalicio");
   });
 });
 
