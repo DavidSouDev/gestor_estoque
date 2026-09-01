@@ -155,8 +155,8 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 04-06-PLAN.md — Gates autoritativos no DAL (`requireAdminSession` + `requireAuth`) com opt-out único do checkout
-- [ ] 04-07-PLAN.md — Banner de carência nos dois branches do layout protegido
+- [x] 04-06-PLAN.md — Gates autoritativos no DAL (`requireAdminSession` + `requireAuth`) com opt-out único do checkout
+- [x] 04-07-PLAN.md — Banner de carência nos dois branches do layout protegido
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -225,7 +225,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
-| 4. Aplicação do Bloqueio | 5/9 | In Progress|  |
+| 4. Aplicação do Bloqueio | 7/9 | In Progress|  |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
