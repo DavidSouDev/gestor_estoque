@@ -1,44 +1,7 @@
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-
 import { test, expect } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 
-import { uniqueEmpresa } from "./helpers";
-
-const RAIZ = path.resolve(__dirname, "..");
-
-/**
- * Coloca a empresa do slug em um status de acesso escrevendo os 4 fatos de
- * billing DIRETO no banco, por `scripts/seed-fatos-billing.ts`.
- *
- * A escrita não pode passar pela API: o allowlist de `empresaService.update`
- * proíbe gravar `acessoAte`, `trialFim`, `canceladoEm` e `acessoVitalicio` por
- * HTTP, deliberadamente (BILL-04, decisão `[02-02]`). Abrir um endpoint de teste
- * só para este spec desfaria essa decisão de segurança em produção — o script,
- * que se recusa a rodar com `NODE_ENV=production`, não.
- *
- * `execFileSync` é síncrono de propósito: quando ele retorna, a linha já está
- * gravada, então nenhuma espera artificial é necessária entre bloquear e medir.
- * A guarda re-deriva o status a cada request (ACC-04), então o efeito aparece
- * já na próxima navegação.
- */
-function seedStatus(slug: string, status: "bloqueado" | "em-dia"): void {
-  execFileSync(
-    process.execPath,
-    [
-      "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
-      "--import",
-      "./scripts/resolvedor-ts.mjs",
-      "scripts/seed-fatos-billing.ts",
-      "--slug",
-      slug,
-      "--status",
-      status,
-    ],
-    { cwd: RAIZ, stdio: "inherit" }
-  );
-}
+import { seedFatosBilling, uniqueEmpresa } from "./helpers";
 
 /** Registro pela UI. Deixa cookie `admin_session` válido e devolve o slug. */
 async function registrarPelaUI(page: import("@playwright/test").Page) {
@@ -127,8 +90,8 @@ test.describe("Bloqueio por inadimplência", () => {
     expect((await request.get("/api/produtos", { headers: authHeader })).status()).toBe(200);
     expect((await request.get(`/${slug}`)).status()).toBe(200);
 
-    // 3. Bloquear (ver o comentário de `seedStatus` sobre por que não é por API).
-    seedStatus(slug, "bloqueado");
+    // 3. Bloquear (ver o comentário de `seedFatosBilling` sobre por que não é por API).
+    seedFatosBilling(slug, "bloqueado");
 
     // 4. Critério #2, camada de API: MESMO token, agora 402.
     const apiBloqueada = await request.get("/api/produtos", { headers: authHeader });
@@ -235,7 +198,7 @@ test.describe("Bloqueio por inadimplência", () => {
     // 9. Critério #5 / ACC-04: reativação automática. Nenhum novo login, nenhum
     //    token novo e nenhum cookie novo — o status é re-derivado a cada request,
     //    então pagar devolve o acesso já na chamada seguinte.
-    seedStatus(slug, "em-dia");
+    seedFatosBilling(slug, "em-dia");
 
     expect((await request.get("/api/produtos", { headers: authHeader })).status()).toBe(200);
     expect((await request.get(`/${slug}`)).status()).toBe(200);
