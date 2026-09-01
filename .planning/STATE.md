@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 04 wave 4/5 complete (plan 04-08)
-last_updated: "2026-09-01T15:05:18.005Z"
-last_activity: 2026-09-01 -- Phase 03 homologada contra o Asaas Sandbox
+stopped_at: Phase 04 plan 04-09 — Tasks 1-2 commitadas, Task 3 (checkpoint humano bloqueante) EM ABERTO
+last_updated: "2026-09-01T15:18:38.181Z"
+last_activity: 2026-09-01 -- Fase 04 com enforcement completo e verde; aguardando a contagem previa contra o banco alvo
 progress:
   total_phases: 7
   completed_phases: 3
@@ -21,14 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 04 — aplicação do bloqueio (próxima)
+**Current focus:** Phase 04 — aplicação do bloqueio (em execução, checkpoint final em aberto)
 
 ## Current Position
 
-Phase: 03 (gateway-asaas-e-ingest-o-de-webhooks) — **COMPLETA (7/7 planos)**
-Plan: 7 of 7
-Status: Fase 03 homologada contra o gateway real; pronta para a verificacao de fase
-Last activity: 2026-09-01 -- Phase 03 homologada contra o Asaas Sandbox
+Phase: 04 (aplica-o-do-bloqueio) — **9/9 planos executados, FASE NÃO COMPLETA**
+Plan: 9 of 9
+Status: enforcement inteiro implementado e verde; merge BLOQUEADO pelo checkpoint humano do 04-09
+Last activity: 2026-09-01 -- 04-09 Tasks 1-2 commitadas (gates executáveis + contagem read-only)
+
+**Checkpoint EM ABERTO:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
+antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8). Não é auto-aprovável, no mesmo
+espírito do checkpoint de `pg_stat_activity` da Fase 1 (`01-05`) e do de homologação em sandbox da
+Fase 3 (`03-07`). Falta: (a) rodar `npm run acesso:contagem` com o `.env` no banco alvo e classificar
+a soma `BLOQUEADO + CANCELADO`; (b) verificação manual A3 (partial rendering em carência); (c)
+verificação manual A4 (`redirect()` externo a partir de Server Action). Estado do repo no momento da
+apresentação: `gates:fase-04` 6/6, `npm test` 876/876, e2e 22/22, `tsc` 0, `lint` 0.
+
+**Contagem local (NÃO é a base de decisão):** 382 empresas — TRIAL 376, EM_DIA 4, BLOQUEADO 2 (ambas
+fixtures de e2e), CARENCIA 0, CANCELADO 0, VITALICIO 0.
 
 **Checkpoint fechado:** `03-07-PLAN.md` — homologacao end-to-end contra o Asaas Sandbox,
 com quatro acoes humanas encadeadas (criar/completar a conta de sandbox, corrigir a expansao
@@ -44,7 +55,7 @@ preserva ordem cronologica entre recursos. As duas juntas produziam um impasse: 
 que pagou nao recebia acesso. Corrigido no proprio 03-07 pela ponte do `checkoutSession`
 autoritativo — ver `03-07-SUMMARY.md`.
 
-Progress: [██████████] 100% (7/7 planos da fase 03)
+Progress: [█████████░] 9/9 planos da fase 04 executados — fase aberta até o checkpoint do 04-09 fechar
 
 ## Performance Metrics
 
@@ -147,6 +158,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [04-08] O habilitador de teste de billing e um script versionado em scripts/ com guarda de NODE_ENV=production, nunca um endpoint de teste: o allowlist de BILL-04 permanece intacto e a divida fica fora do codigo de producao
 - [Phase 04]: [04-08] O e2e afirma as formas flexionadas (suspenso/suspensa/suspensao) e nao o radical suspens: o payload RSC do next dev carrega um marcador interno do React cujo nome compartilha esse radical
 - [Phase 04]: [04-08] A tela de login de empresa bloqueada e medida em contexto de browser anonimo: a guarda 'ja estou logado' devolveria a sessao ativa ao painel antes de renderizar, e limpar cookies destruiria a sessao que prova a reativacao sem novo login
+- [Phase ?]: [04-09] Gates estaticos da fase viraram script executavel (npm run gates:fase-04) e descartam linhas de comentario antes de contar: os JSDoc normativos da fase citam literalmente os identificadores proibidos e invalidariam um grep cru
+- [Phase ?]: [04-09] A contagem previa de impacto deriva status por avaliarAcesso sobre cada empresa, nunca por WHERE de SQL: D-03, D-05, Pitfall 5 e as meias-noites de America/Sao_Paulo sao quatro chances de a copia divergir da aplicacao
 
 ### Pending Todos
 
@@ -162,6 +175,7 @@ None yet.
 - Revisão jurídica (CDC) sobre bloqueio e não-cobrança retroativa — fora do escopo técnico
 - `.env.example` precisa de dois ajustes que o executor não pôde aplicar (permissão negada no diretório): escape `\$` em `ASAAS_API_KEY` e nota sobre a forma real de `ASAAS_CHECKOUT_BASE_URL`. Texto pronto em `03-07-SUMMARY.md` § Pendências
 - A conta de sandbox exige cadastro completo (`commercialInfo`/`bankAccountInfo`/`documentation` aprovados) antes de o checkout ser habilitado — repetir na conta de produção antes do go-live
+- **BLOQUEANTE do merge da Fase 04** — checkpoint `04-09` Task 3 EM ABERTO e não auto-aprovável: falta rodar `npm run acesso:contagem` com o `.env` apontado para o banco alvo (produção ou o staging mais fiel) e classificar a soma `BLOQUEADO + CANCELADO`. `revalidarConta` já deriva o status a cada request hoje e apenas não age; a partir do merge, age — toda empresa com fatos de billing vencidos há >10 dias perde admin e catálogo no request seguinte, retroativamente. Faltam também as verificações manuais A3 (partial rendering em carência) e A4 (`redirect()` externo a partir de Server Action). Local: 382 empresas, 2 BLOQUEADO (ambas fixtures de e2e), 0 CARENCIA — não é a base de decisão.
 
 ## Deferred Items
 
@@ -173,6 +187,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-01T15:04:58.545Z
+Last session: 2026-09-01T15:17:54.219Z
 Stopped at: Phase 04 wave 4/5 complete (plan 04-08)
 Resume file: .planning/phases/04-aplica-o-do-bloqueio/04-08-SUMMARY.md
