@@ -20,6 +20,11 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - ✓ Registro de nova empresa (`/registro`) com criação de sessão admin — existente
 - ✓ Correção do bug crítico do singleton do Prisma (`lib/prisma.ts`) — client publicado incondicionalmente em `globalThis` em todos os ambientes, contagem de conexões do Postgres verificada estável sob carga (`pg_stat_activity`) — Validado na Fase 1: Pré-requisitos de Produção (INFRA-01)
 - ✓ Sessão do admin revalida a conta no banco a cada request via DAL `revalidarConta` (`lib/auth-guard.ts`), fail-closed, ligado em `requireAdminSession` e `requireAuth` — Validado na Fase 1: Pré-requisitos de Produção (INFRA-02). Nota: isto entrega a **infraestrutura** de revalidação; a regra de status de pagamento em si (`avaliarAcesso`) ainda não existe — plugará em `revalidarConta` na Fase 2 (decisão D-04)
+- ✓ Janela de carência de 10 dias quando o pagamento atrasa, antes do bloqueio — Validado na Fase 4: Aplicação do Bloqueio (ACC-02)
+- ✓ Banner de aviso em destaque em todas as telas do admin durante a carência, mostrando dias restantes e pedindo o pagamento (não aparece no catálogo público) — Validado na Fase 4: Aplicação do Bloqueio (ACC-01)
+- ✓ Bloqueio após os 10 dias de carência: perda de acesso ao painel admin **e** despublicação do catálogo público daquela empresa (sem mensagem de pagamento no catálogo — apenas indisponível/idêntico a "não existe"). O catálogo tem **6** caminhos de leitura públicos (corrigido pela pesquisa da Fase 4 — o roadmap original citava 5; `GET /api/empresas/slug/[slug]` também é público) — todos gateados pelo mesmo funil de serviço — Validado na Fase 4: Aplicação do Bloqueio (ACC-02, ACC-03)
+- ✓ Reativação automática ao pagar a cobrança corrente do gateway (não é cobrado retroativamente pelos meses em que ficou bloqueada) — Validado na Fase 4: Aplicação do Bloqueio (ACC-04), apoiado na extensão monotônica de `acessoAte` já provada na Fase 3
+- ✓ Webhook do gateway é idempotente (não processa o mesmo evento duas vezes) e sempre responde 200 rapidamente, processando de forma assíncrona — Validado na Fase 3: Gateway Asaas e Ingestão de Webhooks (GTW-04), com reentrega real testada contra o Asaas Sandbox
 
 ### Active
 
@@ -31,11 +36,6 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - [ ] Integração com gateway de pagamento externo para assinatura recorrente automática (cobrança mensal, sem armazenar dados de cartão/pagamento no nosso sistema)
 - [ ] Webhook do gateway atualiza o status de pagamento da empresa (sucesso/falha de cobrança)
 - [ ] Gateway de pagamento: Asaas (checkout hospedado com assinatura recorrente) — decidido após pesquisa (ver `.planning/research/STACK.md`)
-- [ ] Janela de carência de 10 dias quando o pagamento atrasa, antes do bloqueio
-- [ ] Banner de aviso em destaque em todas as telas do admin durante a carência, mostrando dias restantes e pedindo o pagamento (não aparece no catálogo público)
-- [ ] Bloqueio após os 10 dias de carência: perda de acesso ao painel admin **e** despublicação do catálogo público daquela empresa (sem mensagem de pagamento no catálogo — apenas indisponível). O catálogo tem 5 caminhos de leitura públicos hoje (páginas + endpoints, incluindo um que aceita `empresaId` direto) — todos precisam do mesmo guard, não só a página
-- [ ] Webhook do gateway é idempotente (não processa o mesmo evento duas vezes) e sempre responde 200 rapidamente, processando de forma assíncrona
-- [ ] Reativação automática ao pagar a cobrança corrente do gateway (não é cobrado retroativamente pelos meses em que ficou bloqueada — decisão revisada após pesquisa: gateways de assinatura não suportam cobrança retroativa nativamente, e cobrar por período sem prestação de serviço é arriscado sob o CDC)
 - [ ] Cancelamento de plano pelo usuário: acesso mantido até o fim dos 30 dias do último pagamento; depois disso, mesmo fluxo de bloqueio
 - [ ] Tela de termos de uso exibida no momento do registro da conta, com aceite obrigatório
 - [ ] Endpoint para atualizar os termos de uso, restrito a um novo papel `SUPERADMIN` (hoje só existe `ADMIN`, que é por empresa — sem esse papel novo, qualquer admin de qualquer empresa poderia reescrever os termos da plataforma)
@@ -57,13 +57,13 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - PostgreSQL via Prisma 7 (`@prisma/adapter-pg`), singleton em `lib/prisma.ts`
 - Modelos atuais: `Empresa`, `Usuario`, `Produto`, `ProdutoImagem`, `Combo`, `ComboItem`, `Promocao`, `PromocaoItem`, `MovimentacaoEstoque`
 - Auth: JWT (jose) com payload `{ sub, empresaId, empresaSlug, email, role }`, sessão via cookie HTTPOnly (`lib/session.ts`), verificação em `lib/api-auth.ts`
-- Nenhuma integração de pagamento ou webhook existe hoje (`INTEGRATIONS.md`)
+- Integração de pagamento Asaas (checkout hospedado + webhook idempotente) construída e homologada na Fase 3; enforcement de bloqueio (admin + catálogo) construído na Fase 4
 - Hosting de produção não está definido no código — precisa ser decidido para o worker diário (candidatos: Vercel Cron Jobs vs cron em VPS)
 - `CONCERNS.md` já identificou 1 bug crítico de produção (singleton do Prisma) e 1 risco de segurança alto (endpoint sem autenticação) — não fazem parte deste milestone, mas valem revisão futura
 
 **Motivação:** o sistema hoje só verifica se o admin está logado, sem nenhum controle de cobrança. Esta é a primeira monetização real do produto.
 
-**Estado atual:** Fase 1 (Pré-requisitos de Produção) concluída em 2026-08-31 — singleton do Prisma corrigido e sessão revalidando no banco a cada request, ambos com evidência automatizada + checkpoint humano (contagem de conexões `pg_stat_activity`: 1 → 5, estável). Próxima: Fase 2 (Modelo de Dados e Motor de Acesso).
+**Estado atual:** Fase 4 (Aplicação do Bloqueio) concluída em 2026-09-01 — banner de carência, tela de bloqueio, e os 6 caminhos públicos do catálogo (não 5, corrigido pela pesquisa) gateados pelo status de acesso derivado; checkpoint humano de contagem prévia de empresas afetadas aprovado (o bloqueio é imediato e retroativo no primeiro request após o merge, não gradual — ver aviso no ROADMAP.md §Fase 5). 876 testes unitários + 22 e2e verdes. Próxima: Fase 5 (Worker Diário de Reconciliação).
 
 ## Constraints
 
@@ -103,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-31 after Phase 1 completion*
+*Last updated: 2026-09-01 after Phase 4 completion*
