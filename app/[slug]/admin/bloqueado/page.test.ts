@@ -93,11 +93,15 @@ describe("AdminBloqueadoPage", () => {
     expect(revalidarContaMock).not.toHaveBeenCalled();
   });
 
-  it("com conta não confirmada no banco, manda para o login", async () => {
+  it("nunca renderiza a tela sem uma conta confirmada no banco", async () => {
+    // Caso defensivo: `getVerifiedSession` já revalidou a conta neste mesmo
+    // request (e a revalidação é deduplicada), então na prática não se chega
+    // aqui com `null`. O destino é o painel, que aplica a guarda completa —
+    // o que não pode acontecer é a tela de suspensão renderizar mesmo assim.
     getVerifiedSessionMock.mockResolvedValue(sessao);
     revalidarContaMock.mockResolvedValue(null);
 
-    await expect(renderizar()).rejects.toThrow(`REDIRECT:/${SLUG}/admin/login`);
+    await expect(renderizar()).rejects.toThrow(`REDIRECT:/${SLUG}/admin`);
   });
 
   it.each(["TRIAL", "EM_DIA", "CARENCIA", "VITALICIO"])(
