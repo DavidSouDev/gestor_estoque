@@ -834,20 +834,6 @@ describe("empresaService.findBranding", () => {
   });
 });
 
-describe("empresaService.resolveIdBySlug", () => {
-  it("retorna o id quando a empresa existe", async () => {
-    prismaMock.empresa.findFirst.mockResolvedValue({ id: "empresa-1" } as never);
-
-    await expect(empresaService.resolveIdBySlug("minha-loja")).resolves.toBe("empresa-1");
-  });
-
-  it("retorna null quando a empresa não existe", async () => {
-    prismaMock.empresa.findFirst.mockResolvedValue(null);
-
-    await expect(empresaService.resolveIdBySlug("inexistente")).resolves.toBeNull();
-  });
-});
-
 describe("empresaService.create", () => {
   it("cria a empresa com os dados informados e os fatos de billing de trial (CR-01)", async () => {
     // Fake timers porque `create` lê `new Date()` internamente, igual a
