@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prismaMock } from "../../tests/setup/prisma-mock";
 import { produtoService } from "./produto.service";
 
@@ -71,6 +71,162 @@ describe("produtoService.listCatalogo", () => {
       })
     );
     expect(resultado).toEqual([produtoBase]);
+  });
+});
+
+/**
+ * ACC-03 / D-07 / T-04-04 / T-04-05.
+ *
+ * O relógio é congelado porque `findCatalogoById` lê `new Date()` internamente
+ * (ao contrário de `avaliarAcesso`, que recebe `agora` injetado). Sem congelar,
+ * a fixture de CARÊNCIA — a única que depende de "agora está dentro dos 10
+ * dias" — envelheceria e o teste começaria a falhar sozinho.
+ */
+const AGORA = new Date("2026-06-15T12:00:00.000Z");
+
+const BILLING = {
+  TRIAL: {
+    acessoAte: null,
+    trialFim: new Date("2026-07-01T03:00:00.000Z"),
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  EM_DIA: {
+    acessoAte: new Date("2026-07-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  // Venceu em 10/06; a carência de 10 dias vai até 20/06, e `AGORA` é 15/06.
+  CARENCIA: {
+    acessoAte: new Date("2026-06-10T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  VITALICIO: {
+    acessoAte: null,
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: true,
+  },
+  // Venceu em 01/01; a carência acabou em 11/01, muito antes de `AGORA`.
+  BLOQUEADO: {
+    acessoAte: new Date("2026-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: null,
+    acessoVitalicio: false,
+  },
+  CANCELADO: {
+    acessoAte: new Date("2026-01-01T03:00:00.000Z"),
+    trialFim: null,
+    canceladoEm: new Date("2026-01-05T03:00:00.000Z"),
+    acessoVitalicio: false,
+  },
+} as const;
+
+describe("produtoService.findCatalogoById", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function mockProdutoDeEmpresa(billing: (typeof BILLING)[keyof typeof BILLING]) {
+    prismaMock.produto.findFirst.mockResolvedValue({
+      id: "produto-1",
+      empresaId: "empresa-1",
+      nome: "Produto Teste",
+      empresa: { id: "empresa-1", ...billing },
+    } as never);
+  }
+
+  it("filtra o tenant por empresa.deletedAt no próprio where (T-04-05)", async () => {
+    mockProdutoDeEmpresa(BILLING.EM_DIA);
+
+    await produtoService.findCatalogoById("produto-1");
+
+    const args = vi.mocked(prismaMock.produto.findFirst).mock.calls[0][0];
+
+    expect(args).toMatchObject({
+      where: {
+        id: "produto-1",
+        ativo: true,
+        visivelCatalogo: true,
+        deletedAt: null,
+        empresa: { deletedAt: null },
+      },
+    });
+  });
+
+  it("devolve null quando a empresa dona está BLOQUEADO", async () => {
+    mockProdutoDeEmpresa(BILLING.BLOQUEADO);
+
+    await expect(produtoService.findCatalogoById("produto-1")).resolves.toBeNull();
+  });
+
+  it("devolve null quando a empresa dona está CANCELADO (D-06: idêntico a BLOQUEADO)", async () => {
+    mockProdutoDeEmpresa(BILLING.CANCELADO);
+
+    await expect(produtoService.findCatalogoById("produto-1")).resolves.toBeNull();
+  });
+
+  it.each(["TRIAL", "EM_DIA", "CARENCIA", "VITALICIO"] as const)(
+    "devolve o produto quando a empresa dona está %s",
+    async (status) => {
+      mockProdutoDeEmpresa(BILLING[status]);
+
+      const resultado = await produtoService.findCatalogoById("produto-1");
+
+      expect(resultado).not.toBeNull();
+      expect(resultado).toMatchObject({ id: "produto-1", empresaId: "empresa-1" });
+    }
+  );
+
+  it("não vaza a chave empresa no corpo público (T-04-01)", async () => {
+    mockProdutoDeEmpresa(BILLING.EM_DIA);
+
+    const resultado = await produtoService.findCatalogoById("produto-1");
+
+    expect(resultado).not.toHaveProperty("empresa");
+  });
+
+  it("gasta exatamente uma query quando rejeita por bloqueio (T-04-02)", async () => {
+    mockProdutoDeEmpresa(BILLING.BLOQUEADO);
+
+    await produtoService.findCatalogoById("produto-1");
+
+    expect(prismaMock.produto.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("gasta exatamente uma query quando o produto não existe", async () => {
+    prismaMock.produto.findFirst.mockResolvedValue(null);
+
+    await expect(produtoService.findCatalogoById("inexistente")).resolves.toBeNull();
+    expect(prismaMock.produto.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("carrega os fatos de billing da empresa no MESMO findFirst", async () => {
+    mockProdutoDeEmpresa(BILLING.EM_DIA);
+
+    await produtoService.findCatalogoById("produto-1");
+
+    const args = vi.mocked(prismaMock.produto.findFirst).mock.calls[0][0];
+
+    expect(args?.select).toMatchObject({
+      empresa: {
+        select: {
+          id: true,
+          acessoAte: true,
+          trialFim: true,
+          canceladoEm: true,
+          acessoVitalicio: true,
+        },
+      },
+    });
   });
 });
 
