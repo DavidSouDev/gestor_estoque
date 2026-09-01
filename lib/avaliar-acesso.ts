@@ -108,3 +108,86 @@ export function avaliarAcesso(fatos: FatosDeAcesso, agora: Date): ResultadoAcess
     carenciaAte,
   };
 }
+
+/**
+ * Tabela normativa do que "bloqueado" significa. Privada de propósito: o acesso
+ * é sempre por `acessoBloqueado` / `podePublicarCatalogo`.
+ *
+ * O tipo `Record<StatusAcesso, boolean>` é OBRIGATÓRIO e não é decoração:
+ *
+ * - comparar o status com EM_DIA por desigualdade — o atalho tentador —
+ *   derrubaria TRIAL, CARENCIA e VITALICIO junto, invertendo três regras de
+ *   negócio de uma vez.
+ * - um 7º valor entrando no enum vira erro de compilação AQUI, em vez de virar
+ *   bloqueio (ou liberação) silencioso em produção. T-04-15.
+ */
+const BLOQUEIA: Record<StatusAcesso, boolean> = {
+  [StatusAcesso.TRIAL]: false,
+  [StatusAcesso.EM_DIA]: false,
+  [StatusAcesso.CARENCIA]: false,
+  [StatusAcesso.VITALICIO]: false,
+  [StatusAcesso.BLOQUEADO]: true,
+  [StatusAcesso.CANCELADO]: true,
+};
+
+/**
+ * ACC-02. Único predicado de bloqueio do sistema — admin e catálogo derivam
+ * daqui, nunca de uma comparação de status escrita à mão no chamador (BILL-01).
+ *
+ * D-06: `CANCELADO` recebe tratamento IDÊNTICO a `BLOQUEADO`; o rótulo distinto
+ * existe só para a trilha de auditoria (D-08 da Fase 2), não para o gate.
+ *
+ * D-03: `CARENCIA` NÃO bloqueia nada. É apenas o aviso do banner no admin — o
+ * catálogo público continua no ar durante os 10 dias de `DIAS_DE_CARENCIA`.
+ */
+export function acessoBloqueado(status: StatusAcesso): boolean {
+  return BLOQUEIA[status];
+}
+
+/**
+ * ACC-03. Hoje é exatamente a negação de `acessoBloqueado`.
+ *
+ * Existe como nome próprio, e não como `!acessoBloqueado(...)` inline no
+ * chamador, porque admin e catálogo podem divergir na Fase 7 (ex.: manter o
+ * catálogo publicado após um cancelamento voluntário). Com o nome próprio essa
+ * divergência é uma linha aqui; sem ele, uma caçada por negações espalhadas.
+ */
+export function podePublicarCatalogo(status: StatusAcesso): boolean {
+  return !acessoBloqueado(status);
+}
+
+const UM_DIA_EM_MS = 86_400_000;
+
+/**
+ * ACC-01. Dias locais inteiros que ainda restam até `carenciaAte` — o número que
+ * o banner de carência mostra ("faltam N dias").
+ *
+ * Este é o ÚNICO lugar autorizado a calcular "dias restantes" (Pitfall 5 do
+ * 04-RESEARCH.md). Subtrair datas no fuso do servidor, ou formatá-las sem
+ * `timeZone`, produz off-by-one: o banner diz "restam 2 dias" e o bloqueio cai
+ * na manhã seguinte.
+ *
+ * `agora` é injetado; esta função nunca lê o relógio do sistema por conta
+ * própria — é o que torna as viradas de dia testáveis sem fake timers, igual a
+ * `avaliarAcesso`.
+ *
+ * Aritmética: os dois extremos são meias-noites de `America/Sao_Paulo`, então a
+ * diferença é um número inteiro de dias locais. `Math.round` (e não `ceil`):
+ * um dia de mudança de offset tem 23h ou 25h, e `ceil` transformaria as 23h em
+ * um dia espúrio a mais. `Math.max(0, …)` clampa — a carência vencida mostra 0,
+ * nunca um número negativo. Data inválida também cai em 0 (fail-closed: mostrar
+ * "vence hoje" pede o pagamento; mostrar `NaN` não pede nada).
+ */
+export function diasRestantesDeCarencia(carenciaAte: Date, agora: Date): number {
+  // Limite superior EXCLUSIVO do dia local de `agora`: a meia-noite de amanhã em
+  // São Paulo. Com ele, uma carência que vence hoje devolve 0 durante o dia
+  // inteiro, das 00:01 às 23:59.
+  const fimDoDiaLocal = meiaNoiteEmSaoPaulo(agora, 1);
+  const dias = (carenciaAte.getTime() - fimDoDiaLocal.getTime()) / UM_DIA_EM_MS;
+
+  if (!Number.isFinite(dias)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(dias));
+}
