@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 04 COMPLETA (9/9 planos) — checkpoint da contagem previa aprovado pelo operador
-last_updated: "2026-09-01T15:30:00.000Z"
-last_activity: 2026-09-01 -- Fase 04 fechada: enforcement de bloqueio no ar, contagem previa e A3/A4 aprovadas
+status: "enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente"
+stopped_at: Phase 04 wave 4/5 complete (plan 04-08)
+last_updated: "2026-09-01T17:36:13.940Z"
+last_activity: 2026-09-01
 progress:
   total_phases: 7
   completed_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 ## Current Position
 
-Phase: 04 (aplica-o-do-bloqueio) — **COMPLETA (9/9 planos)**
-Plan: 9 of 9
+Phase: 5
+Plan: Not started
 Status: enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente
-Last activity: 2026-09-01 -- Fase 04 fechada com o checkpoint da contagem prévia aprovado
+Last activity: 2026-09-01
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -68,7 +68,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 
 **Velocity:**
 
-- Total plans completed: 18
+- Total plans completed: 27
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -79,6 +79,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 | 01 | 5 | - | - |
 | 02 | 6 | - | - |
 | 03 | 7 | - | - |
+| 04 | 9 | - | - |
 
 **Recent Trend:**
 

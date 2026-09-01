@@ -236,7 +236,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 1. Pré-requisitos de Produção | 5/5 | Complete    | 2026-08-31 |
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
-| 4. Aplicação do Bloqueio | 9/9 | Complete   | 2026-09-01 |
+| 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 0/TBD | Not started | - |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
