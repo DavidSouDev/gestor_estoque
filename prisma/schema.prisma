@@ -34,11 +34,16 @@ enum StatusAcesso {
 // propria na fase em que passarem a existir.
 // Fase 3 (GTW-03) exerceu esse ponto de extensao: WEBHOOK_PAGAMENTO entrou por
 // migration propria, sem DML que use o valor na mesma transacao (Pitfall 7).
+// Fase 5 (WRK-01) exerceu o mesmo ponto de extensao: WORKER_DIARIO entrou por
+// migration propria (add_worker_diario_causa) e e a causa gravada pelo endpoint
+// /api/cron/reconciliacao-diaria quando o worker diario reavalia os fatos de
+// billing de uma empresa que nao fez nenhum request autenticado.
 enum CausaTransicaoAcesso {
   REGISTRO
   BACKFILL
   AVALIACAO_SESSAO
   WEBHOOK_PAGAMENTO
+  WORKER_DIARIO
 }
 
 model Empresa {
@@ -352,9 +357,13 @@ model EventoWebhookAsaas {
   // imposta pelo banco nesta coluna.
   empresaId String?
 
-  // Interface de recuperacao consumida pela FASE 5 (WRK-01): a fila de
-  // retrabalho e WHERE "processadoEm" IS NULL. Esta fase entrega apenas as
-  // colunas e o indice — DRENAR a fila nao e escopo daqui (Pitfall 10).
+  // Interface de recuperacao: a fila de retrabalho e o conjunto de eventos com
+  // processadoEm IS NULL, e o indice abaixo existe para ela.
+  // A FASE 5 (WRK-01) NAO consome esta fila: a decisao D-06 daquela fase
+  // escopou o worker diario para reavaliar apenas os 4 fatos de billing locais,
+  // sem nenhuma chamada ao Asaas, e drenar a fila exige
+  // webhookAsaasService.processar, que re-busca o pagamento no gateway.
+  // A fila segue SEM dreno; quem a drenar sera uma fase futura.
   // "erro" precisa ser gravado, nao apenas logado: depois do 200 o Asaas nunca
   // reenvia, entao um evento que falhou em silencio some para sempre.
   processadoEm DateTime?

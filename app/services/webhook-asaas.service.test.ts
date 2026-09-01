@@ -237,7 +237,8 @@ describe("webhookAsaasService.marcarErro", () => {
     await webhookAsaasService.marcarErro("evt-1", "banco indisponível");
 
     // Asserção EXATA: a ausência de `processadoEm` aqui é o que mantém o evento
-    // na fila de retrabalho `WHERE processadoEm IS NULL` (Fase 5 / WRK-01).
+    // na fila de retrabalho `WHERE processadoEm IS NULL`. Essa fila hoje não tem
+    // consumidor: o worker diário da Fase 5 não a toca (D-06 do 05-CONTEXT.md).
     expect(prismaMock.eventoWebhookAsaas.update).toHaveBeenCalledWith({
       where: { eventoId: "evt-1" },
       data: { erro: "banco indisponível", tentativas: { increment: 1 } },
@@ -659,7 +660,9 @@ describe("webhookAsaasService.capturarAssinatura", () => {
     const chamadas = chamadasDeUpdate();
     expect(chamadas).toHaveLength(1);
     expect(chamadas[0].data).toHaveProperty("erro");
-    // O evento fica na fila `processadoEm IS NULL` para a Fase 5.
+    // A ausência de `processadoEm` mantém o evento na fila de retrabalho
+    // `WHERE processadoEm IS NULL` — fila que hoje não tem consumidor: o worker
+    // diário da Fase 5 não a toca (D-06 do 05-CONTEXT.md).
     expect(chamadas[0].data).not.toHaveProperty("processadoEm");
   });
 
@@ -1136,7 +1139,11 @@ describe("webhookAsaasService.aplicarPagamentoConfirmado — escrita monotônica
 
     // A exatidão é o que prova a invariante: um `if` em memória equivalente
     // passaria neste teste se a asserção fosse `objectContaining`, e perderia a
-    // corrida com o worker da Fase 5 em produção.
+    // corrida entre DUAS entregas de webhook concorrentes do Asaas em produção.
+    // É o `OR: [{ acessoAte: null }, { acessoAte: { lt: ... } }]` no WHERE do
+    // updateMany que resolve essa corrida. O worker da Fase 5 não entra aqui:
+    // ele não escreve `acessoAte`, só `ultimoStatusAuditado` via
+    // `registrarTransicao`.
     expect(prismaMock.empresa.updateMany).toHaveBeenCalledWith({
       where: {
         id: "empresa-1",
@@ -1155,8 +1162,9 @@ describe("webhookAsaasService.aplicarPagamentoConfirmado — escrita monotônica
     );
 
     expect(acessoMock.registrarTransicao).not.toHaveBeenCalled();
-    // O evento foi TRATADO corretamente; apenas não havia o que mudar. Deixá-lo
-    // na fila de retrabalho faria a Fase 5 tentar de novo para sempre.
+    // O evento foi TRATADO corretamente; apenas não havia o que mudar. Marcar
+    // `processadoEm` é o que impede o evento de ficar eternamente pendente numa
+    // fila de retrabalho que ninguém drena.
     expect(chamadasDeUpdate()[0].data).toMatchObject({ empresaId: "empresa-1" });
     expect(chamadasDeUpdate()[0].data).toHaveProperty("processadoEm");
   });
