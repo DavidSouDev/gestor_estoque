@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: "enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente"
 stopped_at: Phase 05 context gathered
-last_updated: "2026-09-01T18:14:00.567Z"
-last_activity: 2026-09-01
+last_updated: "2026-09-01T19:29:58.120Z"
+last_activity: 2026-09-01 -- Phase 05 planning complete
 progress:
   total_phases: 7
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 Phase: 5
 Plan: Not started
 Status: enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente
-Last activity: 2026-09-01
+Last activity: 2026-09-01 -- Phase 05 planning complete
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
