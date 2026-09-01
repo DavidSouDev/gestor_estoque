@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente"
+status: executing
 stopped_at: Phase 05 context gathered
-last_updated: "2026-09-01T19:29:58.120Z"
-last_activity: 2026-09-01 -- Phase 05 planning complete
+last_updated: "2026-09-01T19:49:55.052Z"
+last_activity: 2026-09-01 -- Phase 05 execution started
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 27
+  total_plans: 32
   completed_plans: 27
   percent: 57
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 05 — worker de avaliação diária (próxima)
+**Current focus:** Phase 05 — worker-di-rio-de-reconcilia-o
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente
-Last activity: 2026-09-01 -- Phase 05 planning complete
+Phase: 05 (worker-di-rio-de-reconcilia-o) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 05
+Last activity: 2026-09-01 -- Phase 05 execution started
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -161,7 +161,7 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-07] `sendType: SEQUENTIALLY` NAO preserva ordem cronologica entre recursos — `PAYMENT_CONFIRMED` foi entregue ANTES de `SUBSCRIPTION_CREATED` apesar de ter `dateCreated` posterior; sao filas por recurso
 - [Phase 03]: [03-07] Resolucao de tenant ganhou a ponte `checkoutSession` (do objeto RE-BUSCADO na API, nunca do payload) — sem ela o PRIMEIRO pagamento de todo cliente e insoluvel e quem pagou fica sem acesso
 - [Phase 03]: [03-07] `checkout.customer` vem null no `CHECKOUT_PAID`; o `cus_…` so existe em `SUBSCRIPTION_CREATED`
-- [Phase 03]: [03-07] Reenvio pelo painel do Asaas NAO reprocessa evento ja registrado (colide no @unique do ledger) — recuperacao e trabalho do worker da Fase 5 sobre `processadoEm IS NULL`, nao do botao
+- [Phase 03]: [03-07] Reenvio pelo painel do Asaas NAO reprocessa evento ja registrado (colide no @unique do ledger) — e a recuperacao NAO e do botao nem do worker da Fase 5: D-06 escopou o worker para reavaliar apenas os fatos de billing locais, sem chamar o Asaas. A fila processadoEm IS NULL segue sem dono
 - [Phase 03]: [03-07] Chave de API do Asaas comeca com `$` e o `@next/env` a expande como referencia de variavel: sem escape `\$` ela vira string vazia SO dentro do next dev. Scripts do projeto passaram a usar o mesmo leitor da aplicacao
 - [Phase 03]: [03-07] Nenhum runner de TypeScript instalado — Node 22+ executa `.ts` nativamente; alias `@/` e extensao implicita resolvidos por hook proprio em `scripts/resolvedor-ts.mjs`
 - [Phase 04]: [04-08] O habilitador de teste de billing e um script versionado em scripts/ com guarda de NODE_ENV=production, nunca um endpoint de teste: o allowlist de BILL-04 permanece intacto e a divida fica fora do codigo de producao
@@ -187,6 +187,7 @@ None yet.
 - Revisão jurídica (CDC) sobre bloqueio e não-cobrança retroativa — fora do escopo técnico
 - `.env.example` precisa de dois ajustes que o executor não pôde aplicar (permissão negada no diretório): escape `\$` em `ASAAS_API_KEY` e nota sobre a forma real de `ASAAS_CHECKOUT_BASE_URL`. Texto pronto em `03-07-SUMMARY.md` § Pendências
 - A conta de sandbox exige cadastro completo (`commercialInfo`/`bankAccountInfo`/`documentation` aprovados) antes de o checkout ser habilitado — repetir na conta de produção antes do go-live
+- Fila de retrabalho `EventoWebhookAsaas WHERE processadoEm IS NULL` segue SEM dreno depois da Fase 5 (D-06/D-10): um cliente que pagou e cujo webhook falhou permanece bloqueado até intervenção manual. Candidata a fase futura — exige `webhookAsaasService.processar`, que re-busca no Asaas.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 
 ## Deferred Items

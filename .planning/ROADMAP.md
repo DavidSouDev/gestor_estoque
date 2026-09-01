@@ -195,8 +195,8 @@ cada request autenticado; o worker diário é rede de segurança para empresas q
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Enum `WORKER_DIARIO` + migration aplicada contra Postgres real + correção do débito documental D-10 (WRK-01)
-- [ ] 05-02-PLAN.md — `cronSecret()` fail-closed e `planejarReconciliacao` puro com o freio composto de D-01 (WRK-01, WRK-02)
+- [x] 05-01-PLAN.md — Enum `WORKER_DIARIO` + migration aplicada contra Postgres real + correção do débito documental D-10 (WRK-01)
+- [x] 05-02-PLAN.md — `cronSecret()` fail-closed e `planejarReconciliacao` puro com o freio composto de D-01 (WRK-01, WRK-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -255,7 +255,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
-| 5. Worker Diário de Reconciliação | 0/5 | Planned     | - |
+| 5. Worker Diário de Reconciliação | 2/5 | In Progress|  |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
