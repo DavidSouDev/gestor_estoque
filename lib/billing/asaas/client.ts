@@ -1,9 +1,12 @@
 import { asaasApiKey, asaasApiUrl } from "./config";
 import type {
   AsaasCheckout,
+  AsaasLista,
   AsaasPayment,
   AsaasSubscription,
+  AsaasWebhook,
   CriarCheckoutInput,
+  RegistrarWebhookInput,
 } from "./tipos";
 
 /**
@@ -159,6 +162,52 @@ class AsaasClient {
   async buscarAssinatura(id: string): Promise<AsaasSubscription> {
     return chamar<AsaasSubscription>(`/subscriptions/${id}`);
   }
+
+  /** Webhooks já registrados na conta. Usado para tornar o registro idempotente. */
+  async listarWebhooks(): Promise<AsaasLista<AsaasWebhook>> {
+    return chamar<AsaasLista<AsaasWebhook>>("/webhooks");
+  }
+
+  async criarWebhook(input: RegistrarWebhookInput): Promise<AsaasWebhook> {
+    return chamar<AsaasWebhook>("/webhooks", {
+      method: "POST",
+      body: JSON.stringify(corpoDeWebhook(input)),
+    });
+  }
+
+  /**
+   * Reescreve o webhook inteiro. Como `interrupted: false` faz parte do corpo,
+   * este método é também o comando de REATIVAÇÃO da fila depois das 15 falhas
+   * consecutivas que a pausam (Pitfall 2) — não existe endpoint separado.
+   */
+  async atualizarWebhook(id: string, input: RegistrarWebhookInput): Promise<AsaasWebhook> {
+    return chamar<AsaasWebhook>(`/webhooks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(corpoDeWebhook(input)),
+    });
+  }
+}
+
+/**
+ * Corpo de criação e de atualização do webhook — literalmente o mesmo objeto.
+ *
+ * `apiVersion: 3` é fixo: a v2 entrega um envelope diferente do que
+ * `lib/billing/asaas/eventos.ts` sabe ler. `enabled`/`interrupted` são sempre
+ * enviados explicitamente para que rodar o registro duas vezes reconcilie o
+ * estado do webhook em vez de preservar o que estiver lá.
+ */
+function corpoDeWebhook(input: RegistrarWebhookInput) {
+  return {
+    name: input.name,
+    url: input.url,
+    email: input.email,
+    enabled: true,
+    interrupted: false,
+    apiVersion: 3,
+    authToken: input.authToken,
+    sendType: input.sendType,
+    events: [...input.events],
+  };
 }
 
 export const asaasClient = new AsaasClient();

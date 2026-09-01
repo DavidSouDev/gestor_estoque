@@ -41,6 +41,54 @@ export interface AsaasSubscription {
   externalReference?: string | null;
 }
 
+/**
+ * Webhook registrado no Asaas (`GET`/`POST`/`PUT` em `/webhooks`).
+ *
+ * `authToken` NÃO é declarado de propósito: ele volta na resposta do Asaas, e
+ * qualquer campo tipado aqui vira caminho possível para um `console.log` ou uma
+ * persistência acidental do segredo (T-03-44). Sem tipo, o compilador recusa.
+ */
+export interface AsaasWebhook {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  interrupted: boolean;
+  apiVersion: number;
+  sendType: string;
+  events: string[];
+  /**
+   * Contador de entregas penalizadas — 15 consecutivas pausam a fila. Opcional
+   * porque não aparece na documentação de referência do objeto: o script de
+   * registro reporta "não informado" em vez de inventar um zero tranquilizador.
+   */
+  penalizedRequestsCount?: number | null;
+}
+
+/** Envelope de listagem paginada do Asaas. */
+export interface AsaasLista<T> {
+  data: T[];
+  hasMore?: boolean;
+  totalCount?: number;
+}
+
+/**
+ * Entrada de `criarWebhook`/`atualizarWebhook`.
+ *
+ * `sendType` é do chamador (o script de registro), não default do cliente: a
+ * escolha do modo de entrega é decisão de operação, e escondê-la num default
+ * aqui a tornaria invisível para quem lê o script.
+ */
+export interface RegistrarWebhookInput {
+  name: string;
+  url: string;
+  /** Endereço que recebe o aviso do Asaas quando a fila de entrega pausa. */
+  email: string;
+  authToken: string;
+  sendType: string;
+  events: readonly string[];
+}
+
 /** Entrada de `asaasClient.criarCheckout`, em termos do nosso domínio. */
 export interface CriarCheckoutInput {
   empresaId: string;
