@@ -6,14 +6,29 @@ import { NextResponse } from "next/server";
 /**
  * Único ponto de entrada de pagamento do produto (GTW-01).
  *
- * D-04: esta fase entrega SÓ o backend. Não existe tela, botão ou Server Action
- * chamando este endpoint hoje — o consumidor de UI é a Fase 4 (banner de
- * carência, ACC-01) ou a Fase 7 (gestão de assinatura). Um endpoint sem
- * consumidor é o esperado aqui, não um esquecimento.
+ * ATUALIZAÇÃO DA FASE 4 — a afirmação original deste bloco ("não existe tela,
+ * botão ou Server Action chamando este endpoint hoje", D-04 da Fase 3) ficou
+ * FALSA. A Fase 4 construiu a Server Action `iniciarPagamento`
+ * (`app/[slug]/admin/_lib/assinatura-actions.ts`), que é quem serve o botão de
+ * pagamento do painel — e ela chama `assinaturaService.criarCheckout` DIRETO,
+ * sem passar por HTTP.
+ *
+ * O motivo de a UI não consumir esta rota: o cookie de sessão do admin é
+ * `httpOnly`, então o JavaScript do browser não tem Bearer token para mandar
+ * aqui. As alternativas seriam expor o JWT ao cliente (regressão de segurança)
+ * ou fazer a guarda de API aceitar cookie (novo vetor de CSRF na função mais
+ * crítica do sistema). Nenhuma das duas se paga.
+ *
+ * Este continua sendo o endpoint canônico de checkout para consumidores que
+ * TÊM token — a Fase 7 (gestão de assinatura) pode consumi-lo.
  */
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth(request);
+    // ÚNICO call site do repositório autorizado a passar esta flag: o caminho
+    // de pagamento tem que sobreviver ao bloqueio, senão o cliente suspenso que
+    // quer pagar fica trancado do lado de fora, sem como voltar. Uma segunda
+    // ocorrência desta flag em produção é um bug (Pitfall 1 / T-04-10 / T-04-13).
+    const auth = await requireAuth(request, { permitirEmpresaBloqueada: true });
 
     // C-08: `auth.empresaId` é a ÚNICA fonte de tenant. O corpo do request é
     // ignorado por completo — de propósito, e não por não haver campo útil: ler
