@@ -204,7 +204,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-04-PLAN.md — Flag `--auditado` no seed, `CRON_SECRET` no CI e e2e do worker contra Postgres real (WRK-01, WRK-02)
+- [x] 05-04-PLAN.md — Flag `--auditado` no seed, `CRON_SECRET` no CI e e2e do worker contra Postgres real (WRK-01, WRK-02)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -255,7 +255,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 2. Modelo de Dados e Motor de Acesso | 6/6 | Complete    | 2026-08-31 |
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
-| 5. Worker Diário de Reconciliação | 3/5 | In Progress|  |
+| 5. Worker Diário de Reconciliação | 4/5 | In Progress|  |
 | 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
