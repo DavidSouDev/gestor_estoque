@@ -10,7 +10,7 @@ import { asaasClient } from "@/lib/billing/asaas/client";
 import { acessoAteAposPagamento } from "@/lib/billing/asaas/datas";
 import { acessoService } from "@/app/services/acesso.service";
 import { avaliarAcesso } from "@/lib/avaliar-acesso";
-import type { AsaasPayment } from "@/lib/billing/asaas/tipos";
+import type { AsaasPayment, AsaasSubscription } from "@/lib/billing/asaas/tipos";
 
 /**
  * Ledger de eventos de webhook do Asaas: registro, despacho e marcação de
@@ -133,7 +133,11 @@ class WebhookAsaasService {
    *      o que impede um `sub_…` forjado de apontar para duas empresas.
    *   2. `CheckoutAsaas.asaasCheckoutId` — gravado quando NÓS criamos o
    *      checkout, também `@unique`. Cobre a janela em que a cobrança chega
-   *      antes de a assinatura existir (Open Question 2).
+   *      antes de a assinatura existir (Open Question 2). **Na prática este é o
+   *      passo que resolve o primeiro pagamento de todo cliente**, e o
+   *      `checkoutId` correspondente NÃO vem do payload: vem do campo
+   *      `checkoutSession` do objeto RE-BUSCADO na API. Ver o comentário do
+   *      passo 3 de `aplicarPagamentoConfirmado`.
    *   3. `Empresa.asaasCustomerId` — o mais fraco dos três (não é `@unique`),
    *      por isso é o último. Existe para o caso em que o cliente já pagou
    *      antes por outro caminho.
@@ -147,10 +151,18 @@ class WebhookAsaasService {
    * escolheria a empresa alvo simplesmente escrevendo o id dela no corpo, e
    * estenderia acesso pago de qualquer tenant. Existe ainda um segundo motivo,
    * independente da segurança: a suposição A3 do Assumptions Log da pesquisa —
-   * NÃO está confirmado que a referência externa definida no checkout propaga
-   * para a assinatura e para as cobranças geradas. Se não propagar, um
-   * "fallback" por ela simplesmente não resolveria; como cross-check, a ausência
-   * é inofensiva.
+   * que a referência externa definida no checkout propagaria para a assinatura e
+   * para as cobranças. A homologação do plano 03-07 **REFUTOU A3 com evidência**:
+   * ela vem `null` na cobrança e na assinatura, e consultar a API por ela devolve
+   * zero resultados. Um "fallback" por referência externa não resolveria nada —
+   * como cross-check, a ausência é inofensiva.
+   *
+   * NOTA SOBRE A PROCEDÊNCIA DOS IDENTIFICADORES: nada acima muda pelo fato de
+   * o `checkoutId` passar a vir de `checkoutSession`. Esse campo é lido do objeto
+   * devolvido pela API do Asaas em resposta à NOSSA chave — não do corpo não
+   * assinado — e ainda assim ele não autoriza sozinho: só vale se casar com uma
+   * linha de `CheckoutAsaas` que nós mesmos gravamos ao criar o checkout. A
+   * cadeia de confiança continua terminando numa escrita nossa.
    *
    * Divergência entre o mapa local e a referência externa é sinal de defeito
    * nosso ou de tentativa de forja: é logada, e o **mapa local prevalece**.
@@ -280,8 +292,19 @@ class WebhookAsaasService {
 
     // 3. TENANT PELO MAPA LOCAL — os identificadores vêm do objeto autoritativo,
     // e mesmo assim nenhum deles autoriza por si (ver `resolverEmpresaId`).
+    //
+    // `checkoutSession` é obrigatório aqui, não opcional: sem ele a PRIMEIRA
+    // cobrança de todo checkout recorrente é insolúvel. A homologação do plano
+    // 03-07 mediu a ordem real de entrega e ela desmente a suposição da
+    // pesquisa — `PAYMENT_CONFIRMED` chega ANTES de `SUBSCRIPTION_CREATED`
+    // (`sendType` sequencial ordena dentro de cada recurso, não entre recursos).
+    // Como `externalReference` também não propaga para a cobrança (A3 refutada
+    // com evidência), sem esta linha o mapa por `sub_…` ainda não existe, o
+    // `cus_…` ainda não foi gravado, e um cliente que pagou fica na carência até
+    // ser bloqueado. Foi exatamente o que aconteceu no primeiro pagamento real.
     const empresaId = await this.resolverEmpresaId({
       subscription: autoritativo.subscription,
+      checkoutId: autoritativo.checkoutSession,
       customer: autoritativo.customer,
       externalReference: autoritativo.externalReference,
     });
@@ -407,17 +430,35 @@ class WebhookAsaasService {
       return;
     }
 
-    const assinatura = validado.data;
+    // RE-FETCH AUTORITATIVO, pelo mesmo motivo do ramo de pagamento (T-03-32) e
+    // por um segundo, específico deste ramo: o payload do webhook NÃO traz
+    // `checkoutSession`, e é ele a única ponte de volta ao mapa local enquanto
+    // `asaasSubscriptionId` e `asaasCustomerId` ainda estão nulos. Sem o
+    // re-fetch, a resolução dependeria de `customer` (ainda não gravado) ou da
+    // referência externa (que a homologação provou vir nula) — e este evento,
+    // que é justamente quem CRIA o mapa por `sub_…`, nunca conseguiria criá-lo.
+    let autoritativo: AsaasSubscription;
 
-    // Ainda não existe mapa por `sub_…` (é justamente o que este evento vai
-    // criar), então a resolução depende do cliente ou do cross-check.
+    try {
+      autoritativo = await asaasClient.buscarAssinatura(validado.data.id);
+    } catch (erro) {
+      await this.marcarErro(
+        eventoId,
+        `falha ao reconferir a assinatura no gateway: ${
+          erro instanceof Error ? erro.message : String(erro)
+        }`
+      );
+      return;
+    }
+
     const empresaId = await this.resolverEmpresaId({
-      customer: assinatura.customer,
-      externalReference: assinatura.externalReference,
+      checkoutId: autoritativo.checkoutSession,
+      customer: autoritativo.customer,
+      externalReference: autoritativo.externalReference,
     });
 
     if (!empresaId) {
-      // Open Question 2: se a assinatura chegar antes de qualquer mapa existir,
+      // Sem checkout nosso na origem (assinatura criada por fora do produto),
       // o evento fica na fila `processadoEm IS NULL` para a Fase 5 reprocessar.
       await this.marcarErro(
         eventoId,
@@ -429,8 +470,8 @@ class WebhookAsaasService {
     await prisma.empresa.update({
       where: { id: empresaId },
       data: {
-        asaasSubscriptionId: assinatura.id,
-        asaasCustomerId: assinatura.customer,
+        asaasSubscriptionId: autoritativo.id,
+        asaasCustomerId: autoritativo.customer,
       },
     });
 

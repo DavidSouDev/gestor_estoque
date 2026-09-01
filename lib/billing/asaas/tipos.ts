@@ -26,9 +26,23 @@ export interface AsaasPayment {
   subscription?: string | null;
   /** Id `cus_…` do cliente no Asaas. Nunca é autoridade de autorização. */
   customer?: string | null;
-  /** Definido por nós como `empresaId`; serve só como cross-check (A3). */
+  /**
+   * Definido por nós como `empresaId`. Serve só como cross-check — e a
+   * homologação do plano 03-07 provou que aqui ele vem SEMPRE `null`: a
+   * referência externa do checkout NÃO propaga para as cobranças (A3 refutada).
+   */
   externalReference?: string | null;
   billingType?: string | null;
+  /**
+   * Id do checkout que originou a cobrança. **É a única ponte confiável de volta
+   * ao nosso mapa local** quando a assinatura ainda não foi capturada.
+   *
+   * Descoberto na homologação contra o sandbox (03-07): sem ele, a primeira
+   * cobrança de um checkout recorrente é indissolúvel — `externalReference` vem
+   * nulo e o mapa por `sub_…` só existe depois de `SUBSCRIPTION_CREATED`, que
+   * por sua vez chega DEPOIS do pagamento. Ver `resolverEmpresaId`.
+   */
+  checkoutSession?: string | null;
 }
 
 /** Assinatura recorrente criada pelo checkout. */
@@ -38,7 +52,10 @@ export interface AsaasSubscription {
   status: string;
   cycle: string;
   nextDueDate: string;
+  /** Também sempre `null` na prática — ver a nota em `AsaasPayment` (A3). */
   externalReference?: string | null;
+  /** Id do checkout que criou a assinatura. Mesma ponte de `AsaasPayment`. */
+  checkoutSession?: string | null;
 }
 
 /**
