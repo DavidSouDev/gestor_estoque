@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 05 context gathered
-last_updated: "2026-09-01T19:49:55.052Z"
-last_activity: 2026-09-01 -- Phase 05 execution started
+stopped_at: Phase 05 complete — verified, ready for Phase 6
+last_updated: "2026-09-01T21:42:33.569Z"
+last_activity: 2026-09-01
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 32
-  completed_plans: 27
-  percent: 57
+  completed_plans: 32
+  percent: 71
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 05 — worker-di-rio-de-reconcilia-o
+**Current focus:** Phase 06 — Termos de Uso e Aceite (próxima)
 
 ## Current Position
 
-Phase: 05 (worker-di-rio-de-reconcilia-o) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 05
-Last activity: 2026-09-01 -- Phase 05 execution started
+Phase: 6
+Plan: Not started
+Status: Phase 05 concluída e verificada (5/5 planos, VERIFICATION.md status: passed)
+Last activity: 2026-09-01 -- Phase 05 execution complete
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -68,7 +68,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 
 **Velocity:**
 
-- Total plans completed: 27
+- Total plans completed: 32
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -80,6 +80,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 | 02 | 6 | - | - |
 | 03 | 7 | - | - |
 | 04 | 9 | - | - |
+| 05 | 5 | - | - |
 
 **Recent Trend:**
 
