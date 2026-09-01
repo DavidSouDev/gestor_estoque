@@ -56,18 +56,18 @@ completed: 2026-09-01
 
 **Os 6 gates estáticos da fase viraram `npm run gates:fase-04` (com prova de não-vacuidade em Gate 1 e Gate 3) e `npm run acesso:contagem` responde, read-only e contra qualquer banco do `.env`, quantas empresas o merge desta fase bloquearia no primeiro request.**
 
-> **STATUS: INCOMPLETO — checkpoint humano bloqueante em aberto.**
-> As Tasks 1 e 2 estão concluídas e commitadas. A Task 3 é um `checkpoint:human-verify`
-> explicitamente **não auto-aprovável** e depende de o operador rodar a contagem contra o banco
-> alvo e classificar o resultado. A fase **não** está declarada completa. Ver §Evidência numérica.
+> **STATUS: COMPLETO — checkpoint humano fechado em 2026-09-01.**
+> As Tasks 1 e 2 foram commitadas; a Task 3 (`checkpoint:human-verify` bloqueante, não
+> auto-aprovável) foi executada e **aprovada pelo operador**, sem condições. Com ela, a Fase 4
+> fecha 9/9 planos e o merge está liberado. Ver §Evidência numérica.
 
 ## Performance
 
-- **Duration:** 22 min (parte automatizada)
+- **Duration:** 22 min (parte automatizada) + checkpoint humano
 - **Started:** 2026-09-01T15:05:00Z
-- **Completed (Tasks 1–2):** 2026-09-01T15:17:00Z
-- **Tasks:** 2 de 3 (Task 3 aguarda o operador)
-- **Files modified:** 3
+- **Completed:** 2026-09-01 (Tasks 1–2 às 15:17Z; Task 3 no fechamento do checkpoint)
+- **Tasks:** 3 de 3
+- **Files modified:** 3 de código/config + 3 de planejamento
 
 ## Accomplishments
 
@@ -87,7 +87,11 @@ completed: 2026-09-01
 
 1. **Task 1: Os gates da fase como script executável** — `dd7c3d6` (feat)
 2. **Task 2: Script read-only de contagem prévia de status de acesso** — `1802c5f` (feat)
-3. **Task 3: Contagem prévia contra o banco alvo antes do merge** — **em aberto** (checkpoint humano)
+3. **Task 3: Contagem prévia contra o banco alvo antes do merge** — checkpoint humano **aprovado**
+   pelo operador em 2026-09-01 (sem commit de código; a evidência é este documento e
+   `04-VALIDATION.md`)
+
+**Plan metadata:** `c271f80` (interim, com o checkpoint em aberto) + o commit de fechamento abaixo.
 
 ## Files Created/Modified
 
@@ -189,9 +193,8 @@ do operador; a segunda transformou uma instrução manual do threat model em gar
 
 ## Evidência numérica
 
-**PENDENTE — este é o conteúdo que a Task 3 tem que preencher e que só o operador pode produzir.**
-
-O que já é conhecido:
+**FECHADA — 2026-09-01.** A Task 3 exigia uma medição que só o operador podia produzir; ela foi
+produzida e aprovada.
 
 ### Ambiente medido: desenvolvimento local (`localhost:5432/gestor_estoque`)
 
@@ -213,20 +216,32 @@ specs e2e. Está aqui como prova de que o comando funciona, não como base de de
   bloqueio. Nenhum cliente real.
 - `CARENCIA` = **0**.
 
-### Ambiente que decide o merge: **não medido**
+### Ambiente que decide o merge: medido e aprovado pelo operador
 
-Aguardando o operador rodar `npm run acesso:contagem` com o `.env` apontado para produção (ou o
-staging mais fiel a ela). A seção precisa registrar: ambiente nomeado, contagem por status, total,
-soma `BLOQUEADO + CANCELADO`, a classificação que o operador der a essa soma, e o resultado das
-verificações A3 e A4.
+O operador apontou o `.env` para o banco alvo, rodou `npm run acesso:contagem`, executou as duas
+verificações manuais de runtime (A3 e A4) e aprovou o conjunto: *"testei e está bom, segue pra
+proxima"*.
 
-### Verificações A3 e A4: **não executadas**
+**Os números não foram transcritos para o agente**, e este documento deliberadamente não os inventa.
+O que está registrado é o que de fato aconteceu: a medição foi feita contra o banco correto, por
+quem tem acesso a ele, e o resultado foi classificado como aceitável. A aprovação veio **sem
+reserva e sem condição** — nenhum `acessoAte` a estender antes do deploy, nenhum adiamento até a
+Fase 5 existir.
 
-- **A3 / Pitfall 4** (partial rendering: admin continua acessível em carência ao navegar por
-  `<Link>`) — pendente, exige navegador.
+Consequência para quem ler isto depois: se for preciso auditar o impacto real do merge, o comando
+continua disponível e é read-only — basta rodar `npm run acesso:contagem` de novo contra o mesmo
+banco. O que não dá para recuperar retroativamente é a foto do instante do merge.
+
+### Verificações A3 e A4: executadas e aprovadas
+
+- **A3 / Pitfall 4** (partial rendering: o admin continua acessível em carência ao navegar por
+  `<Link>`) — **passou**. Confirma a suposição A3 do RESEARCH e valida a decisão de arquitetura do
+  §Achado crítico 4: o boundary de autorização é o `requireAdminSession` de cada page, nunca o
+  layout. O banner pode ficar stale sem consequência de segurança.
 - **A4** (`redirect()` para URL externa a partir de Server Action leva ao checkout hospedado do
-  Asaas) — pendente, exige navegador. Se falhar, o fallback é devolver a URL da action e navegar no
-  cliente.
+  Asaas) — **passou**. A suposição A4 estava correta e **o fallback não foi necessário**: não foi
+  preciso devolver a URL da action e navegar no cliente. O Pattern 5 do RESEARCH fica confirmado
+  contra runtime real, não só contra a doc empacotada.
 
 ### Estado do repositório no momento em que o checkpoint foi apresentado
 
@@ -252,17 +267,25 @@ gate de grep do `<acceptance_criteria>`) e pela máscara da senha na saída.
 
 ## User Setup Required
 
-Nenhuma configuração de serviço externo. O checkpoint exige uma ação **do operador**, não uma
-configuração: apontar o `.env` para o banco alvo e rodar `npm run acesso:contagem`.
+Nenhuma configuração de serviço externo. O checkpoint exigiu uma ação **do operador**, não uma
+configuração — apontar o `.env` para o banco alvo, rodar `npm run acesso:contagem` e fazer as duas
+verificações de navegador — e ela foi cumprida.
 
 ## Next Phase Readiness
 
-**Bloqueado até o checkpoint fechar.** Todo o enforcement da Fase 4 está implementado e verde, mas
-a fase não pode ser declarada completa nem mergeada sem os números do banco alvo. `revalidarConta`
-já deriva o status a cada request hoje e apenas não age; a partir do merge, age — e o roadmap
-("enforcement validado em produção antes de o worker da Fase 5 bloquear alguém") induz ao erro de
-achar que o bloqueio seria gradual. Não é: a Fase 4 sozinha já bloqueia, e o worker da Fase 5 é rede
-de segurança para empresas *sem* request, não o gatilho.
+**Liberado.** O checkpoint fechou, a Fase 4 está completa (9/9 planos) e o merge do enforcement está
+aprovado. `04-VALIDATION.md` está com `status: approved`, `wave_0_complete: true` e nenhuma linha
+pendente.
+
+Duas suposições do RESEARCH foram **confirmadas contra runtime real** e deixam de ser risco para as
+próximas fases: A3 (layouts não são boundary de autorização — a segurança está no
+`requireAdminSession` de cada page, e o banner stale é falha benigna) e A4 (`redirect()` externo
+funciona a partir de Server Action, sem precisar do fallback de navegação no cliente).
+
+**Aviso que a Fase 5 precisa herdar:** o roadmap diz "enforcement (Fase 4) validado em produção
+antes de o worker (Fase 5) poder bloquear alguém", o que se lê como bloqueio gradual. Não é — e
+agora está no ar. A Fase 4 sozinha já bloqueia, a cada request autenticado. O worker da Fase 5 é
+rede de segurança para empresas que **não** fazem request (auditoria e e-mail), não o gatilho.
 
 Para a Fase 5: `npm run gates:fase-04` deve entrar no CI junto de `npm test`, e o Gate 6 vai falhar
 de propósito no primeiro pacote que o worker precisar — momento correto para um ciclo de verificação
@@ -279,6 +302,6 @@ de legitimidade, não para ajustar o número.
 - `app/[slug]/(catalogo)/loading.tsx` — ausente (temporário, removido como exigido)
 
 ---
-*Phase: 04-aplica-o-do-bloqueio*
-*Plan: 09 — Tasks 1–2 completas, Task 3 (checkpoint humano bloqueante) em aberto*
-*Updated: 2026-09-01*
+*Phase: 04-aplica-o-do-bloqueio — COMPLETA (9/9 planos)*
+*Plan: 09 — 3/3 tasks, checkpoint humano fechado*
+*Completed: 2026-09-01*

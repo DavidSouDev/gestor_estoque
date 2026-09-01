@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Pré-requisitos de Produção** - Prisma singleton corrigido e sessão do admin relendo o banco a cada request (completed 2026-08-31)
 - [x] **Phase 2: Modelo de Dados e Motor de Acesso** - Fatos de billing na Empresa + função pura `avaliarAcesso` com auditoria (completed 2026-08-31)
 - [x] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
-- [ ] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
+- [x] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
 - [ ] **Phase 5: Worker Diário de Reconciliação** - Endpoint protegido que expira trials, inicia carências e aplica bloqueios
 - [ ] **Phase 6: Termos de Uso e Aceite** - Termos versionados, papel SUPERADMIN e modal obrigatório de aceite
 - [ ] **Phase 7: Gestão de Assinatura** - Tela de status e cancelamento com data exata de fim de acesso
@@ -164,9 +164,20 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 04-09-PLAN.md — Gates da fase como script executável + checkpoint humano da contagem prévia de empresas afetadas
+- [x] 04-09-PLAN.md — Gates da fase como script executável + checkpoint humano da contagem prévia de empresas afetadas
 
 **UI hint**: yes
+
+**Status**: ✅ COMPLETA (9/9 planos) — 2026-09-01. Os 5 critérios de sucesso satisfeitos: 876 testes
+unitários, 22 specs e2e contra Postgres real, 6/6 gates estáticos (`npm run gates:fase-04`),
+`04-VALIDATION.md` com `status: approved`. O checkpoint bloqueante da contagem prévia de impacto
+(§Achado crítico 5 / §Pitfall 8) foi aprovado pelo operador sem reserva, junto das verificações
+manuais A3 (partial rendering) e A4 (`redirect()` externo a partir de Server Action) — as duas
+confirmadas contra runtime real.
+
+⚠️ **Para a Phase 5:** o bloqueio **não** é gradual e já está no ar. A Phase 4 sozinha bloqueia a
+cada request autenticado; o worker diário é rede de segurança para empresas que *não* fazem request
+(auditoria e e-mail), não o gatilho.
 
 ### Phase 5: Worker Diário de Reconciliação
 

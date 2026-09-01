@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 04 plan 04-09 — Tasks 1-2 commitadas, Task 3 (checkpoint humano bloqueante) EM ABERTO
-last_updated: "2026-09-01T15:18:38.181Z"
-last_activity: 2026-09-01 -- Fase 04 com enforcement completo e verde; aguardando a contagem previa contra o banco alvo
+stopped_at: Phase 04 COMPLETA (9/9 planos) — checkpoint da contagem previa aprovado pelo operador
+last_updated: "2026-09-01T15:30:00.000Z"
+last_activity: 2026-09-01 -- Fase 04 fechada: enforcement de bloqueio no ar, contagem previa e A3/A4 aprovadas
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 27
-  completed_plans: 26
-  percent: 43
+  completed_plans: 27
+  percent: 57
 ---
 
 # Project State
@@ -21,25 +21,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 04 — aplicação do bloqueio (em execução, checkpoint final em aberto)
+**Current focus:** Phase 05 — worker de avaliação diária (próxima)
 
 ## Current Position
 
-Phase: 04 (aplica-o-do-bloqueio) — **9/9 planos executados, FASE NÃO COMPLETA**
+Phase: 04 (aplica-o-do-bloqueio) — **COMPLETA (9/9 planos)**
 Plan: 9 of 9
-Status: enforcement inteiro implementado e verde; merge BLOQUEADO pelo checkpoint humano do 04-09
-Last activity: 2026-09-01 -- 04-09 Tasks 1-2 commitadas (gates executáveis + contagem read-only)
+Status: enforcement no ar e aprovado; `04-VALIDATION.md` com `status: approved` e nenhuma linha pendente
+Last activity: 2026-09-01 -- Fase 04 fechada com o checkpoint da contagem prévia aprovado
 
-**Checkpoint EM ABERTO:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
-antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8). Não é auto-aprovável, no mesmo
-espírito do checkpoint de `pg_stat_activity` da Fase 1 (`01-05`) e do de homologação em sandbox da
-Fase 3 (`03-07`). Falta: (a) rodar `npm run acesso:contagem` com o `.env` no banco alvo e classificar
-a soma `BLOQUEADO + CANCELADO`; (b) verificação manual A3 (partial rendering em carência); (c)
-verificação manual A4 (`redirect()` externo a partir de Server Action). Estado do repo no momento da
-apresentação: `gates:fase-04` 6/6, `npm test` 876/876, e2e 22/22, `tsc` 0, `lint` 0.
+**Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
+antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
+`pg_stat_activity` da Fase 1 (`01-05`) e do de homologação em sandbox da Fase 3 (`03-07`). O
+operador rodou `npm run acesso:contagem` contra o banco alvo e as duas verificações manuais de
+runtime, e aprovou sem reserva ("testei e está bom, segue pra proxima"). Os números não foram
+transcritos e não foram inventados — a evidência registrada é a aprovação, não a distribuição.
+Estado do repo: `gates:fase-04` 6/6, `npm test` 876/876, e2e 22/22, `tsc` 0, `lint` 0.
 
-**Contagem local (NÃO é a base de decisão):** 382 empresas — TRIAL 376, EM_DIA 4, BLOQUEADO 2 (ambas
-fixtures de e2e), CARENCIA 0, CANCELADO 0, VITALICIO 0.
+**Duas suposições do RESEARCH confirmadas contra runtime real:** A3 (layout NÃO é boundary de
+autorização — a segurança está no `requireAdminSession` de cada page; banner stale é falha benigna)
+e A4 (`redirect()` para URL externa funciona a partir de Server Action; o fallback de navegar no
+cliente NÃO foi necessário).
+
+**Aviso herdado pela Fase 5:** o roadmap ("enforcement validado em produção antes de o worker da
+Fase 5 poder bloquear alguém") induz a achar que o bloqueio seria gradual. Não é, e agora está no
+ar: a Fase 4 sozinha já bloqueia a cada request autenticado. O worker da Fase 5 é rede de segurança
+para empresas *sem* request, não o gatilho.
 
 **Checkpoint fechado:** `03-07-PLAN.md` — homologacao end-to-end contra o Asaas Sandbox,
 com quatro acoes humanas encadeadas (criar/completar a conta de sandbox, corrigir a expansao
@@ -55,7 +62,7 @@ preserva ordem cronologica entre recursos. As duas juntas produziam um impasse: 
 que pagou nao recebia acesso. Corrigido no proprio 03-07 pela ponte do `checkoutSession`
 autoritativo — ver `03-07-SUMMARY.md`.
 
-Progress: [█████████░] 9/9 planos da fase 04 executados — fase aberta até o checkpoint do 04-09 fechar
+Progress: [██████████] 100% (9/9 planos da fase 04)
 
 ## Performance Metrics
 
@@ -92,6 +99,7 @@ Progress: [█████████░] 9/9 planos da fase 04 executados — 
 | Phase 02 P06 | 9min | 3 tasks | 3 files |
 | Phase 03 P07 | ~4h | 3 tasks | 10 files |
 | Phase 04 P08 | ~25min | 2 tasks | 3 files |
+| Phase 04 P09 | 22min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -160,6 +168,9 @@ Recent decisions affecting current work:
 - [Phase 04]: [04-08] A tela de login de empresa bloqueada e medida em contexto de browser anonimo: a guarda 'ja estou logado' devolveria a sessao ativa ao painel antes de renderizar, e limpar cookies destruiria a sessao que prova a reativacao sem novo login
 - [Phase ?]: [04-09] Gates estaticos da fase viraram script executavel (npm run gates:fase-04) e descartam linhas de comentario antes de contar: os JSDoc normativos da fase citam literalmente os identificadores proibidos e invalidariam um grep cru
 - [Phase ?]: [04-09] A contagem previa de impacto deriva status por avaliarAcesso sobre cada empresa, nunca por WHERE de SQL: D-03, D-05, Pitfall 5 e as meias-noites de America/Sao_Paulo sao quatro chances de a copia divergir da aplicacao
+- [Phase ?]: [04-09] Checkpoint da contagem previa aprovado pelo operador sem reserva; os numeros nao foram transcritos e nao foram inventados — o que fica registrado e a aprovacao, nao a distribuicao
+- [Phase ?]: [04-09] A3 confirmada contra runtime real: layout NAO e boundary de autorizacao, a seguranca esta no requireAdminSession de cada page e o banner stale e falha benigna
+- [Phase ?]: [04-09] A4 confirmada contra runtime real: redirect() para URL externa funciona a partir de Server Action; o fallback de devolver a URL e navegar no cliente NAO foi necessario
 
 ### Pending Todos
 
@@ -175,7 +186,7 @@ None yet.
 - Revisão jurídica (CDC) sobre bloqueio e não-cobrança retroativa — fora do escopo técnico
 - `.env.example` precisa de dois ajustes que o executor não pôde aplicar (permissão negada no diretório): escape `\$` em `ASAAS_API_KEY` e nota sobre a forma real de `ASAAS_CHECKOUT_BASE_URL`. Texto pronto em `03-07-SUMMARY.md` § Pendências
 - A conta de sandbox exige cadastro completo (`commercialInfo`/`bankAccountInfo`/`documentation` aprovados) antes de o checkout ser habilitado — repetir na conta de produção antes do go-live
-- **BLOQUEANTE do merge da Fase 04** — checkpoint `04-09` Task 3 EM ABERTO e não auto-aprovável: falta rodar `npm run acesso:contagem` com o `.env` apontado para o banco alvo (produção ou o staging mais fiel) e classificar a soma `BLOQUEADO + CANCELADO`. `revalidarConta` já deriva o status a cada request hoje e apenas não age; a partir do merge, age — toda empresa com fatos de billing vencidos há >10 dias perde admin e catálogo no request seguinte, retroativamente. Faltam também as verificações manuais A3 (partial rendering em carência) e A4 (`redirect()` externo a partir de Server Action). Local: 382 empresas, 2 BLOQUEADO (ambas fixtures de e2e), 0 CARENCIA — não é a base de decisão.
+- ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 
 ## Deferred Items
 

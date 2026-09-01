@@ -1,10 +1,11 @@
 ---
 phase: 4
 slug: aplica-o-do-bloqueio
-status: draft
+status: approved
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-09-01
+approved: 2026-09-01
 ---
 
 # Phase 4 — Validation Strategy
@@ -40,46 +41,46 @@ Setup relevante: `tests/setup/vitest.setup.ts` → `tests/setup/prisma-mock.ts` 
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 04-01-T1 | 04-01 | 1 | ACC-02, ACC-03 | T-04-15 | Predicado exaustivo: TRIAL/CARENCIA/VITALICIO não bloqueiam; 7º status vira erro de compilação | unit | `npx vitest run lib/avaliar-acesso.test.ts lib/empresa-publicavel.test.ts` | ✅ estende + ❌ novo (`lib/empresa-publicavel.test.ts`) | ⬜ pending |
-| 04-01-T1 | 04-01 | 1 | ACC-01 | T-04-20 | `diasRestantesDeCarencia` correto nas viradas 23:30 / 00:30 BRT, sem `new Date()` interno | unit | `npx vitest run lib/avaliar-acesso.test.ts` | ✅ existe | ⬜ pending |
-| 04-01-T2 | 04-01 | 1 | ACC-03 | T-04-01, T-04-02 | `findBySlug` de bloqueada devolve null sem disparar o fan-out; paridade de queries provada | unit | `npx vitest run app/services/empresa.service.test.ts` | ✅ existe | ⬜ pending |
-| 04-01-T2 | 04-01 | 1 | ACC-02 | T-04-12 | `findBrandingBySlug` NÃO é gateado — o login de empresa bloqueada continua respondendo | unit | `npx vitest run app/services/empresa.service.test.ts` | ✅ existe | ⬜ pending |
-| 04-02-T1 | 04-02 | 2 | ACC-03 | T-04-04, T-04-05 | Produto de empresa bloqueada ou soft-deletada → 404 com o corpo existente; 1 query | unit | `npx vitest run app/services/produto.service.test.ts "app/api/catalogo/produtos/[id]/route.test.ts"` | ✅ existe | ⬜ pending |
-| 04-02-T2 | 04-02 | 2 | ACC-03 | T-04-04, T-04-05 | Idem para combos, byte-paralelo | unit | `npx vitest run app/services/combo.service.test.ts "app/api/catalogo/combos/[id]/route.test.ts"` | ✅ existe | ⬜ pending |
-| 04-03-T1 | 04-03 | 2 | ACC-03 | T-04-01, T-04-02 | `?slug=` bloqueado → 400 idêntico; `?empresaId=` bloqueado → 200 `[]`; 1 resolução | unit | `npx vitest run app/api/catalogo/produtos/route.test.ts` | ✅ existe | ⬜ pending |
-| 04-03-T2 | 04-03 | 2 | ACC-03 | T-04-01, T-04-02 | Idem para combos | unit | `npx vitest run app/api/catalogo/combos/route.test.ts` | ✅ existe | ⬜ pending |
-| 04-03-T3 | 04-03 | 2 | ACC-03 | T-04-03 | Sexto caminho (`GET /api/empresas/slug/[slug]`) → 404 mesmo corpo; `resolveIdBySlug` removida | unit + grep | `npx vitest run "app/api/empresas/slug/[slug]/route.test.ts" app/services/empresa.service.test.ts` | ✅ existe | ⬜ pending |
-| 04-04-T1 | 04-04 | 2 | ACC-03 | T-04-01, T-04-08 | `getEmpresaCatalogo` → `notFound()` para bloqueada; `getEmpresaBranding` não | unit | `npx vitest run "app/[slug]/_lib/empresa.test.ts"` | ❌ Wave 0 | ⬜ pending |
-| 04-04-T2 | 04-04 | 2 | ACC-02 | T-04-12 | Login de empresa bloqueada renderiza branding genérico e não menciona pagamento | grep + lint | `npm run lint && npx tsc --noEmit && npx vitest run "app/[slug]/admin/_components/login-form.test.tsx"` | ✅ existe | ⬜ pending |
-| 04-05-T1 | 04-05 | 2 | ACC-01, ACC-02 | T-04-09, T-04-17 | `iniciarPagamento` é Server Action, redirect fora do try, tenant só de `session.empresaId` | unit | `npx vitest run "app/[slug]/admin/_lib/assinatura-actions.test.ts"` | ❌ Wave 0 | ⬜ pending |
-| 04-05-T2 | 04-05 | 2 | ACC-01 | — | `PagarButton` com `useFormStatus`, sem `onClick`/`fetch`, alvo de toque 44px | component | `npx vitest run "app/[slug]/admin/_components/pagar-button.test.tsx"` | ❌ Wave 0 | ⬜ pending |
-| 04-05-T3 | 04-05 | 2 | ACC-02 | T-04-14, T-04-10 | Guarda simétrica de `/bloqueado`; rota fora de `(protected)`; BLOQUEADO e CANCELADO idênticos | unit + component | `npx vitest run "app/[slug]/admin/bloqueado/page.test.ts" "app/[slug]/admin/bloqueado/_components/bloqueado-card.test.tsx"` | ❌ Wave 0 | ⬜ pending |
-| 04-06-T1 | 04-06 | 3 | ACC-02 | T-04-06, T-04-14 | `requireAdminSession` redireciona BLOQUEADO/CANCELADO; libera os outros 4 status | unit | `npx vitest run lib/session.test.ts` | ✅ existe | ⬜ pending |
-| 04-06-T2 | 04-06 | 3 | ACC-02, ACC-04 | T-04-13, T-04-08 | `requireAuth` lança 402; opt-out único do checkout; mesmo token liberado no request seguinte | unit | `npx vitest run lib/api-auth.test.ts app/api/assinaturas/checkout/route.test.ts app/api/produtos/route.test.ts` | ✅ existe | ⬜ pending |
-| 04-07-T1 | 04-07 | 3 | ACC-01 | T-04-20 | Banner com as 3 variantes de cópia, `role="status"`, sem relógio interno, sem dispensar | component | `npx vitest run "app/[slug]/admin/(protected)/_components/aviso-carencia.test.tsx"` | ❌ Wave 0 | ⬜ pending |
-| 04-07-T2 | 04-07 | 3 | ACC-01 | T-04-06, T-04-19 | Banner nos DOIS branches do layout; nunca sob `app/[slug]/(catalogo)` | suite + grep | `npm test && npx tsc --noEmit && npm run lint` | ✅ existe | ⬜ pending |
-| 04-08-T1 | 04-08 | 4 | ACC-01..04 | T-04-21 | Seed dos 4 fatos de billing recusa `NODE_ENV=production`; sem endpoint de teste | script | `npm run seed:billing -- --slug __inexistente__ --status bloqueado` (código 1 esperado) | ❌ Wave 0 | ⬜ pending |
-| 04-08-T2 | 04-08 | 4 | ACC-01..04 | T-04-01, T-04-12, T-04-13, T-04-14 | Ciclo completo contra Postgres real: saudável → bloqueada (UI + API + 6 caminhos) → paga → liberada | e2e | `npx playwright test e2e/bloqueio-por-inadimplencia.spec.ts` | ❌ Wave 0 | ⬜ pending |
-| 04-09-T1 | 04-09 | 5 | ACC-02, ACC-03, ACC-04 | T-04-03, T-04-08, T-04-13, T-04-19, T-04-SC | Os 6 gates da fase como script executável, com higiene de comentários e prova de não-vacuidade | grep gate | `npm run gates:fase-04` | ❌ Wave 0 | ⬜ pending |
-| 04-09-T2 | 04-09 | 5 | ACC-02 | T-04-22 | Contagem read-only por `avaliarAcesso`, nunca por SQL reimplementado | script | `npm run acesso:contagem` | ❌ Wave 0 | ⬜ pending |
-| 04-09-T3 | 04-09 | 5 | ACC-02 | T-04-11 | Impacto real do merge conhecido em número e classificado antes de a fase fechar | human (blocking) | `npm run gates:fase-04 && npm test && npm run test:e2e` + contagem manual | — | ⬜ pending |
+| 04-01-T1 | 04-01 | 1 | ACC-02, ACC-03 | T-04-15 | Predicado exaustivo: TRIAL/CARENCIA/VITALICIO não bloqueiam; 7º status vira erro de compilação | unit | `npx vitest run lib/avaliar-acesso.test.ts lib/empresa-publicavel.test.ts` | ✅ existe | ✅ passed |
+| 04-01-T1 | 04-01 | 1 | ACC-01 | T-04-20 | `diasRestantesDeCarencia` correto nas viradas 23:30 / 00:30 BRT, sem `new Date()` interno | unit | `npx vitest run lib/avaliar-acesso.test.ts` | ✅ existe | ✅ passed |
+| 04-01-T2 | 04-01 | 1 | ACC-03 | T-04-01, T-04-02 | `findBySlug` de bloqueada devolve null sem disparar o fan-out; paridade de queries provada | unit | `npx vitest run app/services/empresa.service.test.ts` | ✅ existe | ✅ passed |
+| 04-01-T2 | 04-01 | 1 | ACC-02 | T-04-12 | `findBrandingBySlug` NÃO é gateado — o login de empresa bloqueada continua respondendo | unit | `npx vitest run app/services/empresa.service.test.ts` | ✅ existe | ✅ passed |
+| 04-02-T1 | 04-02 | 2 | ACC-03 | T-04-04, T-04-05 | Produto de empresa bloqueada ou soft-deletada → 404 com o corpo existente; 1 query | unit | `npx vitest run app/services/produto.service.test.ts "app/api/catalogo/produtos/[id]/route.test.ts"` | ✅ existe | ✅ passed |
+| 04-02-T2 | 04-02 | 2 | ACC-03 | T-04-04, T-04-05 | Idem para combos, byte-paralelo | unit | `npx vitest run app/services/combo.service.test.ts "app/api/catalogo/combos/[id]/route.test.ts"` | ✅ existe | ✅ passed |
+| 04-03-T1 | 04-03 | 2 | ACC-03 | T-04-01, T-04-02 | `?slug=` bloqueado → 400 idêntico; `?empresaId=` bloqueado → 200 `[]`; 1 resolução | unit | `npx vitest run app/api/catalogo/produtos/route.test.ts` | ✅ existe | ✅ passed |
+| 04-03-T2 | 04-03 | 2 | ACC-03 | T-04-01, T-04-02 | Idem para combos | unit | `npx vitest run app/api/catalogo/combos/route.test.ts` | ✅ existe | ✅ passed |
+| 04-03-T3 | 04-03 | 2 | ACC-03 | T-04-03 | Sexto caminho (`GET /api/empresas/slug/[slug]`) → 404 mesmo corpo; `resolveIdBySlug` removida | unit + grep | `npx vitest run "app/api/empresas/slug/[slug]/route.test.ts" app/services/empresa.service.test.ts` | ✅ existe | ✅ passed |
+| 04-04-T1 | 04-04 | 2 | ACC-03 | T-04-01, T-04-08 | `getEmpresaCatalogo` → `notFound()` para bloqueada; `getEmpresaBranding` não | unit | `npx vitest run "app/[slug]/_lib/empresa.test.ts"` | ✅ existe | ✅ passed |
+| 04-04-T2 | 04-04 | 2 | ACC-02 | T-04-12 | Login de empresa bloqueada renderiza branding genérico e não menciona pagamento | grep + lint | `npm run lint && npx tsc --noEmit && npx vitest run "app/[slug]/admin/_components/login-form.test.tsx"` | ✅ existe | ✅ passed |
+| 04-05-T1 | 04-05 | 2 | ACC-01, ACC-02 | T-04-09, T-04-17 | `iniciarPagamento` é Server Action, redirect fora do try, tenant só de `session.empresaId` | unit | `npx vitest run "app/[slug]/admin/_lib/assinatura-actions.test.ts"` | ✅ existe | ✅ passed |
+| 04-05-T2 | 04-05 | 2 | ACC-01 | — | `PagarButton` com `useFormStatus`, sem `onClick`/`fetch`, alvo de toque 44px | component | `npx vitest run "app/[slug]/admin/_components/pagar-button.test.tsx"` | ✅ existe | ✅ passed |
+| 04-05-T3 | 04-05 | 2 | ACC-02 | T-04-14, T-04-10 | Guarda simétrica de `/bloqueado`; rota fora de `(protected)`; BLOQUEADO e CANCELADO idênticos | unit + component | `npx vitest run "app/[slug]/admin/bloqueado/page.test.ts" "app/[slug]/admin/bloqueado/_components/bloqueado-card.test.tsx"` | ✅ existe | ✅ passed |
+| 04-06-T1 | 04-06 | 3 | ACC-02 | T-04-06, T-04-14 | `requireAdminSession` redireciona BLOQUEADO/CANCELADO; libera os outros 4 status | unit | `npx vitest run lib/session.test.ts` | ✅ existe | ✅ passed |
+| 04-06-T2 | 04-06 | 3 | ACC-02, ACC-04 | T-04-13, T-04-08 | `requireAuth` lança 402; opt-out único do checkout; mesmo token liberado no request seguinte | unit | `npx vitest run lib/api-auth.test.ts app/api/assinaturas/checkout/route.test.ts app/api/produtos/route.test.ts` | ✅ existe | ✅ passed |
+| 04-07-T1 | 04-07 | 3 | ACC-01 | T-04-20 | Banner com as 3 variantes de cópia, `role="status"`, sem relógio interno, sem dispensar | component | `npx vitest run "app/[slug]/admin/(protected)/_components/aviso-carencia.test.tsx"` | ✅ existe | ✅ passed |
+| 04-07-T2 | 04-07 | 3 | ACC-01 | T-04-06, T-04-19 | Banner nos DOIS branches do layout; nunca sob `app/[slug]/(catalogo)` | suite + grep | `npm test && npx tsc --noEmit && npm run lint` | ✅ existe | ✅ passed |
+| 04-08-T1 | 04-08 | 4 | ACC-01..04 | T-04-21 | Seed dos 4 fatos de billing recusa `NODE_ENV=production`; sem endpoint de teste | script | `npm run seed:billing -- --slug __inexistente__ --status bloqueado` (código 1 esperado) | ✅ existe | ✅ passed |
+| 04-08-T2 | 04-08 | 4 | ACC-01..04 | T-04-01, T-04-12, T-04-13, T-04-14 | Ciclo completo contra Postgres real: saudável → bloqueada (UI + API + 6 caminhos) → paga → liberada | e2e | `npx playwright test e2e/bloqueio-por-inadimplencia.spec.ts` | ✅ existe | ✅ passed |
+| 04-09-T1 | 04-09 | 5 | ACC-02, ACC-03, ACC-04 | T-04-03, T-04-08, T-04-13, T-04-19, T-04-SC | Os 6 gates da fase como script executável, com higiene de comentários e prova de não-vacuidade | grep gate | `npm run gates:fase-04` | ✅ existe | ✅ passed |
+| 04-09-T2 | 04-09 | 5 | ACC-02 | T-04-22 | Contagem read-only por `avaliarAcesso`, nunca por SQL reimplementado | script | `npm run acesso:contagem` | ✅ existe | ✅ passed |
+| 04-09-T3 | 04-09 | 5 | ACC-02 | T-04-11 | Impacto real do merge conhecido em número e classificado antes de a fase fechar | human (blocking) | `npm run gates:fase-04 && npm test && npm run test:e2e` + contagem manual | — | ✅ aprovado pelo operador |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `lib/empresa-publicavel.test.ts` — cobre ACC-03 (funil publicável, criado em 04-01)
-- [ ] `app/[slug]/_lib/empresa.test.ts` — cobre ACC-03 (`getEmpresaCatalogo` → `notFound`, criado em 04-04)
-- [ ] `app/[slug]/admin/_lib/assinatura-actions.test.ts` — cobre ACC-01/ACC-02 (Server Action de pagamento, criado em 04-05)
-- [ ] `app/[slug]/admin/_components/pagar-button.test.tsx` — cobre ACC-01 (CTA compartilhado, criado em 04-05)
-- [ ] `app/[slug]/admin/bloqueado/page.test.ts` — cobre ACC-02 (guarda simétrica, anti-loop; criado em 04-05)
-- [ ] `app/[slug]/admin/bloqueado/_components/bloqueado-card.test.tsx` — cobre ACC-02 (logout + CTA; criado em 04-05)
-- [ ] `app/[slug]/admin/(protected)/_components/aviso-carencia.test.tsx` — cobre ACC-01 (criado em 04-07)
-- [ ] `e2e/bloqueio-por-inadimplencia.spec.ts` — cobre critérios de sucesso #2, #3, #4 e #5 do roadmap (criado em 04-08)
-- [ ] `scripts/seed-fatos-billing.ts` — habilitador do e2e acima (só forma testável de escrever `acessoAte`/`trialFim`/`canceladoEm` fora do allowlist anti-mass-assignment do BILL-04; criado em 04-08)
-- [ ] `scripts/gates-fase-04.mjs` — os 6 gates (unicidade de `permitirEmpresaBloqueada`, ausência de `unstable_cache`/`'use cache'` nos arquivos de guarda, ausência de `loading.tsx` sob o catálogo, banner ausente no catálogo, enumeração dos entrypoints públicos, contagem de dependências congelada) como script verificável, não instrução em prosa (criado em 04-09)
-- [ ] `scripts/contagem-status-acesso.ts` — habilitador do checkpoint humano (criado em 04-09)
-- [ ] Instalação de framework: nenhuma — Vitest e Playwright já configurados
+- [x] `lib/empresa-publicavel.test.ts` — cobre ACC-03 (funil publicável, criado em 04-01)
+- [x] `app/[slug]/_lib/empresa.test.ts` — cobre ACC-03 (`getEmpresaCatalogo` → `notFound`, criado em 04-04)
+- [x] `app/[slug]/admin/_lib/assinatura-actions.test.ts` — cobre ACC-01/ACC-02 (Server Action de pagamento, criado em 04-05)
+- [x] `app/[slug]/admin/_components/pagar-button.test.tsx` — cobre ACC-01 (CTA compartilhado, criado em 04-05)
+- [x] `app/[slug]/admin/bloqueado/page.test.ts` — cobre ACC-02 (guarda simétrica, anti-loop; criado em 04-05)
+- [x] `app/[slug]/admin/bloqueado/_components/bloqueado-card.test.tsx` — cobre ACC-02 (logout + CTA; criado em 04-05)
+- [x] `app/[slug]/admin/(protected)/_components/aviso-carencia.test.tsx` — cobre ACC-01 (criado em 04-07)
+- [x] `e2e/bloqueio-por-inadimplencia.spec.ts` — cobre critérios de sucesso #2, #3, #4 e #5 do roadmap (criado em 04-08)
+- [x] `scripts/seed-fatos-billing.ts` — habilitador do e2e acima (só forma testável de escrever `acessoAte`/`trialFim`/`canceladoEm` fora do allowlist anti-mass-assignment do BILL-04; criado em 04-08)
+- [x] `scripts/gates-fase-04.mjs` — os 6 gates (unicidade de `permitirEmpresaBloqueada`, ausência de `unstable_cache`/`'use cache'` nos arquivos de guarda, ausência de `loading.tsx` sob o catálogo, banner ausente no catálogo, enumeração dos entrypoints públicos, contagem de dependências congelada) como script verificável, não instrução em prosa (criado em 04-09)
+- [x] `scripts/contagem-status-acesso.ts` — habilitador do checkpoint humano (criado em 04-09)
+- [x] Instalação de framework: nenhuma — Vitest e Playwright já configurados (confirmado pelo Gate 6: 11 deps / 20 devDeps, iguais ao início da fase)
 
 **Nota de sequenciamento:** os arquivos de teste desta fase são criados na MESMA task que a
 implementação correspondente (todas as tasks de código carregam `tdd="true"` e um bloco
@@ -106,5 +107,30 @@ não existe no repositório no momento do planejamento, com o plano responsável
 - [x] No watch-mode flags
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter
+- [x] Wave 0 completa: os 11 artefatos existem em disco (verificado por `[ -f ]` em 2026-09-01)
+- [x] As 3 verificações manuais foram executadas pelo operador e aprovadas
 
-**Approval:** pending
+**Approval:** approved (2026-09-01)
+
+## Estado final da fase
+
+| Comando | Resultado |
+|---------|-----------|
+| `npm run gates:fase-04` | exit 0 — 6/6 gates OK |
+| `npm test` | exit 0 — 876 testes em 86 arquivos |
+| `npm run test:e2e` | exit 0 — 22/22 specs |
+| `npx tsc --noEmit` | exit 0 |
+| `npm run lint` | exit 0 (2 warnings pré-existentes, fora do escopo da fase) |
+
+### Verificações manuais (§Manual-Only Verifications)
+
+As três foram executadas **pelo operador**, contra o banco alvo e a aplicação rodando, e aprovadas
+em conjunto: *"testei e está bom, segue pra proxima"*.
+
+| Verificação | Resultado |
+|-------------|-----------|
+| Contagem prévia de impacto (`npm run acesso:contagem` contra o banco alvo) | Executada e aceita pelo operador. **Os números não foram transcritos para o agente** — a aprovação é qualitativa e sem reserva |
+| A3 / Pitfall 4 — partial rendering: admin acessível em carência ao navegar por `<Link>` | Aprovada. O boundary é o `requireAdminSession` de cada page, como projetado |
+| A4 — `redirect()` externo a partir de Server Action leva ao checkout do Asaas | Aprovada. O fallback de navegação no cliente **não** foi necessário |
+
+**Sem condições ou pendências associadas à aprovação.** O merge da Fase 4 está liberado.
