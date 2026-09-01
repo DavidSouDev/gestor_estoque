@@ -180,3 +180,14 @@ Nenhuma superfície nova fora do `<threat_model>` do plano. As três disposiçõ
 ---
 *Phase: 05-worker-di-rio-de-reconcilia-o*
 *Completed: 2026-09-01*
+
+## Self-Check: PASSED
+
+- `e2e/worker-reconciliacao.spec.ts` — FOUND (172 linhas, `min_lines: 90` ✅)
+- `scripts/seed-fatos-billing.ts` contém `auditado` ✅
+- `e2e/helpers.ts` exporta `seedFatosBilling`, `uniqueEmpresa`, `expectGoneFromCatalogo` ✅
+- Commit `1081a14` — FOUND
+- Commit `e613a7b` — FOUND
+- Commit `d949464` — FOUND
+- Árvore de trabalho limpa; nenhuma deleção de arquivo em nenhum dos três commits (`git diff --diff-filter=D` vazio em cada um).
+- `STATE.md` e `ROADMAP.md` NÃO modificados (worktree paralelo — escrita compartilhada é do orquestrador).
