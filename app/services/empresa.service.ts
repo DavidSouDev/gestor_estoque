@@ -382,23 +382,11 @@ class EmpresaService {
     });
   }
 
-  // NÃO tem gate de status: resolve o id de qualquer empresa não deletada,
-  // inclusive bloqueada. Por isso está PROIBIDA em qualquer caminho de leitura
-  // pública do catálogo — use `findPublicavelBySlug`. O plano 04-03 remove esta
-  // função quando o último consumidor sair.
-  async resolveIdBySlug(slug: string) {
-    const empresa = await prisma.empresa.findFirst({
-      where: {
-        slug,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return empresa?.id ?? null;
-  }
+  // T-04-03. Aqui existia um resolvedor slug→id SEM gate de status, removido pelo
+  // plano 04-03 junto do seu último consumidor. Não reintroduza: um resolvedor de
+  // tenant que ignora billing é exatamente o mecanismo que produziu seis portas
+  // públicas de leitura, e mantê-lo disponível convida o sétimo caminho a nascer
+  // inseguro. Quem precisa de id a partir de slug usa `findPublicavelBySlug`.
 
   // CR-01: mesmo cálculo de trial de `registerComUsuario` — sem isso a Empresa
   // nasce com os 4 fatos de billing nulos e `avaliarAcesso` a bloqueia para
