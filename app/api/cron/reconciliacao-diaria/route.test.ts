@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CausaTransicaoAcesso, StatusAcesso } from "@prisma/client";
 import { DIAS_DE_TRIAL, type FatosDeAcesso } from "@/lib/avaliar-acesso";
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
+import {
+  LIMIAR_DE_BLOQUEIO_EM_MASSA,
+  PISO_DE_BLOQUEIO_EM_MASSA,
+} from "@/app/services/reconciliacao.service";
 import { buildRequest } from "@/tests/helpers/request";
 
 /**
@@ -156,10 +160,12 @@ function requisicaoSemPrefixo(segredo: string = SEGREDO): Request {
   });
 }
 
+let erroLogado: ReturnType<typeof vi.spyOn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("CRON_SECRET", SEGREDO);
-  vi.spyOn(console, "error").mockImplementation(() => {});
+  erroLogado = vi.spyOn(console, "error").mockImplementation(() => {});
   comEmpresas([]);
   registrarTransicao.mockResolvedValue(null as never);
 });
@@ -300,5 +306,282 @@ describe("GET /api/cron/reconciliacao-diaria — transições (WRK-01, D-09)", (
     // agendamento pós-resposta, o corpo passaria a reportar contagens vazias — e
     // o corpo é a única superfície de observabilidade autorizada por D-04.
     expect(agendar).not.toHaveBeenCalled();
+  });
+});
+
+describe("isolamento de falha por empresa (D-05) e sanitização (D-04, T-05-06)", () => {
+  /**
+   * Empresas cuja transição NÃO é perda de acesso (EM_DIA → CARENCIA). A escolha
+   * é deliberada: estes testes são sobre isolamento de erro, e transições
+   * perigosas os acoplariam ao freio de D-01 — um cenário de 7 perdas em 7
+   * empresas armaria o freio, zeraria as aplicáveis e o teste passaria a provar
+   * outra coisa.
+   */
+  function emCarencia(quantidade: number): EmpresaMockada[] {
+    return Array.from({ length: quantidade }, () =>
+      empresa({ ...fatosDeCarencia(), ultimoStatusAuditado: StatusAcesso.EM_DIA })
+    );
+  }
+
+  it("3 empresas, a do MEIO rejeita: as outras 2 são aplicadas e só ela entra em erros[]", async () => {
+    const lote = emCarencia(3);
+    comEmpresas(lote);
+
+    // As 3 cabem num único lote de CONCORRENCIA = 5, então a ordem das promessas
+    // dentro do `allSettled` é a ordem do `map` — que por sua vez é a ordem das
+    // transições materializadas, que é a ordem do `findMany`.
+    registrarTransicao
+      .mockResolvedValueOnce(null as never)
+      .mockRejectedValueOnce(new Error("banco recusou"))
+      .mockResolvedValueOnce(null as never);
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(corpo.aplicadas).toBe(2);
+    expect(corpo.erros).toHaveLength(1);
+    expect(corpo.erros[0].empresaId).toBe(lote[1].id);
+  });
+
+  it("a mensagem é `erro.message` e nada mais — nem o nome da classe, nem a query", async () => {
+    const MENSAGEM_SENTINELA = "sentinela-mensagem-visivel";
+    const NOME_SENTINELA = "SentinelaNomeDaClasse";
+    const QUERY_SENTINELA = "sentinela-select-from-empresa";
+
+    comEmpresas(emCarencia(1));
+
+    // O formato de um erro conhecido do Prisma: nome de classe próprio e
+    // propriedades extras enumeráveis carregando a query e metadados de conexão.
+    const erro = Object.assign(new Error(MENSAGEM_SENTINELA), {
+      query: QUERY_SENTINELA,
+    });
+    erro.name = NOME_SENTINELA;
+    registrarTransicao.mockRejectedValueOnce(erro);
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+    const serializado = JSON.stringify(corpo);
+
+    expect(corpo.erros[0].mensagem).toBe(MENSAGEM_SENTINELA);
+    expect(serializado).toContain(MENSAGEM_SENTINELA);
+    // As duas asserções NEGATIVAS são o teste de verdade: a primeira cai se
+    // alguém trocar `.message` por `String(erro)`, a segunda cai se o objeto de
+    // erro inteiro for serializado. Esta resposta acaba em log de terceiro —
+    // painel do agendador, log do runner de CI (Pitfall 9 / T-05-06).
+    expect(serializado).not.toContain(NOME_SENTINELA);
+    expect(serializado).not.toContain(QUERY_SENTINELA);
+  });
+
+  it("rejeição com algo que não é Error: a mensagem vira 'falha desconhecida'", async () => {
+    comEmpresas(emCarencia(1));
+    registrarTransicao.mockRejectedValueOnce("uma string crua qualquer");
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(corpo.erros).toHaveLength(1);
+    expect(corpo.erros[0].mensagem).toBe("falha desconhecida");
+    expect(corpo.aplicadas).toBe(0);
+  });
+
+  it("7 empresas em dois lotes (5 + 2), a SÉTIMA rejeita: aplicadas 6 e o erro é dela", async () => {
+    const lote = emCarencia(7);
+    comEmpresas(lote);
+
+    registrarTransicao.mockImplementation(async (params) =>
+      params.empresaId === lote[6].id
+        ? Promise.reject(new Error("falhou no segundo lote"))
+        : (null as never)
+    );
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(corpo.aplicadas).toBe(6);
+    expect(corpo.erros).toHaveLength(1);
+    expect(corpo.erros[0].empresaId).toBe(lote[6].id);
+    // As 7 foram despachadas: o segundo lote só existe porque o laço não parou
+    // depois do primeiro.
+    expect(registrarTransicao).toHaveBeenCalledTimes(7);
+  });
+
+  it("7 empresas, a SEGUNDA (primeiro lote) rejeita: os lotes seguintes continuam sendo aplicados", async () => {
+    const lote = emCarencia(7);
+    comEmpresas(lote);
+
+    registrarTransicao.mockImplementation(async (params) =>
+      params.empresaId === lote[1].id
+        ? Promise.reject(new Error("falhou no primeiro lote"))
+        : (null as never)
+    );
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(corpo.aplicadas).toBe(6);
+    expect(corpo.erros[0].empresaId).toBe(lote[1].id);
+    // Este é o par do teste anterior e a prova real de D-05: a falha aconteceu
+    // no PRIMEIRO lote e mesmo assim as duas empresas do segundo foram
+    // processadas. Com `Promise.all` no lugar de `allSettled`, o lote inteiro
+    // rejeitaria e o laço morreria aqui.
+    const despachadas = registrarTransicao.mock.calls.map(
+      ([params]) => params.empresaId
+    );
+    expect(despachadas).toContain(lote[6].id);
+  });
+});
+
+describe("freio de bloqueio em massa ponta a ponta (D-01, D-03, T-05-04)", () => {
+  /**
+   * Monta lotes grandes sem custo: `perdas` empresas que vão perder acesso nesta
+   * execução, `carencias` empresas cuja transição NÃO é perigosa, e o restante
+   * assentado em EM_DIA sem transição nenhuma — para o denominador ser real.
+   *
+   * Mesma aritmética de `app/services/reconciliacao.service.test.ts`, copiada e
+   * não importada: um arquivo de teste não é módulo de produção para ninguém.
+   */
+  function muitasEmpresas({
+    total,
+    perdas,
+    carencias = 0,
+  }: {
+    total: number;
+    perdas: number;
+    carencias?: number;
+  }): EmpresaMockada[] {
+    const lote: EmpresaMockada[] = [];
+
+    for (let i = 0; i < perdas; i += 1) {
+      lote.push(
+        empresa({ ...fatosDeBloqueio(), ultimoStatusAuditado: StatusAcesso.TRIAL })
+      );
+    }
+
+    for (let i = 0; i < carencias; i += 1) {
+      lote.push(
+        empresa({ ...fatosDeCarencia(), ultimoStatusAuditado: StatusAcesso.EM_DIA })
+      );
+    }
+
+    while (lote.length < total) {
+      lote.push(
+        empresa({ ...fatosEmDia(), ultimoStatusAuditado: StatusAcesso.EM_DIA })
+      );
+    }
+
+    return lote;
+  }
+
+  it("100 empresas / 30 perdas / 10 carências: suprime as 30 e aplica as 10 (D-03)", async () => {
+    comEmpresas(muitasEmpresas({ total: 100, perdas: 30, carencias: 10 }));
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(corpo.freio.disparou).toBe(true);
+    expect(corpo.freio.perdasDeAcessoDetectadas).toBe(30);
+    expect(corpo.freio.perdasDeAcessoSuprimidas).toBe(30);
+
+    // A asserção que importa NÃO é a do booleano: é que as 10 transições de
+    // carência passaram. O freio é uma trava contra perda de acesso em massa,
+    // não uma parada total do worker (D-03).
+    expect(registrarTransicao).toHaveBeenCalledTimes(10);
+
+    const novos = registrarTransicao.mock.calls.map(([params]) => params.novo);
+    expect(novos).not.toContain(StatusAcesso.BLOQUEADO);
+    expect(novos).not.toContain(StatusAcesso.CANCELADO);
+    expect(new Set(novos)).toEqual(new Set([StatusAcesso.CARENCIA]));
+  });
+
+  it("4 empresas / 1 perda: NÃO arma — o piso absoluto é o que impede o no-op silencioso", async () => {
+    // `muitasEmpresas` empilha as perdas primeiro, então a alvo é a de índice 0.
+    const lote = muitasEmpresas({ total: 4, perdas: 1 });
+    comEmpresas(lote);
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    // Este é literalmente o caso de D-01 revisado: 1 em 4 é 25%, e o percentual
+    // sozinho armaria o freio — transformando o worker em no-op silencioso
+    // durante toda a fase inicial do produto, com o único sinal sendo um booleano
+    // num JSON que ninguém lê diariamente. O piso de 5 é o que impede isso.
+    expect(corpo.freio.disparou).toBe(false);
+    expect(corpo.freio.perdasDeAcessoSuprimidas).toBe(0);
+    expect(registrarTransicao).toHaveBeenCalledTimes(1);
+    expect(registrarTransicao).toHaveBeenCalledWith({
+      empresaId: lote[0].id,
+      anterior: StatusAcesso.TRIAL,
+      novo: StatusAcesso.BLOQUEADO,
+      causa: CausaTransicaoAcesso.WORKER_DIARIO,
+    });
+  });
+
+  it("ao armar, registra a anomalia com o prefixo do worker e sem vazar o segredo", async () => {
+    comEmpresas(muitasEmpresas({ total: 100, perdas: 30, carencias: 10 }));
+
+    await GET(requisicao());
+
+    expect(erroLogado).toHaveBeenCalledTimes(1);
+    const registrado = String(erroLogado.mock.calls[0][0]);
+
+    expect(registrado).toContain("[cron-reconciliacao]");
+    expect(registrado).toContain("Nenhuma perda de acesso foi aplicada");
+    // T-05-16: contagens apenas. O header e o segredo nunca entram no log.
+    expect(registrado).not.toContain(SEGREDO);
+  });
+
+  it("base vazia: 200, zero avaliadas, freio desarmado e nenhuma exceção", async () => {
+    comEmpresas([]);
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(corpo.avaliadas).toBe(0);
+    expect(corpo.transicoesDetectadas).toBe(0);
+    expect(corpo.aplicadas).toBe(0);
+    expect(corpo.erros).toEqual([]);
+    // Divisão por zero: `0/0` é `NaN`, e `NaN > 0.2` é `false` — o resultado
+    // certo por acidente, que é a pior forma de estar certo. O serviço guarda
+    // isso explicitamente e esta é a asserção ponta a ponta da guarda.
+    expect(corpo.freio.disparou).toBe(false);
+  });
+});
+
+describe("contrato do corpo da resposta (D-04)", () => {
+  it("o 200 tem exatamente as sete chaves de topo e as cinco do freio", async () => {
+    comEmpresas([
+      empresa({ ...fatosDeTrialVencido(), ultimoStatusAuditado: StatusAcesso.TRIAL }),
+    ]);
+
+    const response = await GET(requisicao());
+    const corpo = await response.json();
+
+    // Este teste é o contrato de D-04, e existe para impedir que alguém
+    // acrescente um campo com dado sensível sem revisar: o corpo é a única
+    // superfície de observabilidade da fase, e ela vai para log de terceiro.
+    expect(Object.keys(corpo).sort()).toEqual([
+      "aplicadas",
+      "avaliadas",
+      "duracaoMs",
+      "erros",
+      "freio",
+      "instante",
+      "transicoesDetectadas",
+    ]);
+
+    expect(Object.keys(corpo.freio).sort()).toEqual([
+      "disparou",
+      "limiar",
+      "perdasDeAcessoDetectadas",
+      "perdasDeAcessoSuprimidas",
+      "piso",
+    ]);
+
+    expect(corpo.instante).toBe(new Date(corpo.instante).toISOString());
+    expect(typeof corpo.duracaoMs).toBe("number");
+    expect(corpo.freio.limiar).toBe(LIMIAR_DE_BLOQUEIO_EM_MASSA);
+    expect(corpo.freio.piso).toBe(PISO_DE_BLOQUEIO_EM_MASSA);
   });
 });
