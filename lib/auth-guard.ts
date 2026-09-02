@@ -1,8 +1,9 @@
 import { cache } from "react";
-import type { StatusAcesso, UserRole } from "@prisma/client";
-import { CausaTransicaoAcesso } from "@prisma/client";
+import type { StatusAcesso } from "@prisma/client";
+import { CausaTransicaoAcesso, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { avaliarAcesso } from "@/lib/avaliar-acesso";
+import { termoVigente } from "@/lib/termo-vigente";
 import { agendarPosResposta } from "@/lib/agendar-pos-resposta";
 import { acessoService } from "@/app/services/acesso.service";
 
@@ -19,6 +20,16 @@ export interface ContaAtiva {
    * "dias restantes" de ACC-01, na Fase 4, precisa exatamente deste valor.
    */
   carenciaAte: Date | null;
+  /**
+   * TERM-04. Resolvido aqui (e não re-derivado pelo chamador) pelo MESMO motivo
+   * de `carenciaAte`: os DOIS guards — `requireAdminSession` (web) e
+   * `requireAuth` (REST) — precisam deste booleano, e nenhum deles pode
+   * reimplementar a comparação, senão existiriam duas cópias da regra livres
+   * para divergir.
+   *
+   * SUPERADMIN é sempre `false` (D-03), e a isenção mora AQUI e só aqui.
+   */
+  termosPendentes: boolean;
 }
 
 /**
@@ -44,6 +55,16 @@ export interface ContaAtiva {
  * Esta função NÃO bloqueia ninguém: a conta continua sendo devolvida qualquer
  * que seja o status de acesso. Aplicar bloqueio (banner, admin fechado,
  * catálogo despublicado) é ACC-01..ACC-04, na Fase 4.
+ *
+ * Custo do caminho autenticado, a partir da Fase 6 (TERM-04): passou de 1 para
+ * 2 queries por request — a segunda é `termoVigente()`. A alternativa de ler o
+ * último aceite por relação aninhada custaria 3, porque o Prisma carrega
+ * relações com queries separadas por padrão e o preview `relationJoins` NÃO
+ * está habilitado neste projeto; a coluna escalar `termoAceitoId` entra no
+ * `select` que já existe de graça. Consequência aceita (T-06-27): uma falha na
+ * tabela de termos cai no MESMO `catch` fail-closed abaixo e portanto derruba a
+ * sessão inteira, não só o gate de termos — o prefixo `[auth-guard]` nos logs é
+ * a ferramenta de distinguir "termos quebrados" de "conta revogada".
  */
 export const revalidarConta = cache(
   async (usuarioId: string, empresaId: string): Promise<ContaAtiva | null> => {
@@ -64,6 +85,11 @@ export const revalidarConta = cache(
           email: true,
           role: true,
           empresaId: true,
+          // TERM-04: coluna ESCALAR, então entra no `select` que já existe de
+          // graça — nenhuma query nova por causa dela. É por isso que a opção
+          // da relação aninhada foi descartada: o Prisma carrega relações com
+          // queries separadas por padrão.
+          termoAceitoId: true,
           empresa: {
             select: {
               slug: true,
@@ -111,6 +137,38 @@ export const revalidarConta = cache(
         );
       }
 
+      // TERM-04: a SEGUNDA (e única outra) query do caminho autenticado. Só é
+      // disparada depois do guard de `!usuario` acima — um token de conta
+      // revogada não paga por ela.
+      const vigente = await termoVigente();
+
+      // A ordem dos três termos do curto-circuito é deliberada:
+      //
+      // 1. `role !== SUPERADMIN` primeiro — é a isenção de D-03, e ela é
+      //    MITIGAÇÃO DE IMPASSE, não conveniência (Pitfall 9): o SUPERADMIN é
+      //    quem publica a versão vigente, e gateá-lo pela própria publicação
+      //    tranca a plataforma inteira, sem ninguém capaz de destravá-la. A
+      //    cadeia gêmea é D-02 (`acessoVitalicio` na empresa interna), no gate
+      //    de pagamento. "Simplificar removendo o caso especial" TRAVA A
+      //    PLATAFORMA — não é limpeza, é indisponibilidade total.
+      //
+      // 2. `vigente !== null` depois — é a assimetria deliberada. Este gate
+      //    falha ABERTO porque gatear contra um documento inexistente derrubaria
+      //    TODOS os tenants de uma vez e a recuperação dependeria de alguém
+      //    publicar. O registro (`empresaService.registerComUsuario`) falha
+      //    FECHADO pelo motivo oposto: ali a falha atinge UM cadastro, e criar
+      //    conta sem aceite viola TERM-01 diretamente. A assimetria é
+      //    intencional e está comentada nos DOIS lugares justamente para que um
+      //    leitor futuro não "corrija" um deles para casar com o outro.
+      //
+      // 3. comparação de `id` por último — nunca `versao`, nunca `publicadoEm`.
+      //    O `id` é o único identificador estável do documento que a pessoa
+      //    aceitou.
+      const termosPendentes =
+        usuario.role !== UserRole.SUPERADMIN &&
+        vigente !== null &&
+        usuario.termoAceitoId !== vigente.id;
+
       return {
         usuarioId: usuario.id,
         empresaId: usuario.empresaId,
@@ -120,6 +178,7 @@ export const revalidarConta = cache(
         statusAcesso: acesso.status,
         acessoExpiraEm: acesso.expiraEm,
         carenciaAte: acesso.carenciaAte,
+        termosPendentes,
       };
     } catch (error) {
       // Fail-closed: erro de banco NÃO autoriza (D-01).

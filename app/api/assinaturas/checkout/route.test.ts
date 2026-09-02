@@ -103,6 +103,11 @@ describe("POST /api/assinaturas/checkout", () => {
       email: "admin@teste.com",
       role: "ADMIN",
       empresaId: "empresa-1",
+      // Termos em dia (mesmo `id` do vigente que o stub global devolve): este
+      // caso mede o opt-out do gate de ASSINATURA, e só ele. Sem isto o gate de
+      // termos da Fase 6 responderia 403 antes de o handler ser alcançado, e o
+      // caso passaria a medir a coisa errada.
+      termoAceitoId: "termo-1",
       empresa: {
         slug: "empresa-teste",
         acessoAte: new Date("2020-01-01T03:00:00.000Z"),
@@ -130,6 +135,8 @@ describe("POST /api/assinaturas/checkout", () => {
       email: "admin@teste.com",
       role: "ADMIN",
       empresaId: "empresa-1",
+      // Termos em dia, pelo mesmo motivo do caso acima.
+      termoAceitoId: "termo-1",
       empresa: {
         slug: "empresa-teste",
         acessoAte: new Date("2020-01-01T03:00:00.000Z"),

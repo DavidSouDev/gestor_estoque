@@ -76,12 +76,45 @@ const BILLING: Record<string, FatosDoStub> = {
  * `ultimoStatusAuditado` recebe o MESMO status esperado de propósito: iguais,
  * `revalidarConta` não agenda linha de auditoria e o caso mede só a guarda.
  */
+/**
+ * `id` do termo publicado que o stub default de tests/setup/prisma-mock.ts
+ * devolve em `termoDeUso.findFirst`.
+ */
+const TERMO_VIGENTE_ID = "termo-1";
+
 function stubComStatus(status: keyof typeof BILLING) {
   prismaMock.usuario.findFirst.mockResolvedValue({
     id: "user-1",
     email: "admin@teste.com",
     role: "ADMIN",
     empresaId: "empresa-1",
+    // Combinação NEUTRA de termos: o ponteiro de último aceite é o MESMO `id`
+    // do vigente que o stub global devolve, então `termosPendentes` é `false` e
+    // os casos de assinatura continuam medindo só o gate de assinatura.
+    termoAceitoId: TERMO_VIGENTE_ID,
+    empresa: {
+      slug: "empresa-teste",
+      ...BILLING[status],
+      ultimoStatusAuditado: status,
+    },
+  } as never);
+}
+
+/**
+ * Igual a `stubComStatus`, mas variando também a role e o ponteiro de último
+ * aceite — os dois insumos do gate de TERM-04.
+ */
+function stubComTermos(
+  status: keyof typeof BILLING,
+  termoAceitoId: string | null,
+  role: string = "ADMIN"
+) {
+  prismaMock.usuario.findFirst.mockResolvedValue({
+    id: "user-1",
+    email: "admin@teste.com",
+    role,
+    empresaId: "empresa-1",
+    termoAceitoId,
     empresa: {
       slug: "empresa-teste",
       ...BILLING[status],
@@ -270,5 +303,94 @@ describe("requireAuth — gate de assinatura", () => {
     await expect(
       requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
     ).resolves.toEqual(payload);
+  });
+});
+
+describe("requireAuth — gate de termos (TERM-04)", () => {
+  it("empresa em dia e termos aceitos: resolve com o payload", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("EM_DIA", TERMO_VIGENTE_ID);
+
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).resolves.toEqual(payload);
+  });
+
+  it("termos pendentes: lança AuthError 403 com a mensagem de termos", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("EM_DIA", null);
+
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).rejects.toBeInstanceOf(AuthError);
+    // 403 e não 402: 402 é "pague e resolve"; aqui pagar não resolve nada.
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Termos de uso pendentes de aceite.",
+    });
+  });
+
+  it("aceite de versão antiga também dá 403", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("EM_DIA", "termo-antigo");
+
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("bloqueio E termos pendentes: 402, não 403 (o gate de assinatura vem primeiro)", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("BLOQUEADO", null);
+
+    // Espelho REST da precedência provada em `lib/session.test.ts`: quem está
+    // bloqueado tem que chegar ao caminho de pagamento primeiro (T-04-10).
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).rejects.toMatchObject({
+      status: 402,
+      message: "Assinatura suspensa por falta de pagamento.",
+    });
+  });
+
+  it("permitirEmpresaBloqueada NÃO dispensa o gate de termos: 403 mesmo assim", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("BLOQUEADO", null);
+
+    // A flag existe para UM caso (o checkout, T-04-10) e dispensa a checagem de
+    // assinatura e SÓ ela. Um cliente com termos pendentes que abra o checkout
+    // recebe 403, e isso é correto: o caminho de aceite é a tela web, que não
+    // passa por aqui.
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }), {
+        permitirEmpresaBloqueada: true,
+      })
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Termos de uso pendentes de aceite.",
+    });
+  });
+
+  it("SUPERADMIN sem nenhum aceite: resolve com o payload (D-03)", async () => {
+    const token = await signAuthToken(payload);
+    stubComTermos("EM_DIA", null, "SUPERADMIN");
+
+    // A isenção é decidida sobre a role lida do BANCO dentro de
+    // `revalidarConta`, nunca sobre a do token (T-06-01): como ela CONCEDE
+    // acesso, uma role obsoleta no JWT bastaria para pular o gate.
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).resolves.toEqual(payload);
+  });
+
+  it("conta revogada continua 401, e não 403", async () => {
+    const token = await signAuthToken(payload);
+    prismaMock.usuario.findFirst.mockResolvedValue(null as never);
+
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).rejects.toMatchObject({ status: 401, message: "Sessão inválida." });
   });
 });

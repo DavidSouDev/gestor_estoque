@@ -140,5 +140,27 @@ export async function requireAdminSession(slug: string): Promise<AuthTokenPayloa
     redirect(`/${slug}/admin/bloqueado`);
   }
 
+  // TERM-04 / D-08. Fica DEPOIS do gate de assinatura DE PROPÓSITO: quem está
+  // bloqueado tem que chegar à tela de pagamento antes de qualquer outra coisa.
+  // Forçar o aceite de termos primeiro insere um passo entre o cliente e a
+  // receita — é o mesmo raciocínio de `permitirEmpresaBloqueada` em
+  // `lib/api-auth.ts` (T-04-10: trancar o caminho do pagamento é negação de
+  // serviço auto-infligida). Inverter esta ordem também quebraria a prova de
+  // ausência de loop: com bloqueio E termos pendentes, o estado (sim, sim) só é
+  // estável porque `/admin/bloqueado` NÃO checa termos.
+  //
+  // A isenção do SUPERADMIN NÃO é re-decidida aqui: `revalidarConta` já devolve
+  // `false` para ele (D-03). Duas cópias da regra podem divergir; este ponto só
+  // consome o predicado.
+  //
+  // O destino mora FORA do grupo `(protected)` pelo mesmo motivo já registrado
+  // acima para `bloqueado`: o layout daquele grupo chama esta mesma função, e
+  // uma rota de destino dentro dele dispararia a guarda que acabou de mandar o
+  // usuário para lá — `ERR_TOO_MANY_REDIRECTS`. Mover a pasta para dentro do
+  // grupo reintroduz o bug sem alterar uma linha daqui.
+  if (conta.termosPendentes) {
+    redirect(`/${slug}/admin/aceitar-termos`);
+  }
+
   return session;
 }
