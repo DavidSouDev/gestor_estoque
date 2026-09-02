@@ -716,21 +716,26 @@ Convenções obrigatórias já estabelecidas: teste de service começa com `// @
    - O que sabemos: `successUrl` = `/{slug}/admin`; empresa bloqueada é redirecionada para `/bloqueado`; `/assinatura` está em `(protected)` e é inalcançável para ela.
    - O que não está claro: se o usuário quer o poller só em `/bloqueado`, só em `/assinatura`, ou nos dois.
    - Recomendação: **nos dois**, com o mesmo componente. `/bloqueado` cobre o inadimplente que acabou de pagar (o caso de dinheiro); `/assinatura?retorno=1` cobre quem paga durante o trial. Nenhuma mudança na `successUrl` é necessária.
+   - **RESOLVED (07-02):** `PollerDeStatus` montado em `bloqueado-card.tsx`, conforme recomendado.
 
 2. **`canceladoEm` deve ser limpo ao criar um novo checkout (Pitfall 6 / A7)?**
    - O que sabemos: nenhum caminho existente o limpa; `avaliarAcesso` D-09 mascara o efeito enquanto o acesso pago estiver vigente.
    - Recomendação: sim, em `criarCheckout`, antes de retornar a URL. É escrita local, sem I/O de gateway, e o único momento em que a intenção de voltar é inequívoca. Levar ao usuário se o planner preferir não decidir.
+   - **RESOLVED (07-04 §6):** `criarCheckout` limpa `canceladoEm`, decisão explícita do plano, conforme recomendado.
 
 3. **A assinatura removida continua consultável (A2)?**
    - Recomendação: não depender da resposta. Ramificar por `canceladoEm` local antes de chamar o gateway (Pattern 3, ordem 2). Confirmar no sandbox como item de UAT.
+   - **RESOLVED (07-04, confirmação em 07-08):** Pattern 3 implementado como recomendado; confirmação real contra o sandbox é o `checkpoint:human-verify` de 07-08 (assunção A3).
 
 4. **Gate estático `gates:fase-07`?**
    - Três fases seguidas o adotaram, e as quatro invariantes desta fase (D-05, allowlist BILL-04, fronteira gateway→banco, polling sem Asaas) têm exatamente o perfil "violação plausível que nenhum teste pega".
    - Recomendação: incluir. Custo baixo, precedente forte.
+   - **RESOLVED (07-07):** `scripts/gates-fase-07.mjs` incluído com 6 gates.
 
 5. **O que a tela deve mostrar para `acessoVitalicio === true`?**
    - Estado raro (BILL-04, marcado direto no banco, sem UI). Nenhuma decisão em CONTEXT.md.
    - Recomendação: uma linha ("acesso permanente, sem cobrança") e **sem** botão de cancelar — nunca deixar o botão aparecer para quem não tem `asaasSubscriptionId`.
+   - **RESOLVED (07-06):** Estado vitalício implementado no `AssinaturaCard`, conforme recomendado.
 
 ## Sources
 
