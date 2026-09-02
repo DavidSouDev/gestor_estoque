@@ -42,6 +42,29 @@ export function SimplesTopBar({
         </svg>
       </Link>
 
+      {/* `admin-nav.tsx` só renderiza para modoInterface === "COMPLETO", então sem
+          esta entrada um tenant SIMPLES não teria nenhuma rota até /assinatura.
+          O path do ícone é duplicado de `ICONS.assinatura` DE PROPÓSITO: aquele
+          objeto é privado de `admin-nav.tsx`, que é client component, e exportá-lo
+          só para compartilhar uma string criaria acoplamento sem benefício — esta
+          barra já inlina os próprios paths de engrenagem e de saída.
+          O `title` é obrigatório: é o único nome acessível que um controle
+          só-de-ícone tem, e a barra já depende disso para os outros dois. */}
+      <Link
+        href={`/${slug}/admin/assinatura`}
+        title="Assinatura"
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+      >
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+          />
+        </svg>
+      </Link>
+
       <form action={logoutAction}>
         <button
           type="submit"

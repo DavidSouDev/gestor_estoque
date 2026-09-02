@@ -41,4 +41,49 @@ describe("SimplesTopBar", () => {
 
     expect(logoutAction).toHaveBeenCalledTimes(1);
   });
+
+  // `admin-nav.tsx` só renderiza para modoInterface === "COMPLETO". Sem esta entrada,
+  // um tenant SIMPLES não teria nenhuma rota até /assinatura e SUB-02 seria falso
+  // para essa população inteira (T-07-15).
+  describe("entrada de Assinatura", () => {
+    it("aponta para a rota de assinatura do slug", () => {
+      render(
+        <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
+      );
+
+      expect(screen.getByTitle("Assinatura")).toHaveAttribute(
+        "href",
+        "/minha-loja/admin/assinatura"
+      );
+    });
+
+    it("fica depois da engrenagem e antes do botão de sair", () => {
+      render(
+        <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
+      );
+
+      const engrenagem = screen.getByTitle("Configurações");
+      const assinatura = screen.getByTitle("Assinatura");
+      const sair = screen.getByTitle("Sair");
+
+      // Sair continua sendo o último controle da barra: é o único cuja posição os
+      // usuários memorizaram e o único com hover vermelho.
+      expect(
+        engrenagem.compareDocumentPosition(assinatura) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(
+        assinatura.compareDocumentPosition(sair) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    it("usa o mesmo tratamento visual da engrenagem", () => {
+      render(
+        <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
+      );
+
+      expect(screen.getByTitle("Assinatura").className).toBe(
+        screen.getByTitle("Configurações").className
+      );
+    });
+  });
 });
