@@ -180,6 +180,14 @@ Nenhum — nenhuma configuracao de servico externo, nenhuma variavel de ambiente
 - **Sem bloqueadores.** Nenhum checkpoint aberto, nenhuma decisao pendente, nenhuma acao humana necessaria.
 - **Nota para o verificador de fim de fase:** SUB-01 continua com o checkbox aberto em `REQUIREMENTS.md` de proposito — ver § Deferred Items.
 
+## Self-Check: PASSED
+
+- Todos os 7 arquivos de `key-files` existem em disco (`[ -f ]` verde para cada um).
+- Todos os 6 commits citados existem em `git log` (`fc82d5c`, `ad5e07c`, `aab6eee`, `bc176fb`, `9ddd739`, `a56bf60`), encadeados a partir do commit-base `f205a3c`.
+- `git status --short` vazio: nenhum arquivo nao rastreado e nenhuma alteracao pendente.
+- Nenhuma delecao de arquivo rastreado em nenhum dos commits — os cinco diffs de codigo sao puramente aditivos.
+- `STATE.md` e `ROADMAP.md` NAO foram tocados (execucao em worktree; o orquestrador escreve os dois centralmente apos o merge da wave).
+
 ---
 *Phase: 07-gest-o-de-assinatura*
 *Completed: 2026-09-02*
