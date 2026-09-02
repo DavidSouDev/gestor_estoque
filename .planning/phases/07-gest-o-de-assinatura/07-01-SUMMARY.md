@@ -194,6 +194,12 @@ Pronto para os planos de UI e de servico da fase:
 
 **Pendencia de bookkeeping para o orquestrador:** SUB-01 e SUB-02 continuam `[ ]` em `REQUIREMENTS.md` de proposito (ver Decisions Made). Devem ser fechados pelo plano que entregar a capacidade visivel ao usuario, nao por este.
 
+## Self-Check: PASSED
+
+- Arquivos afirmados existem: `lib/fuso-sao-paulo.ts`, `lib/avaliar-acesso.ts`, `lib/billing/asaas/tipos.ts`, `lib/billing/asaas/client.ts`, `.planning/phases/07-gest-o-de-assinatura/07-01-SUMMARY.md` — 5/5 FOUND
+- Commits afirmados existem: `bf99c8d`, `b514c19`, `adc3032`, `0842319`, `1d03898` — 5/5 FOUND
+- STATE.md e ROADMAP.md **nao** foram modificados (modo worktree; o orquestrador e o dono dessas escritas)
+
 ---
 *Phase: 07-gest-o-de-assinatura*
 *Completed: 2026-09-02*
