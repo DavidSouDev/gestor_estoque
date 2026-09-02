@@ -17,7 +17,8 @@
     "gates:fase-05": "node scripts/gates-fase-05.mjs",
     "acesso:contagem": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/contagem-status-acesso.ts",
     "asaas:webhook": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/registrar-webhook-asaas.ts",
-    "seed:billing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-fatos-billing.ts"
+    "seed:billing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-fatos-billing.ts",
+    "seed:superadmin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-superadmin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
