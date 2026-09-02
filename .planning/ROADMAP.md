@@ -274,7 +274,7 @@ Plans:
 
 **Wave 2** *(blocked on 07-01)*
 
-- [ ] 07-04-PLAN.md — `assinaturaService`: `fatosDeAssinatura`, `consultarAssinatura` degradável e `cancelar` com a fronteira gateway→banco (SUB-01, SUB-02, SUB-03)
+- [x] 07-04-PLAN.md — `assinaturaService`: `fatosDeAssinatura`, `consultarAssinatura` degradável e `cancelar` com a fronteira gateway→banco (SUB-01, SUB-02, SUB-03)
 
 **Wave 3** *(blocked on 07-04)*
 
@@ -315,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 3/8 | In Progress|  |
+| 7. Gestão de Assinatura | 4/8 | In Progress|  |
 
 ## Requirement Coverage
 
