@@ -8,6 +8,12 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  // Fase 6 (TERM-02 / D-01): papel da PLATAFORMA, nao de um tenant. Entra por
+  // migration PROPRIA (Pitfall 1 do RESEARCH): o Prisma Migrate roda cada
+  // migration em transacao e o Postgres recusa USAR um valor de enum adicionado
+  // dentro da mesma transacao. Qualquer DML que grave 'SUPERADMIN' vai numa
+  // migration posterior — ou, como decidido, num script de seed em runtime.
+  SUPERADMIN
 }
 
 enum ModoInterface {
@@ -112,7 +118,36 @@ model Usuario {
   empresaId String
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  movimentacoes MovimentacaoEstoque[]
+  /// BOOKKEEPING do gate de termos (TERM-04, Ponto de Extensao 2 do RESEARCH).
+  /// Aponta para a ULTIMA versao de termo aceita por ESTE usuario.
+  ///
+  /// Existe para o caminho autenticado custar 1 query e nao 2: `revalidarConta`
+  /// ja faz um `select` sobre Usuario, e uma coluna escalar entra nesse select
+  /// de graca — enquanto a relacao aninhada `aceitesTermos` custaria uma query
+  /// separada (o Prisma carrega relacoes com queries proprias; o preview
+  /// `relationJoins` nao esta habilitado neste projeto). A fonte da verdade
+  /// AUDITAVEL continua sendo AceiteTermo; esta coluna e uma projecao dela.
+  ///
+  /// MESMA FORMA de `Empresa.ultimoStatusAuditado`, REGRA OPOSTA — e aqui que um
+  /// leitor futuro vai errar, entao esta escrito: `ultimoStatusAuditado` NAO
+  /// pode ser lido para decidir acesso porque e uma DERIVACAO de 4 fatos que
+  /// mudam sozinhos com a passagem do tempo (le-lo congelaria a derivacao);
+  /// `termoAceitoId` E o fato — um evento discreto que so muda quando alguem
+  /// aceita — e portanto PODE ser lido para decidir.
+  ///
+  /// O invariante que mantem isso correto e um ESCRITOR UNICO: so a transacao de
+  /// aceite escreve nesta coluna, e sempre junto do INSERT em AceiteTermo, nunca
+  /// isolada. NAO esta no allowlist de `usuarioService.create`/`update` (os DTOs
+  /// montam `data` campo a campo) — nao e gravavel por HTTP em nenhum caminho.
+  ///
+  /// `SetNull` porque apagar a versao apontada nao pode apagar o usuario. Na
+  /// pratica a versao nunca e apagada: AceiteTermo.termo usa `Restrict`.
+  termoAceitoId String?
+  termoAceito   TermoDeUso? @relation("UltimoAceite", fields: [termoAceitoId], references: [id], onDelete: SetNull)
+
+  movimentacoes    MovimentacaoEstoque[]
+  aceitesTermos    AceiteTermo[]
+  termosPublicados TermoDeUso[]          @relation("TermosPublicados")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -374,4 +409,85 @@ model EventoWebhookAsaas {
 
   @@index([processadoEm])
   @@index([evento, createdAt])
+}
+
+/// Documento legal versionado e IMUTAVEL (TERM-03 / D-07).
+///
+/// DELIBERADAMENTE SEM `empresaId`: e a segunda tabela GLOBAL do sistema (a
+/// primeira excecao ao isolamento por tenant do C-07 e o worker diario). Os
+/// termos sao da PLATAFORMA, nao de um tenant — dar-lhe `empresaId` permitiria a
+/// um ADMIN publicar os proprios termos, que e exatamente o que D-06 proibe.
+///
+/// Nenhum metodo `update` ou `delete` existira em `termo.service.ts`, e isso e o
+/// CONTRATO de TERM-03 / D-07, nao um esquecimento: publicar e INSERT, sempre. A
+/// checagem equivalente em codigo seria contornavel pelo proximo
+/// `prisma.termoDeUso.update` que alguem escrever; a FK `Restrict` de
+/// AceiteTermo.termo e o Postgres recusando.
+///
+/// Consequencia aceita (A2 do RESEARCH): os aceites desaparecem junto com o
+/// Usuario por `onDelete: Cascade` herdado de Empresa. Se um dever de retencao
+/// de prova de consentimento aparecer, isso vira migration nova — nao ha captura
+/// de IP/user-agent aqui por decisao consciente (A1).
+model TermoDeUso {
+  id String @id @default(uuid())
+
+  /// Versao monotonica legivel por humano. `@unique` e o que impede duas
+  /// publicacoes CONCORRENTES de nascerem com o mesmo numero: a segunda recebe
+  /// P2002 e vira 409, em vez de duas "v3" diferentes no banco. Mesmo argumento
+  /// ja escrito para `EventoWebhookAsaas.eventoId` — um `MAX(versao) + 1` lido e
+  /// depois escrito perde a corrida entre dois requests simultaneos.
+  versao Int @unique
+
+  /// Texto PURO (D-05). Nunca Markdown, nunca HTML. Renderizado como no de texto
+  /// React (escape automatico) com `white-space: pre-wrap`.
+  conteudo String
+
+  publicadoEm DateTime @default(now())
+
+  /// Nulo APENAS na v1 semeada por migration, que nao tem autor humano por
+  /// construcao. `SetNull` e nao `Cascade` porque apagar o usuario que publicou
+  /// nao pode apagar o documento legal que centenas de pessoas aceitaram.
+  publicadoPorId String?
+  publicadoPor   Usuario? @relation("TermosPublicados", fields: [publicadoPorId], references: [id], onDelete: SetNull)
+
+  aceites         AceiteTermo[]
+  ultimoAceitePor Usuario[]     @relation("UltimoAceite")
+
+  @@index([publicadoEm])
+}
+
+/// Fato append-only de aceite (TERM-03). Mesma natureza de `AuditoriaAcesso`:
+/// escrito uma vez, nunca reescrito, nunca apagado pela aplicacao.
+///
+/// O escopo e o USUARIO, nao a empresa — PROJECT.md e literal ("status de
+/// pagamento e por Empresa; aceite de termos e por Usuario"), e por isso NAO
+/// existe `empresaId` aqui. Denormalizar o tenant confundiria os dois escopos
+/// que a constraint do projeto manda manter separados.
+model AceiteTermo {
+  id String @id @default(uuid())
+
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  /// `onDelete: Restrict`: o banco RECUSA apagar uma versao de termo que alguem
+  /// aceitou. E a imutabilidade imposta pelo Postgres, nao pela disciplina de
+  /// quem le o codigo daqui a um ano. `Cascade` aqui permitiria apagar uma
+  /// versao e evaporar todos os aceites dela — o oposto de TERM-03.
+  termoId String
+  termo   TermoDeUso @relation(fields: [termoId], references: [id], onDelete: Restrict)
+
+  aceitoEm DateTime @default(now())
+
+  /// A unicidade composta declarada abaixo (usuario + termo) torna o aceite
+  /// IDEMPOTENTE: duplo clique, retry de rede e reenvio de formulario colidem em
+  /// P2002, que o service trata como "ja aceitou" em vez de gravar duas linhas
+  /// indistinguiveis. Um `findFirst` antes do `create` perderia a corrida entre
+  /// dois requests concorrentes.
+  ///
+  /// Divergencia CONSCIENTE do padrao de `AuditoriaAcesso`, que e fato puro sem
+  /// unique: a consequencia desejada aqui e um usuario NAO poder "reaceitar" a
+  /// mesma versao. Se um dia for preciso registrar reaceites da mesma versao,
+  /// esta constraint e o que precisa cair — e a decisao precisa ser explicita.
+  @@unique([usuarioId, termoId])
+  @@index([usuarioId, aceitoEm])
 }
