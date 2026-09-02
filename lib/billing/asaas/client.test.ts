@@ -220,3 +220,77 @@ describe("endpoints", () => {
     expect(chamada().init.method ?? "GET").toBe("GET");
   });
 });
+
+describe("removerAssinatura (D-04, SUB-02)", () => {
+  it("faz DELETE em /subscriptions/{id}", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ deleted: true, id: "sub_1" }));
+
+    await asaasClient.removerAssinatura("sub_1");
+
+    expect(chamada().url).toBe(`${API_URL}/subscriptions/sub_1`);
+    expect(chamada().init.method).toBe("DELETE");
+  });
+
+  it("leva o header access_token, nunca um header de bearer", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ deleted: true, id: "sub_1" }));
+
+    await asaasClient.removerAssinatura("sub_1");
+
+    expect(chamada().headers.access_token).toBe(API_KEY);
+    expect(Object.keys(chamada().headers).map((k) => k.toLowerCase())).not.toContain(
+      "authorization"
+    );
+  });
+
+  it("não envia corpo — a remoção é identificada só pelo caminho", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ deleted: true, id: "sub_1" }));
+
+    await asaasClient.removerAssinatura("sub_1");
+
+    expect(chamada().init.body).toBeUndefined();
+  });
+
+  it("devolve a resposta tipada com os dois campos", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ deleted: true, id: "sub_1" }));
+
+    const removida = await asaasClient.removerAssinatura("sub_1");
+
+    expect(removida).toEqual({ deleted: true, id: "sub_1" });
+  });
+
+  // Não-idempotência: a segunda remoção da MESMA assinatura devolve 404, não 200.
+  // Este arquivo só traduz HTTP — quem decide que 404 é "já estava cancelada" é
+  // `assinaturaService.cancelar`.
+  it("propaga o 404 do gateway como AsaasApiError com status 404 (endpoint NÃO é idempotente)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(respostaOk({ deleted: true, id: "sub_1" }))
+      .mockResolvedValueOnce(
+        respostaErro(404, JSON.stringify({ errors: [{ code: "not_found" }] }))
+      );
+
+    await asaasClient.removerAssinatura("sub_1");
+    const erro = await asaasClient.removerAssinatura("sub_1").catch((e) => e);
+
+    expect(erro).toBeInstanceOf(AsaasApiError);
+    expect(erro.status).toBe(404);
+  });
+
+  it("propaga o 401 do gateway como AsaasApiError com status 401", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValue(respostaErro(401, JSON.stringify({ errors: [] })));
+
+    const erro = await asaasClient.removerAssinatura("sub_1").catch((e) => e);
+
+    expect(erro).toBeInstanceOf(AsaasApiError);
+    expect(erro.status).toBe(401);
+  });
+
+  it("herda o AbortSignal de timeout de chamar(), sem montar requisição própria", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ deleted: true, id: "sub_1" }));
+
+    await asaasClient.removerAssinatura("sub_1");
+
+    expect(chamada().init.signal).toBeInstanceOf(AbortSignal);
+  });
+});
