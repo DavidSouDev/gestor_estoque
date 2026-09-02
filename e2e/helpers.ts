@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-import type { Locator, Page } from "@playwright/test";
+import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 const RAIZ = path.resolve(__dirname, "..");
@@ -78,6 +78,98 @@ export async function expectGoneFromCatalogo(page: Page, locator: Locator) {
   }
 
   await expect(locator).toHaveCount(0);
+}
+
+/**
+ * Credenciais do SUPERADMIN que os specs de termos usam para publicar.
+ *
+ * Fixas de propósito: `scripts/seed-superadmin.ts` é idempotente por email, então
+ * um valor estável faz a segunda execução (e a terceira, e a de amanhã) ser um
+ * no-op em vez de acumular um tenant interno por rodada da suíte. O slug da
+ * empresa interna é sorteado a cada criação e NÃO é reutilizável entre rodadas —
+ * por isso nada aqui depende dele: a publicação acontece por REST, e a REST só
+ * precisa do par email/senha.
+ *
+ * A senha é descartável e vive num arquivo de teste versionado porque o banco em
+ * que ela vale é o de desenvolvimento/CI. Em produção o operador roda o mesmo
+ * script com uma credencial forte, conforme registrado no SUMMARY do plano 06-03.
+ */
+export const SUPERADMIN_E2E = {
+  email: "superadmin-e2e@teste.com",
+  senha: "senha-e2e-descartavel",
+} as const;
+
+/**
+ * Cria (ou reconhece como já existente) o SUPERADMIN da plataforma por
+ * `scripts/seed-superadmin.ts`.
+ *
+ * Mesmo molde de `seedFatosBilling`, e pelo mesmo motivo: NÃO existe caminho de
+ * API legítimo para criar um SUPERADMIN — `empresaService.registerComUsuario`
+ * não aceita `role`, e por D-04 não deve passar a aceitar. O script é a única
+ * superfície de criação, e roda pelo resolvedor do projeto para ler o `.env` com
+ * o MESMO leitor que a aplicação usa.
+ *
+ * `execFileSync` é síncrono de propósito: quando ele retorna, a linha já está no
+ * banco e a chamada seguinte pode autenticar sem espera artificial.
+ */
+export function seedSuperadmin(): void {
+  execFileSync(
+    process.execPath,
+    [
+      "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+      "--import",
+      "./scripts/resolvedor-ts.mjs",
+      "scripts/seed-superadmin.ts",
+      "--email",
+      SUPERADMIN_E2E.email,
+      "--senha",
+      SUPERADMIN_E2E.senha,
+    ],
+    { cwd: RAIZ, stdio: "inherit" }
+  );
+}
+
+/**
+ * Publica uma NOVA versão dos Termos de Uso pela superfície real de TERM-02.
+ *
+ * Publicar é INSERT, sempre (D-07): cada chamada cria uma versão nova e nunca
+ * edita a anterior. O efeito colateral é justamente o que os specs de TERM-04
+ * querem — todo usuário registrado ANTES desta chamada passa a ter termos
+ * pendentes no request seguinte, sem novo login e sem nenhuma escrita direta no
+ * banco.
+ *
+ * Por REST e não por script: assim um único mecanismo fecha os dois requisitos
+ * da fase — o SUPERADMIN publica de verdade (TERM-02, incluindo a autorização
+ * pela role lida do banco) e o resto do spec observa o efeito (TERM-04). Um
+ * script de INSERT direto provaria só a metade de baixo.
+ *
+ * O contexto é o `request` do Playwright, separado do browser: a `Authorization`
+ * vai explícita no header, então nenhum cookie de `page` influencia a publicação.
+ */
+export async function publicarNovaVersaoDeTermos(
+  request: APIRequestContext,
+  conteudo: string
+): Promise<{ id: string; versao: number }> {
+  const login = await request.post("/api/auth/login", {
+    data: { email: SUPERADMIN_E2E.email, senha: SUPERADMIN_E2E.senha },
+  });
+
+  expect(
+    login.status(),
+    `login do SUPERADMIN falhou — rode \`npm run seed:superadmin -- --email ${SUPERADMIN_E2E.email} --senha ${SUPERADMIN_E2E.senha}\`, ` +
+      "ou apague o usuário que já ocupa esse email com outra credencial"
+  ).toBe(200);
+
+  const { token } = (await login.json()) as { token: string };
+
+  const publicacao = await request.post("/api/termos", {
+    headers: { authorization: `Bearer ${token}` },
+    data: { conteudo },
+  });
+
+  expect(publicacao.status()).toBe(201);
+
+  return (await publicacao.json()) as { id: string; versao: number };
 }
 
 export function uniqueEmpresa() {
