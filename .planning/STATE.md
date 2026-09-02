@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
+status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-09-02T12:32:22.420Z"
-last_activity: 2026-09-01 -- Phase 05 execution complete
+last_updated: "2026-09-02T12:33:53.457Z"
+last_activity: 2026-09-02 -- Phase 06 execution started
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 32
+  total_plans: 40
   completed_plans: 32
   percent: 71
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 06 — Termos de Uso e Aceite (próxima)
+**Current focus:** Phase 06 — termos-de-uso-e-aceite
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Status: Phase 05 concluída e verificada (5/5 planos, VERIFICATION.md status: passed)
-Last activity: 2026-09-01 -- Phase 05 execution complete
+Phase: 06 (termos-de-uso-e-aceite) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 06
+Last activity: 2026-09-02 -- Phase 06 execution started
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
