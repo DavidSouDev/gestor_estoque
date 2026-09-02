@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Gateway Asaas e Ingestão de Webhooks** - Assinatura recorrente via checkout hospedado com webhook idempotente
 - [x] **Phase 4: Aplicação do Bloqueio** - Banner de carência, bloqueio do admin e despublicação do catálogo
 - [x] **Phase 5: Worker Diário de Reconciliação** - Endpoint protegido que expira trials, inicia carências e aplica bloqueios (completed 2026-09-01)
-- [ ] **Phase 6: Termos de Uso e Aceite** - Termos versionados, papel SUPERADMIN e modal obrigatório de aceite
+- [x] **Phase 6: Termos de Uso e Aceite** - Termos versionados, papel SUPERADMIN e modal obrigatório de aceite (completed 2026-09-02)
 - [ ] **Phase 7: Gestão de Assinatura** - Tela de status e cancelamento com data exata de fim de acesso
 
 ## Phase Details
@@ -224,7 +224,7 @@ Plans:
   3. Versões anteriores dos termos permanecem íntegras e cada aceite fica registrado contra a versão específica que o usuário viu, com data/hora
   4. Um usuário cujo último aceite é anterior à versão vigente encontra um modal obrigatório ao logar no admin e não consegue usar o sistema até aceitar — mas consegue sair/deslogar sem ficar preso em um loop
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -248,7 +248,7 @@ Plans:
 
 **Wave 5**
 
-- [ ] 06-08-PLAN.md — e2e do gate fim a fim, `npm run gates:fase-06` e fechamento de `06-VALIDATION.md` (TERM-01 … TERM-04)
+- [x] 06-08-PLAN.md — e2e do gate fim a fim, `npm run gates:fase-06` e fechamento de `06-VALIDATION.md` (TERM-01 … TERM-04)
 
 **UI hint**: yes
 
@@ -281,7 +281,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
-| 6. Termos de Uso e Aceite | 7/8 | In Progress|  |
+| 6. Termos de Uso e Aceite | 8/8 | Complete   | 2026-09-02 |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
 ## Requirement Coverage
