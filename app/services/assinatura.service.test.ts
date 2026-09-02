@@ -363,6 +363,31 @@ describe("assinaturaService.fatosDeAssinatura", () => {
     expect(asaasClient.buscarAssinatura).not.toHaveBeenCalled();
     expect(asaasClient.removerAssinatura).not.toHaveBeenCalled();
   });
+
+  it("C-07: usa `select` explícito com os 6 campos, filtra `deletedAt` e nunca usa `include`", async () => {
+    await assinaturaService.fatosDeAssinatura("empresa-1");
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      // `deletedAt: null` no MESMO `where` do id: uma empresa soft-deletada não
+      // pode devolver fatos de billing. É também por isso que o método usa
+      // `findFirst` e não `findUnique({ where: { id } })`.
+      where: { id: "empresa-1", deletedAt: null },
+      select: {
+        id: true,
+        asaasSubscriptionId: true,
+        canceladoEm: true,
+        acessoAte: true,
+        trialFim: true,
+        acessoVitalicio: true,
+      },
+    });
+
+    const [argumento] = prismaMock.empresa.findFirst.mock.calls[0] as [Record<string, unknown>];
+
+    // `include` arrastaria `usuarios` e, com eles, `senhaHash` — e esta é a
+    // leitura de toda renderização da página de assinatura.
+    expect(argumento).not.toHaveProperty("include");
+  });
 });
 
 describe("assinaturaService.consultarAssinatura", () => {
@@ -395,6 +420,42 @@ describe("assinaturaService.consultarAssinatura", () => {
       proximaCobranca: null,
       ciclo: null,
     });
+  });
+
+  it("BILL-01: nunca expõe o `status` do Asaas — nem no caminho feliz, nem no degradado", async () => {
+    vi.mocked(asaasClient.buscarAssinatura).mockResolvedValue(assinaturaDoAsaas);
+
+    const ok = await assinaturaService.consultarAssinatura("sub_000000000001");
+
+    // O objeto do gateway TEM `status: "ACTIVE"`; o nosso contrato não. Exibir o
+    // enum do fornecedor criaria uma segunda autoridade de status ao lado de
+    // `avaliarAcesso` — e o usuário não sabe interpretar ACTIVE/EXPIRED/INACTIVE.
+    expect(assinaturaDoAsaas).toHaveProperty("status");
+    expect(ok).not.toHaveProperty("status");
+
+    vi.mocked(asaasClient.buscarAssinatura).mockRejectedValue(
+      new AsaasApiError("Não foi possível falar com o gateway de pagamento.", 500)
+    );
+
+    const degradado = await assinaturaService.consultarAssinatura("sub_000000000001");
+
+    expect(degradado).not.toHaveProperty("status");
+  });
+
+  it("C-05: o log da indisponibilidade traz [asaas] e o status — nunca o corpo do gateway", async () => {
+    const corpoSensivel = "cpfCnpj 12345678901 do pagador";
+
+    vi.mocked(asaasClient.buscarAssinatura).mockRejectedValue(
+      new AsaasApiError(corpoSensivel, 503)
+    );
+
+    await assinaturaService.consultarAssinatura("sub_000000000001");
+
+    const registrado = vi.mocked(console.error).mock.calls[0].map(String).join(" ");
+
+    expect(registrado).toContain("[asaas]");
+    expect(registrado).toContain("503");
+    expect(registrado).not.toContain(corpoSensivel);
   });
 });
 
@@ -493,5 +554,73 @@ describe("assinaturaService.cancelar", () => {
 
     expect(asaasClient.removerAssinatura).not.toHaveBeenCalled();
     expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+  });
+
+  it("C-05: o log da falha traz o prefixo [asaas], o empresaId e o status — nunca o corpo do gateway", async () => {
+    const corpoSensivel = "cpfCnpj 12345678901 do pagador";
+
+    vi.mocked(asaasClient.removerAssinatura).mockRejectedValue(
+      new AsaasApiError(corpoSensivel, 401)
+    );
+
+    await expect(assinaturaService.cancelar("empresa-1")).rejects.toBeInstanceOf(HttpError);
+
+    expect(console.error).toHaveBeenCalledTimes(1);
+
+    const registrado = vi.mocked(console.error).mock.calls[0].map(String).join(" ");
+
+    expect(registrado).toContain("[asaas]");
+    expect(registrado).toContain("empresa-1");
+    expect(registrado).toContain("401");
+    expect(registrado).not.toContain(corpoSensivel);
+  });
+
+  it("C-05: o 404 engolido não vira log de erro — não é falha", async () => {
+    vi.mocked(asaasClient.removerAssinatura).mockRejectedValue(
+      new AsaasApiError("Não foi possível falar com o gateway de pagamento.", 404)
+    );
+
+    await assinaturaService.cancelar("empresa-1");
+
+    // Um duplo-clique é fluxo normal, não incidente. Logar como erro treinaria
+    // quem opera o sistema a ignorar o log.
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("C-07: lê a Empresa com `select` explícito e `deletedAt: null`, sem `include`", async () => {
+    await assinaturaService.cancelar("empresa-1");
+
+    expect(prismaMock.empresa.findFirst).toHaveBeenCalledWith({
+      where: { id: "empresa-1", deletedAt: null },
+      select: {
+        id: true,
+        asaasSubscriptionId: true,
+        canceladoEm: true,
+        acessoAte: true,
+        trialFim: true,
+        acessoVitalicio: true,
+      },
+    });
+
+    const [argumento] = prismaMock.empresa.findFirst.mock.calls[0] as [Record<string, unknown>];
+
+    expect(argumento).not.toHaveProperty("include");
+  });
+
+  it("D-06: não encurta o acesso já pago nem grava linha de auditoria", async () => {
+    await assinaturaService.cancelar("empresa-1");
+
+    const [chamada] = prismaMock.empresa.update.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+
+    // `canceladoEm` e mais NADA: mexer em `acessoAte` aqui tiraria do cliente o
+    // período que ele já pagou, contra a promessa de SUB-02.
+    expect(Object.keys(chamada.data)).toEqual(["canceladoEm"]);
+
+    // Com `acessoAte` ainda no futuro, o status derivado continua `EM_DIA` — não
+    // há transição a registrar. Quem registra a ida para `CANCELADO` é
+    // `revalidarConta` ou o worker diário, quando o período expirar.
+    expect(prismaMock.auditoriaAcesso.create).not.toHaveBeenCalled();
   });
 });
