@@ -128,5 +128,32 @@ export async function requireAuth(
     );
   }
 
+  // TERM-04, superfície REST. O requisito nomeia só o admin web, mas o sistema
+  // tem DUAS portas autenticadas: 43 call sites de `requireAdminSession` e 21
+  // arquivos de rota atrás desta função. Sem esta linha, um ADMIN com termos
+  // pendentes faz `POST /api/auth/login` e segue criando produtos, movimentando
+  // estoque e alterando a marca da empresa por Bearer token, sem nunca ter
+  // visto os termos — e o e2e `bloqueio-por-inadimplencia.spec.ts` prova que
+  // esse caminho é real e já é usado.
+  //
+  // 403 e não 402: 402 é "pague e resolve"; aqui pagar não resolve nada. É o
+  // caso canônico de 403 Forbidden (autenticado, sem permissão) — o mesmo
+  // raciocínio que o JSDoc de `STATUS_ASSINATURA_SUSPENSA` faz ao contrário. Um
+  // 403 também não vaza informação de outro tenant.
+  //
+  // Uma condição aqui cobre as 43 chamadas sem editar nenhum dos 29 handlers,
+  // porque todos devolvem `{ status: error.status }` genericamente e nenhum
+  // hardcoda 401 — mesmo mecanismo que a Fase 4 usou para ACC-02.
+  //
+  // Fica DEPOIS do gate de assinatura pelo mesmo motivo do espelho web, e NÃO
+  // respeita `permitirEmpresaBloqueada`: aquela flag existe para UM caso (o
+  // endpoint de checkout, T-04-10) e dispensa a checagem de assinatura e só
+  // ela. Um cliente com termos pendentes que abra o checkout recebe 403, e isso
+  // é correto — ele precisa aceitar os termos, e o caminho de aceite (a tela
+  // web) não passa por aqui.
+  if (conta.termosPendentes) {
+    throw new AuthError("Termos de uso pendentes de aceite.", 403);
+  }
+
   return payload;
 }

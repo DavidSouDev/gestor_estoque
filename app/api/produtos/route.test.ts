@@ -93,6 +93,11 @@ describe("/api/produtos — gate de assinatura herdado da guarda de auth", () =>
       email: "admin@teste.com",
       role: "ADMIN",
       empresaId: "empresa-1",
+      // Termos em dia (mesmo `id` do vigente que o stub global devolve): estes
+      // casos medem o gate de ASSINATURA, e o 402 tem que vir de lá. Sem isto o
+      // gate de termos da Fase 6 também estaria armado e o 402 continuaria
+      // aparecendo — mas por precedência, não por ser o único gate ativo.
+      termoAceitoId: "termo-1",
       empresa: {
         slug: "empresa-teste",
         acessoAte: new Date("2020-01-01T03:00:00.000Z"),
