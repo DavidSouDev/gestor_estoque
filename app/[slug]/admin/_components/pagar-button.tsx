@@ -23,6 +23,12 @@ import { useFormStatus } from "react-dom";
  * `py-3` com `text-sm` fecha exatamente os 44px de alvo de toque; o padding
  * vertical de 10px usado nos inputs do login rende 40px e é proibido em botões
  * nesta fase.
+ *
+ * As props `label`/`pendingLabel` (Fase 7) afetam APENAS o texto — nenhuma delas
+ * alcança este objeto, e nenhuma variante nova foi criada para elas. A tela de
+ * assinatura usa a variante `bloqueado` (colorida pelo tenant, largura total,
+ * `focus:ring-2`), porque o `amber-600` fixo da variante `banner` pertence à tira
+ * de carência e não pode aparecer naquela tela (UI-SPEC §Component Contracts → 4).
  */
 const CLASSES = {
   banner:
@@ -34,9 +40,22 @@ const CLASSES = {
 export interface PagarButtonProps {
   variant: "banner" | "bloqueado";
   primaryColor?: string;
+  /**
+   * Os defaults são byte-idênticos às strings originais de propósito:
+   * `aviso-carencia.tsx` e `bloqueado-card.tsx` não passam nenhuma das duas, e os
+   * testes de componente da Fase 4 e os locators dos specs e2e dependem de
+   * "Pagar agora". Não parafrasear, não mexer na pontuação (T-07-14).
+   */
+  label?: string;
+  pendingLabel?: string;
 }
 
-export function PagarButton({ variant, primaryColor }: PagarButtonProps) {
+export function PagarButton({
+  variant,
+  primaryColor,
+  label = "Pagar agora",
+  pendingLabel = "Redirecionando...",
+}: PagarButtonProps) {
   const { pending } = useFormStatus();
   const ehBloqueado = variant === "bloqueado";
 
@@ -58,7 +77,7 @@ export function PagarButton({ variant, primaryColor }: PagarButtonProps) {
           : undefined
       }
     >
-      {pending ? "Redirecionando..." : "Pagar agora"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
