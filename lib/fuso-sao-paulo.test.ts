@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { meiaNoiteEmSaoPaulo } from "./fuso-sao-paulo";
+import { formatarDiaEmSaoPaulo, meiaNoiteEmSaoPaulo } from "./fuso-sao-paulo";
 
 /**
  * Tabela de casos verificados em 02-RESEARCH.md § Code Examples #1.
@@ -162,5 +162,42 @@ describe("meiaNoiteEmSaoPaulo", () => {
 
     expect(primeira.getTime()).toBe(segunda.getTime());
     expect(instante.getTime()).toBe(copia.getTime());
+  });
+});
+
+/**
+ * A formatação mora AQUI, e não em `lib/format.ts`: `formatDate` de lá não passa
+ * `timeZone` de propósito e é consumida por dezenas de telas de catálogo/estoque.
+ *
+ * Estes casos são a prova executável dessa diferença — um formatador sem
+ * `timeZone` passaria no segundo caso e falharia no primeiro em servidor UTC.
+ */
+describe("formatarDiaEmSaoPaulo", () => {
+  it("usa o relógio de parede de São Paulo, não o do servidor (instante cujo dia em SP difere do dia em UTC)", () => {
+    // 2026-10-01T02:00Z é 30/09 às 23:00 em São Paulo (UTC-3).
+    expect(formatarDiaEmSaoPaulo(new Date("2026-10-01T02:00:00.000Z"))).toBe("30/09/2026");
+  });
+
+  it("formata a meia-noite exata de São Paulo como o próprio dia", () => {
+    expect(formatarDiaEmSaoPaulo(new Date("2026-10-15T03:00:00.000Z"))).toBe("15/10/2026");
+  });
+
+  it("devolve dd/mm/aaaa com zero à esquerda", () => {
+    expect(formatarDiaEmSaoPaulo(new Date("2026-01-05T12:00:00.000Z"))).toBe("05/01/2026");
+    expect(formatarDiaEmSaoPaulo(new Date("2026-12-31T12:00:00.000Z"))).toBe("31/12/2026");
+  });
+
+  it("compõe com meiaNoiteEmSaoPaulo: 1ms antes do limite exclusivo é o dia anterior", () => {
+    const limite = meiaNoiteEmSaoPaulo(new Date("2026-10-14T12:00:00.000Z"), 1);
+
+    expect(limite.toISOString()).toBe("2026-10-15T03:00:00.000Z");
+    expect(formatarDiaEmSaoPaulo(new Date(limite.getTime() - 1))).toBe("14/10/2026");
+  });
+
+  it("é pura: a mesma entrada devolve a mesma string e o argumento não é mutado", () => {
+    const instante = new Date("2026-10-01T02:00:00.000Z");
+
+    expect(formatarDiaEmSaoPaulo(instante)).toBe(formatarDiaEmSaoPaulo(instante));
+    expect(instante.toISOString()).toBe("2026-10-01T02:00:00.000Z");
   });
 });

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { StatusAcesso } from "@prisma/client";
 import {
   acessoBloqueado,
+  acessoEfetivoAte,
   avaliarAcesso,
   diasRestantesDeCarencia,
   podePublicarCatalogo,
+  ultimoDiaDeAcessoEmSaoPaulo,
   type FatosDeAcesso,
 } from "./avaliar-acesso";
 
@@ -494,5 +496,193 @@ describe("diasRestantesDeCarencia", () => {
     expect(primeira).toBe(segunda);
     expect(carencia.toISOString()).toBe("2026-09-05T03:00:00.000Z");
     expect(agora.toISOString()).toBe(AGORA.toISOString());
+  });
+});
+
+describe("acessoEfetivoAte", () => {
+  it("devolve null para acesso vitalicio, mesmo com as duas datas preenchidas (D-03)", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: TRIAL_FIM,
+      canceladoEm: CANCELADO_EM,
+      acessoVitalicio: true,
+    });
+
+    expect(acessoEfetivoAte(fatos)).toBeNull();
+  });
+
+  it("devolve o MAIOR dos dois quando acessoAte é o maior (empresa em trial que já pagou)", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: TRIAL_FIM,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(ACESSO_ATE);
+  });
+
+  it("devolve o MAIOR dos dois quando trialFim é o maior (a inversa)", () => {
+    const fatos = comoFatos({
+      acessoAte: "2026-09-15T03:00:00.000Z",
+      trialFim: "2026-10-15T03:00:00.000Z",
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe("2026-10-15T03:00:00.000Z");
+  });
+
+  it("devolve o único preenchido quando só existe acessoAte", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: null,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(ACESSO_ATE);
+  });
+
+  it("devolve o único preenchido quando só existe trialFim", () => {
+    const fatos = comoFatos({
+      acessoAte: null,
+      trialFim: TRIAL_FIM,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(TRIAL_FIM);
+  });
+
+  it("devolve null sem nenhum fato com prazo", () => {
+    const fatos = comoFatos({
+      acessoAte: null,
+      trialFim: null,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)).toBeNull();
+  });
+
+  it("ignora canceladoEm: cancelar não encurta o acesso já pago (D-06)", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: null,
+      canceladoEm: CANCELADO_EM,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(ACESSO_ATE);
+  });
+
+  it("é pura: mesma entrada devolve o mesmo instante e não muta os fatos", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: TRIAL_FIM,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(
+      acessoEfetivoAte(fatos)?.toISOString()
+    );
+    expect(fatos.acessoAte?.toISOString()).toBe(ACESSO_ATE);
+    expect(fatos.trialFim?.toISOString()).toBe(TRIAL_FIM);
+  });
+
+  // Pitfall 2, o motivo de esta função existir. Sem ela, a tela mostraria a data
+  // do trial para quem já pagou um mês inteiro à frente.
+  it("Pitfall 2: empresa em TRIAL que já pagou — expiraEm é trialFim, acessoEfetivoAte é acessoAte", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE, // 2026-10-01
+      trialFim: TRIAL_FIM, // 2026-09-15
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+    // 10/09 — dentro do trial.
+    const agora = new Date("2026-09-10T12:00:00.000Z");
+
+    const resultado = avaliarAcesso(fatos, agora);
+
+    expect(resultado.status).toBe(StatusAcesso.TRIAL);
+    // O que `avaliarAcesso` devolve por força de D-05 — e que a UI NÃO deve exibir.
+    expect(resultado.expiraEm?.toISOString()).toBe(TRIAL_FIM);
+    // O que a UI deve exibir: o mês já pago não some da tela.
+    expect(acessoEfetivoAte(fatos)?.toISOString()).toBe(ACESSO_ATE);
+    expect(acessoEfetivoAte(fatos)?.toISOString()).not.toBe(
+      resultado.expiraEm?.toISOString()
+    );
+  });
+});
+
+describe("ultimoDiaDeAcessoEmSaoPaulo", () => {
+  it("devolve o ÚLTIMO DIA de acesso, não o limite superior exclusivo armazenado", () => {
+    const fatos = comoFatos({
+      acessoAte: "2026-10-15T03:00:00.000Z", // meia-noite de 15/10 em SP
+      trialFim: null,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBe("14/10/2026");
+  });
+
+  it("devolve null quando acessoEfetivoAte devolve null (vitalicio)", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: TRIAL_FIM,
+      canceladoEm: null,
+      acessoVitalicio: true,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBeNull();
+  });
+
+  it("devolve null quando não há nenhum fato com prazo", () => {
+    const fatos = comoFatos({
+      acessoAte: null,
+      trialFim: null,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBeNull();
+  });
+
+  it("usa a MAIOR das duas datas (Pitfall 2): trial que já pagou vê o dia do mês pago", () => {
+    const fatos = comoFatos({
+      acessoAte: "2026-10-15T03:00:00.000Z",
+      trialFim: "2026-09-15T03:00:00.000Z",
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBe("14/10/2026");
+  });
+
+  it("atravessa a virada de mês corretamente (limite em 01/10 ⇒ último dia 30/09)", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE, // 2026-10-01T03:00Z = meia-noite de 01/10 em SP
+      trialFim: null,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBe("30/09/2026");
+  });
+
+  it("é pura: mesma entrada devolve a mesma string e não muta os fatos", () => {
+    const fatos = comoFatos({
+      acessoAte: ACESSO_ATE,
+      trialFim: TRIAL_FIM,
+      canceladoEm: null,
+      acessoVitalicio: false,
+    });
+
+    expect(ultimoDiaDeAcessoEmSaoPaulo(fatos)).toBe(ultimoDiaDeAcessoEmSaoPaulo(fatos));
+    expect(fatos.acessoAte?.toISOString()).toBe(ACESSO_ATE);
+    expect(fatos.trialFim?.toISOString()).toBe(TRIAL_FIM);
   });
 });
