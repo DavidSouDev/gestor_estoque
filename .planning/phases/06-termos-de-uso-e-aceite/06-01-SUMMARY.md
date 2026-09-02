@@ -172,6 +172,16 @@ Nenhuma configuracao de servico externo. Nota operacional: qualquer ambiente ja 
 - Ponto de atencao para o plano 06-08: os greps do `gates:fase-06` precisam descartar linhas de comentario antes de contar (decisao `[04-09]`), porque os cabecalhos normativos das migrations e os JSDoc do schema citam literalmente `ON CONFLICT`, `onDelete: Restrict` e `SUPERADMIN`.
 - Ponto de atencao operacional: nunca editar uma migration ja aplicada, nem para corrigir comentario — o checksum invalida e o Prisma passa a exigir reset do banco de dev.
 
+## Self-Check: PASSED
+
+Arquivos declarados, todos presentes em disco: `prisma/schema.prisma`,
+`prisma/migrations/20260902120000_add_superadmin_role/migration.sql`,
+`prisma/migrations/20260902120100_add_termos_de_uso/migration.sql`,
+`prisma/migrations/20260902120200_seed_termo_v1/migration.sql`,
+`tests/setup/prisma-mock.ts`, `.planning/phases/06-termos-de-uso-e-aceite/06-01-SUMMARY.md`.
+
+Commits declarados, todos presentes no historico da branch: `c662f2d`, `5fae81b`, `ef9f90d`.
+
 ---
 *Phase: 06-termos-de-uso-e-aceite*
 *Completed: 2026-09-02*
