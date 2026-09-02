@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-09-02T18:10:54.939Z"
-last_activity: 2026-09-02 -- Phase 07 execution started
+status: blocked
+stopped_at: Phase 7 Plan 08 checkpoint deferred (Postgres port conflict)
+last_updated: "2026-09-02T19:52:00.000Z"
+last_activity: 2026-09-02 -- Phase 07 code-complete (07-01..07-07 merged); 07-08 human-verify checkpoint deferred by operator
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 48
-  completed_plans: 40
-  percent: 83
+  completed_plans: 47
+  percent: 98
 ---
 
 # Project State
@@ -25,10 +25,20 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 ## Current Position
 
-Phase: 07 (gest-o-de-assinatura) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 07
-Last activity: 2026-09-02 -- Phase 07 execution started
+Phase: 07 (gest-o-de-assinatura) — BLOCKED
+Plan: 8 of 8 (07-01..07-07 completo e mergeado; 07-08 aguardando checkpoint humano)
+Status: Código-completo, validação final adiada
+Last activity: 2026-09-02 -- 07-08 checkpoint (cancelamento real no Asaas Sandbox) apresentado e adiado por decisão do operador
+
+**Checkpoint ADIADO (não fechado):** `07-08-PLAN.md` Task 1 — cancelamento real contra o Asaas Sandbox,
+única prova de que cancelar não apaga o período já pago (A3, "Alto se errado" no Assumptions Log). O
+operador está usando a porta 5432 para outro projeto (`bling_nf_checker-postgres-1`) agora e pediu para
+pular a verificação por ora ("estou rodando outro projeto, pula o teste por agora"). Nenhum passo do
+roteiro de 9 itens foi executado; nenhum número foi inventado ou transcrito. `07-VALIDATION.md` fica com
+`status: blocked`, não `approved`. Retomar quando o Postgres do `gestor_estoque` estiver acessível — ver
+`07-08-SUMMARY.md` § User Setup Required para os passos exatos.
+Estado do repo nas Waves 1-5 (07-01..07-07): `gates:fase-07` 6/6, `npm test` 1153/1153, `tsc` 0, `lint` 0
+erros. `npm run test:e2e` não roda neste ambiente (mesmo conflito de Postgres).
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -198,7 +208,7 @@ None yet.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 - ⚠️ [Phase 06] Revisão de segurança da fase (`/gsd-secure-phase 06`) não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7. Code review advisório já apontou 2 warnings não-bloqueantes (stale-slug em `aceitar-termos`, senha do seed do SUPERADMIN via CLI arg) — ver `06-REVIEW.md`
 - ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder `[TEXTO PROVISORIO - ...]` — publicar a versão real via `POST /api/termos` antes do deploy em produção (item de UAT confirmado como pendente de ação, não de código)
-- ⚠️ [Phase 07] `07-07`: o e2e `e2e/cancelamento-de-assinatura.spec.ts` (4 casos, `playwright test --list` confirma) NÃO foi executado contra Postgres real — a porta 5432 local está ocupada pelo Postgres de outro projeto (`bling_nf_checker-postgres-1`) e as credenciais do `.env` do gestor_estoque falham autenticação nele (`AuthenticationFailed` para o usuário `gestor`). Gates estáticos (6/6) e `npm test` (1153/1153) verdes; falta apenas a corrida real. Decisão do usuário: seguir para a Wave 6 sem bloquear, pendência fica registrada para rodar quando o Postgres correto do projeto estiver acessível — `npx playwright test e2e/cancelamento-de-assinatura.spec.ts`
+- ⚠️ [Phase 07] BLOQUEANTE para fechar a fase — checkpoint `07-08` Task 1 (cancelamento real no Asaas Sandbox, prova de A3) ADIADO por decisão explícita do operador em 2026-09-02: a porta 5432 local está ocupada pelo Postgres de outro projeto (`bling_nf_checker-postgres-1`) e as credenciais do `.env` do gestor_estoque falham autenticação nele. Isso também impede `npm run test:e2e` (`e2e/cancelamento-de-assinatura.spec.ts`, 4 casos, `playwright test --list` confirma) de rodar contra Postgres real desde o `07-07`. Código 100% verde (6/6 gates, 1153/1153 testes, tsc/lint limpos); falta só a verificação humana. Retomar via `07-08-PLAN.md` Task 1 quando o Postgres do projeto estiver acessível — ver `07-08-SUMMARY.md` e `07-VALIDATION.md` (`status: blocked`)
 
 ## Deferred Items
 
@@ -210,6 +220,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-02T16:28:54.637Z
-Stopped at: Phase 7 UI-SPEC approved
-Resume file: .planning/phases/07-gest-o-de-assinatura/07-UI-SPEC.md
+Last session: 2026-09-02T19:52:00.000Z
+Stopped at: Phase 7 código-completo (07-01..07-07 mergeados); 07-08 checkpoint humano adiado
+Resume file: .planning/phases/07-gest-o-de-assinatura/07-08-PLAN.md (Task 1 — roteiro de 9 passos preservado)
