@@ -135,6 +135,14 @@ const empresaPublicaBase = {
   accentColor: "#f59e0b",
 };
 
+/**
+ * O `id` do termo vigente devolvido pelo stub default de
+ * `prismaMock.termoDeUso.findFirst` (tests/setup/prisma-mock.ts). Toda chamada de
+ * `registerComUsuario` precisa mandar exatamente este valor em `termoAceitoId`:
+ * a guarda de TOCTOU compara por IGUALDADE contra o vigente do servidor.
+ */
+const TERMO_VIGENTE_ID = "termo-1";
+
 const usuarioBase = {
   id: "usuario-1",
   nome: "Responsável",
@@ -185,6 +193,7 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith("senha-plana", 10);
@@ -207,6 +216,10 @@ describe("empresaService.registerComUsuario", () => {
           email: "responsavel@teste.com",
           senhaHash: "hashed:senha-plana",
           empresaId: empresaBase.id,
+          // TERM-01: o usuário nasce com o bookkeeping de aceite já preenchido —
+          // é por isso que `registrarAceite` (que faria um `usuario.update`
+          // separado, fora desta transação) não é chamado daqui.
+          termoAceitoId: TERMO_VIGENTE_ID,
         },
       });
 
@@ -233,6 +246,7 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       });
 
       expect(prismaMock.empresa.create).toHaveBeenCalledWith({
@@ -283,6 +297,7 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       });
 
       // 31/08 é o dia 0 → +15 dias = 15/09 → meia-noite SP = 15/09 03:00 UTC.
@@ -312,6 +327,7 @@ describe("empresaService.registerComUsuario", () => {
       email: "responsavel@teste.com",
       senha: "senha-plana",
       modoInterface: ModoInterface.COMPLETO,
+      termoAceitoId: TERMO_VIGENTE_ID,
     });
 
     expect(prismaMock.empresa.create).toHaveBeenCalledWith(
@@ -332,6 +348,7 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       })
     ).rejects.toMatchObject({
       message: "Este email já está em uso.",
@@ -359,6 +376,7 @@ describe("empresaService.registerComUsuario", () => {
           email: "responsavel@teste.com",
           senha: "senha-plana",
           modoInterface: ModoInterface.COMPLETO,
+          termoAceitoId: TERMO_VIGENTE_ID,
         })
       ).rejects.toMatchObject({
         message: "Este email já está em uso.",
@@ -386,6 +404,7 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       })
     ).rejects.toMatchObject({
       message: "Não foi possível gerar um identificador único para a empresa. Tente novamente.",
@@ -405,8 +424,197 @@ describe("empresaService.registerComUsuario", () => {
         email: "responsavel@teste.com",
         senha: "senha-plana",
         modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
       })
     ).rejects.toThrow("Falha de conexão");
+  });
+});
+
+/**
+ * TERM-01. A metade servidor do aceite no cadastro.
+ *
+ * Os dois casos de recusa afirmam `prismaMock.$transaction` **não chamado**, e
+ * essa é a asserção que importa: provar que a recusa acontece ANTES de qualquer
+ * escrita, não dentro dela. Um `expect(...).rejects` sozinho passaria mesmo se a
+ * guarda estivesse dentro da transação.
+ */
+describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", () => {
+  it("grava o AceiteTermo como quarta escrita da MESMA transação que cria a conta", async () => {
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+    prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+    prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+    prismaMock.aceiteTermo.create.mockResolvedValue({} as never);
+
+    await empresaService.registerComUsuario({
+      nomeEmpresa: "Minha Loja",
+      nomeResponsavel: "Responsável",
+      email: "responsavel@teste.com",
+      senha: "senha-plana",
+      modoInterface: ModoInterface.COMPLETO,
+      termoAceitoId: TERMO_VIGENTE_ID,
+    });
+
+    // Asserção EXATA: o fato carrega só o par (usuário, versão). Nada de
+    // snapshot do texto nem de data redundante — `AceiteTermo.aceitoEm` é
+    // default do banco.
+    expect(prismaMock.aceiteTermo.create).toHaveBeenCalledWith({
+      data: {
+        usuarioId: usuarioBase.id,
+        termoId: TERMO_VIGENTE_ID,
+      },
+    });
+
+    // Uma transação só: o mock repassa o próprio prismaMock como `tx`, então a
+    // única prova possível aqui é que não houve uma SEGUNDA transação para o
+    // aceite (que é exatamente o que `termoService.registrarAceite` faria).
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("lê o termo vigente ANTES de abrir a transação", async () => {
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+    prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+    prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+    prismaMock.aceiteTermo.create.mockResolvedValue({} as never);
+
+    await empresaService.registerComUsuario({
+      nomeEmpresa: "Minha Loja",
+      nomeResponsavel: "Responsável",
+      email: "responsavel@teste.com",
+      senha: "senha-plana",
+      modoInterface: ModoInterface.COMPLETO,
+      termoAceitoId: TERMO_VIGENTE_ID,
+    });
+
+    // Disciplina de pool: I/O de leitura fora da transação interativa, como
+    // `generateUniqueSlug` e `bcrypt.hash` já fazem. Se a leitura migrar para
+    // dentro do callback, esta ordem se inverte e o caso fica vermelho.
+    const leituraDoTermo = prismaMock.termoDeUso.findFirst.mock.invocationCallOrder[0];
+    const aberturaDaTransacao = prismaMock.$transaction.mock.invocationCallOrder[0];
+
+    expect(leituraDoTermo).toBeLessThan(aberturaDaTransacao);
+  });
+
+  it("recusa o cadastro com 503 quando não há nenhum termo publicado, sem abrir transação", async () => {
+    // Fail-closed DELIBERADO, e o oposto do gate de TERM-04 (que falha ABERTO).
+    // Inalcançável em qualquer ambiente que rodou a migration de seed da v1.
+    prismaMock.termoDeUso.findFirst.mockResolvedValue(null);
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+
+    await expect(
+      empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
+      })
+    ).rejects.toMatchObject({
+      // Copy E4 da UI-SPEC, literal: genérica de propósito — a causa real
+      // ("nenhum termo publicado") não vaza para o cliente.
+      message: "Não foi possível abrir o cadastro agora. Tente novamente em alguns instantes.",
+      status: 503,
+    });
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.create).not.toHaveBeenCalled();
+    expect(prismaMock.aceiteTermo.create).not.toHaveBeenCalled();
+  });
+
+  it("recusa o cadastro com 409 quando o termoAceitoId recebido diverge do vigente, sem abrir transação", async () => {
+    // Pitfall 4 (TOCTOU): o usuário leu a v3 e o SUPERADMIN publicou a v4
+    // enquanto ele preenchia o formulário.
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+
+    await expect(
+      empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: "termo-antigo",
+      })
+    ).rejects.toMatchObject({
+      // Copy E2 da UI-SPEC, literal.
+      message:
+        "Os termos foram atualizados. Leia a nova versão e aceite novamente para criar sua conta.",
+      status: 409,
+    });
+
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.empresa.create).not.toHaveBeenCalled();
+    expect(prismaMock.aceiteTermo.create).not.toHaveBeenCalled();
+  });
+
+  it("grava sempre o id do termo vigente do servidor, nunca um valor derivado do cliente", async () => {
+    // O `termoAceitoId` do DTO é dado controlado pelo cliente: ele serve para a
+    // comparação de igualdade e para mais nada. Quando um termo NOVO é o
+    // vigente, é o id dele que vai para o banco — e um DTO que carregue o id
+    // antigo é recusado pelo caso acima, nunca gravado.
+    prismaMock.termoDeUso.findFirst.mockResolvedValue({
+      id: "termo-2",
+      versao: 2,
+      conteudo: "Termos v2.",
+      publicadoEm: new Date("2026-02-01T03:00:00.000Z"),
+    } as never);
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+    prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+    prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+    prismaMock.aceiteTermo.create.mockResolvedValue({} as never);
+
+    await empresaService.registerComUsuario({
+      nomeEmpresa: "Minha Loja",
+      nomeResponsavel: "Responsável",
+      email: "responsavel@teste.com",
+      senha: "senha-plana",
+      modoInterface: ModoInterface.COMPLETO,
+      termoAceitoId: "termo-2",
+    });
+
+    expect(prismaMock.aceiteTermo.create).toHaveBeenCalledWith({
+      data: { usuarioId: usuarioBase.id, termoId: "termo-2" },
+    });
+    expect(prismaMock.usuario.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ termoAceitoId: "termo-2" }),
+      })
+    );
+  });
+
+  it("não deixa aceite órfão quando a transação de registro aborta por email duplicado", async () => {
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+    prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+    prismaMock.usuario.create.mockRejectedValue(makeP2002(["email"]));
+    prismaMock.aceiteTermo.create.mockResolvedValue({} as never);
+
+    await expect(
+      empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
+      })
+    ).rejects.toMatchObject({
+      message: "Este email já está em uso.",
+      status: 409,
+    });
+
+    // O aceite é a QUARTA escrita: um registro que aborta no usuário nunca
+    // chega a ela. No banco real, mesmo se tivesse sido escrita, o rollback a
+    // levaria junto — é essa a razão de ela morar na mesma transação.
+    expect(prismaMock.aceiteTermo.create).not.toHaveBeenCalled();
   });
 });
 
