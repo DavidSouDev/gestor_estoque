@@ -6,13 +6,20 @@ import { expect } from "@playwright/test";
 
 const RAIZ = path.resolve(__dirname, "..");
 
-/** Os seis status que `scripts/seed-fatos-billing.ts` aceita em `--status`. */
+/** Os sete status que `scripts/seed-fatos-billing.ts` aceita em `--status`. */
 export type StatusSeed =
   | "trial"
   | "em-dia"
   | "carencia"
   | "bloqueado"
   | "cancelado"
+  /**
+   * Cancelou E o período pago ainda está vigente (D-06): `canceladoEm`
+   * preenchido com `acessoAte` no FUTURO, derivando `EM_DIA`. É o outro lado do
+   * `cancelado` acima, que cobre o cancelamento já expirado — e o único estado
+   * em que a tela de assinatura renderiza "Cancelada" com data residual.
+   */
+  | "cancelado-vigente"
   | "vitalicio";
 
 /**

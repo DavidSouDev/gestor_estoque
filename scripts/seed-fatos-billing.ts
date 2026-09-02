@@ -1,5 +1,5 @@
 /**
- * Coloca uma empresa de teste em qualquer um dos seis status de acesso,
+ * Coloca uma empresa de teste em qualquer um dos sete status de acesso,
  * escrevendo os 4 fatos de billing (BILL-01) direto no banco.
  *
  * Rodar com `npm run seed:billing -- --slug <slug> --status <status>`.
@@ -39,6 +39,10 @@ const STATUS_ACEITOS = [
   "carencia",
   "bloqueado",
   "cancelado",
+  // ADITIVO (plano 07-07). `cancelado` acima cobre o cancelamento JÁ EXPIRADO e
+  // NÃO pode ser alterado — a suíte inteira depende do comportamento dele. Este
+  // aqui é o outro lado de D-06: cancelou e o período pago ainda está vigente.
+  "cancelado-vigente",
   "vitalicio",
 ] as const;
 
@@ -47,10 +51,15 @@ type StatusPedido = (typeof STATUS_ACEITOS)[number];
 /**
  * Ponte entre o vocabulário da linha de comando e o enum do banco.
  *
- * O tipo `Record` não é decoração: ele obriga este mapa a cobrir os seis valores
- * aceitos, então um sétimo status entrando no enum vira erro de compilação AQUI,
+ * O tipo `Record` não é decoração: ele obriga este mapa a cobrir os sete valores
+ * aceitos, então um oitavo status entrando no enum vira erro de compilação AQUI,
  * em vez de virar um `undefined` gravado no banco em tempo de execução. É o mesmo
  * mecanismo — e o mesmo motivo — da tabela `BLOQUEIA` de `lib/avaliar-acesso.ts`.
+ *
+ * O valor deste mapa é o status que `avaliarAcesso` DERIVA dos fatos daquele
+ * vocabulário, e não o nome da linha de comando: por isso `cancelado-vigente`
+ * aponta para `EM_DIA` (D-06 — cancelar não encurta o período já pago). Um
+ * `--auditado cancelado-vigente` está pedindo "alinhe a auditoria em EM_DIA".
  */
 const STATUS_ENUM: Record<StatusPedido, StatusAcesso> = {
   trial: StatusAcesso.TRIAL,
@@ -58,6 +67,7 @@ const STATUS_ENUM: Record<StatusPedido, StatusAcesso> = {
   carencia: StatusAcesso.CARENCIA,
   bloqueado: StatusAcesso.BLOQUEADO,
   cancelado: StatusAcesso.CANCELADO,
+  "cancelado-vigente": StatusAcesso.EM_DIA,
   vitalicio: StatusAcesso.VITALICIO,
 };
 
@@ -120,6 +130,24 @@ function fatosPara(status: StatusPedido, agora: Date): FatosDeAcesso {
         ...vazio,
         acessoAte: meiaNoiteEmSaoPaulo(agora, -30),
         canceladoEm: new Date(agora.getTime() - 30 * UM_DIA_EM_MS),
+      };
+
+    // O OUTRO lado de D-06, e o único estado em que a tela de assinatura
+    // renderiza "Cancelada" com data residual: o usuário cancelou (a data está
+    // gravada) e o período que ele já pagou continua vigente. `avaliarAcesso`
+    // devolve EM_DIA — `canceladoEm` não é sequer consultado enquanto
+    // `agora < acessoAte` (lib/avaliar-acesso.ts:76) —, então a empresa mantém
+    // admin e catálogo até a data que a tela mostra.
+    //
+    // `trialFim` fica nulo de propósito: com ele preenchido, o trial de uma
+    // empresa recém-registrada poderia vencer DEPOIS de `acessoAte` e
+    // `ultimoDiaDeAcessoEmSaoPaulo` passaria a exibir a data do trial, tornando
+    // a asserção da fixture dependente do instante do registro.
+    case "cancelado-vigente":
+      return {
+        ...vazio,
+        acessoAte: meiaNoiteEmSaoPaulo(agora, 31),
+        canceladoEm: new Date(agora.getTime() - UM_DIA_EM_MS),
       };
 
     // D-03: precedência absoluta. Os outros três fatos ficam vazios de
@@ -227,6 +255,18 @@ async function principal(): Promise<void> {
     // inventar um status próprio.
     if (derivado.status === StatusAcesso.BLOQUEADO && status === "cancelado") {
       erro("os fatos de `cancelado` derivaram BLOQUEADO — canceladoEm não foi gravado.");
+    }
+
+    // Mesma rede de segurança para o status novo, e ela é o inverso da de cima:
+    // aqui o erro seria montar fatos JÁ EXPIRADOS e produzir uma empresa
+    // bloqueada onde o e2e espera uma empresa em dia com cancelamento pendente —
+    // a tela de assinatura sequer seria alcançável (`requireAdminSession` manda
+    // para `/bloqueado`), e o caso passaria a testar outra coisa em silêncio.
+    if (derivado.status !== StatusAcesso.EM_DIA && status === "cancelado-vigente") {
+      erro(
+        `os fatos de \`cancelado-vigente\` derivaram ${derivado.status} em vez de EM_DIA — ` +
+          "a empresa não tem período pago vigente e a tela de assinatura não será alcançável."
+      );
     }
   } catch (falha) {
     if (falha instanceof Prisma.PrismaClientKnownRequestError && falha.code === "P2025") {
