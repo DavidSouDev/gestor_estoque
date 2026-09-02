@@ -224,7 +224,7 @@ Plans:
   3. Versões anteriores dos termos permanecem íntegras e cada aceite fica registrado contra a versão específica que o usuário viu, com data/hora
   4. Um usuário cujo último aceite é anterior à versão vigente encontra um modal obrigatório ao logar no admin e não consegue usar o sistema até aceitar — mas consegue sair/deslogar sem ficar preso em um loop
 
-**Plans:** 2/8 plans executed
+**Plans:** 5/8 plans executed
 
 Plans:
 **Wave 1**
@@ -237,9 +237,9 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 — os três rodam em paralelo)*
 
-- [ ] 06-03-PLAN.md — `POST /api/termos` autorizado pela role fresca do banco + `scripts/seed-superadmin.ts` (TERM-02)
-- [ ] 06-04-PLAN.md — `ContaAtiva.termosPendentes` e o gate nas duas superfícies: redirect em `requireAdminSession`, 403 em `requireAuth` (TERM-04)
-- [ ] 06-06-PLAN.md — Registro atômico: aceite gravado na mesma transação de Empresa+Usuario, e validação server-side do checkbox (TERM-01)
+- [x] 06-03-PLAN.md — `POST /api/termos` autorizado pela role fresca do banco + `scripts/seed-superadmin.ts` (TERM-02)
+- [x] 06-04-PLAN.md — `ContaAtiva.termosPendentes` e o gate nas duas superfícies: redirect em `requireAdminSession`, 403 em `requireAuth` (TERM-04)
+- [x] 06-06-PLAN.md — Registro atômico: aceite gravado na mesma transação de Empresa+Usuario, e validação server-side do checkbox (TERM-01)
 
 **Wave 4** *(os dois rodam em paralelo)*
 
@@ -281,7 +281,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
-| 6. Termos de Uso e Aceite | 2/8 | In Progress|  |
+| 6. Termos de Uso e Aceite | 5/8 | In Progress|  |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
 ## Requirement Coverage
