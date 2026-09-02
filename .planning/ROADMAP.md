@@ -224,7 +224,32 @@ Plans:
   3. Versões anteriores dos termos permanecem íntegras e cada aceite fica registrado contra a versão específica que o usuário viu, com data/hora
   4. Um usuário cujo último aceite é anterior à versão vigente encontra um modal obrigatório ao logar no admin e não consegue usar o sistema até aceitar — mas consegue sair/deslogar sem ficar preso em um loop
 
-**Plans**: TBD
+**Plans:** 8 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Schema (enum SUPERADMIN, TermoDeUso, AceiteTermo, Usuario.termoAceitoId), 3 migrations com a v1 semeada, e o stub neutro do prisma-mock (TERM-01, TERM-02, TERM-03)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 06-02-PLAN.md — `lib/termo-vigente.ts` e `termo.service.ts`: publicar (INSERT sempre) e registrar aceite (transação idempotente) (TERM-02, TERM-03)
+
+**Wave 3** *(blocked on Wave 2 — os três rodam em paralelo)*
+
+- [ ] 06-03-PLAN.md — `POST /api/termos` autorizado pela role fresca do banco + `scripts/seed-superadmin.ts` (TERM-02)
+- [ ] 06-04-PLAN.md — `ContaAtiva.termosPendentes` e o gate nas duas superfícies: redirect em `requireAdminSession`, 403 em `requireAuth` (TERM-04)
+- [ ] 06-06-PLAN.md — Registro atômico: aceite gravado na mesma transação de Empresa+Usuario, e validação server-side do checkbox (TERM-01)
+
+**Wave 4** *(os dois rodam em paralelo)*
+
+- [ ] 06-05-PLAN.md — Tela `/{slug}/admin/aceitar-termos` fora do grupo `(protected)`, com Server Action auto-autorizada e guarda simétrica (TERM-04)
+- [ ] 06-07-PLAN.md — UI do registro (`<details>` + checkbox obrigatório + estado degradado) e atualização dos 9 specs e2e (TERM-01)
+
+**Wave 5**
+
+- [ ] 06-08-PLAN.md — e2e do gate fim a fim, `npm run gates:fase-06` e fechamento de `06-VALIDATION.md` (TERM-01 … TERM-04)
+
 **UI hint**: yes
 
 ### Phase 7: Gestão de Assinatura
@@ -256,7 +281,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
-| 6. Termos de Uso e Aceite | 0/TBD | Not started | - |
+| 6. Termos de Uso e Aceite | 0/8 | Planned | - |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
 ## Requirement Coverage
