@@ -155,6 +155,30 @@ None — no external service configuration required.
 - O spec e2e de cancelamento (outro plano) pode ancorar em `getByTitle("Assinatura")` para SIMPLES e no link de nome acessivel "Assinatura" para COMPLETO.
 - Nenhum bloqueador.
 
+## TDD Gate Compliance
+
+Ambas as tasks tem `tdd="true"` e as duas sequencias de gate estao completas e na ordem correta no historico:
+
+| Task | RED | GREEN | REFACTOR |
+|---|---|---|---|
+| 1 — PagarButton | `4b80e88` (test) | `20efa60` (feat) | nao necessario (edicao aditiva) |
+| 2 — entradas de nav | `33228fe` (test) | `ff0306d` (feat) | nao necessario (edicao aditiva) |
+
+Nenhum teste passou inesperadamente na fase RED: a Task 1 saiu 2 falhas / 8 passes e a Task 2 saiu 7 falhas / 8 passes, com os passes sendo exclusivamente os casos pre-existentes.
+
+## Self-Check: PASSED
+
+Arquivos declarados, todos presentes em disco:
+
+- `.planning/phases/07-gest-o-de-assinatura/07-03-SUMMARY.md`
+- `app/[slug]/admin/_components/pagar-button.tsx`
+- `app/[slug]/admin/(protected)/_components/admin-nav.tsx`
+- `app/[slug]/admin/(protected)/_components/simples/simples-top-bar.tsx`
+
+Commits declarados, todos presentes em `git log`: `4b80e88`, `20efa60`, `33228fe`, `ff0306d`, `8a6920f`.
+
+Working tree limpo apos o commit final; nenhum arquivo gerado ficou sem rastreio.
+
 ---
 *Phase: 07-gest-o-de-assinatura*
 *Plan: 03*
