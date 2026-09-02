@@ -50,14 +50,16 @@ updated: 2026-09-02
 | 07-04 | 07-04 | 2 | SUB-01 | D-02b | consultarAssinatura devolve origem: "indisponivel" em AsaasApiError | unit | `npx vitest run app/services/assinatura.service.test.ts` | ✅ | ✅ green |
 | 07-05 | 07-05 | 3 | SUB-02 | D-03 | modal exige 2 cliques e mostra a data antes de confirmar | component | `npx vitest run app/[slug]/admin/(protected)/assinatura/_components/cancelar-assinatura.test.tsx` | ✅ | ✅ green |
 | 07-03 | 07-03 | 1 | SUB-01/02 | — | link "Assinatura" aparece no nav e marca ativo na rota | component | `npx vitest run app/[slug]/admin/(protected)/_components/admin-nav.test.tsx` | ✅ | ✅ green |
-| 07-07 | 07-07 | 5 | SUB-02 | — | fluxo completo: ver status → cancelar → ver "ativo até {data}" | e2e | `npx playwright test e2e/cancelamento-de-assinatura.spec.ts` | ✅ (4 casos; `playwright test --list` confirma) | ⚠️ não executado contra Postgres real (ver § Verificações manuais) |
-| 07-07 | 07-07 | 5 | SUB-03 | — | empresa cancelada com período expirado é bloqueada no admin e tem catálogo despublicado | e2e | idem, caso "empresa cancelada e expirada perde o admin, a tela de assinatura e o catálogo" | ✅ | ⚠️ não executado contra Postgres real (ver § Verificações manuais) |
-| 07-05 / 07-07 | 07-05 / 07-07 | 3 / 5 | Segurança | Pitfall 11 / IDOR | empresa A não consegue ler/cancelar assinatura de B — a action não aceita id | unit + e2e | `actions.test.ts` (unit) + caso e2e "um tenant não alcança a assinatura de outro" | ✅ | unit ✅ green · e2e ⚠️ não executado (ver § Verificações manuais) |
+| 07-07 | 07-07 | 5 | SUB-02 | — | fluxo completo: ver status → cancelar → ver "ativo até {data}" | e2e | `npx playwright test e2e/cancelamento-de-assinatura.spec.ts` | ✅ (4 casos) | ✅ green — executado contra Postgres real em 2026-09-02 |
+| 07-07 | 07-07 | 5 | SUB-03 | — | empresa cancelada com período expirado é bloqueada no admin e tem catálogo despublicado | e2e | idem, caso "empresa cancelada e expirada perde o admin, a tela de assinatura e o catálogo" | ✅ | ✅ green — executado contra Postgres real em 2026-09-02 |
+| 07-05 / 07-07 | 07-05 / 07-07 | 3 / 5 | Segurança | Pitfall 11 / IDOR | empresa A não consegue ler/cancelar assinatura de B — a action não aceita id | unit + e2e | `actions.test.ts` (unit) + caso e2e "um tenant não alcança a assinatura de outro" | ✅ | ✅ green — executado contra Postgres real em 2026-09-02 |
 | 07-02 | 07-02 | 1 | D-01 | Pitfall 3 | poller para no teto e mostra o fallback; clearTimeout no unmount | component | `npx vitest run app/[slug]/admin/_components/poller-de-status.test.tsx` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky/não executado*
 
-**Corrida completa medida em 2026-09-02** (após a Wave 5, repo em `c91d16e`): `npm test` 1153/1153 (99 arquivos), `npx tsc --noEmit` 0, `npm run lint` 0 erros (3 warnings pré-existentes, um deles duplicado por um worktree GSD órfão da Fase 3 sendo varrido pelo ESLint), `npm run gates:fase-07` 6/6 OK. `npm run test:e2e` **não roda neste ambiente** — ver § Verificações manuais.
+**Corrida completa medida em 2026-09-02** (repo em `fdbcfcb`, Postgres do projeto liberado pelo operador): `npm test` 1153/1153 (99 arquivos), `npx tsc --noEmit` 0, `npm run lint` 0 erros (3 warnings pré-existentes), `npm run gates:fase-07` 6/6 OK, **`npm run test:e2e` 32/32 contra Postgres real** — incluindo os 4 casos novos de `e2e/cancelamento-de-assinatura.spec.ts`, zero regressão no restante da suíte. Isso fecha em definitivo a lacuna de execução real do plano `07-07`.
+
+O que este e2e NÃO prova: os 4 casos usam `scripts/seed-fatos-billing.ts` para gravar fatos de billing diretamente no banco (`cancelado-vigente`, `cancelado`, `bloqueado`) — nenhum deles chama o Asaas de verdade. A prova de que **cancelar contra o gateway real** preserva `acessoAte` (A3) continua exclusiva do checkpoint humano do `07-08`.
 
 ---
 

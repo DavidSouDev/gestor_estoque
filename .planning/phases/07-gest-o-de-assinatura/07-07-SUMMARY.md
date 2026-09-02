@@ -172,6 +172,12 @@ Três bloqueios independentes, todos do worktree isolado:
 
 **Ação necessária do orquestrador, após o merge da wave:** rodar `npm run test:e2e` (ou pelo menos `npx playwright test e2e/cancelamento-de-assinatura.spec.ts`) no repositório principal, onde o `.env` e o `node_modules` existem. Os 4 casos foram escritos a partir dos rótulos travados pelo plano 07-06 e das guardas lidas em `lib/session.ts`, mas **nenhum deles foi observado passando**. Se algum locator precisar de ajuste, é ajuste de locator — a lógica que eles medem está provada por `npm test` e pelos gates.
 
+**Atualização (2026-09-02, pós-merge):** executado no repositório principal, com o Postgres do
+projeto liberado pelo operador (estava temporariamente ocupado por outro projeto). `npx playwright test
+e2e/cancelamento-de-assinatura.spec.ts` — **4/4 passou**, e `npm run test:e2e` completo — **32/32
+passou**, zero regressão nos 28 casos pré-existentes. Nenhum locator precisou de ajuste. Esta lacuna
+está fechada; ver `07-VALIDATION.md` para o registro definitivo.
+
 ### `npx tsc --noEmit` num worktree novo
 
 `app/layout.tsx(20,50): error TS2304: Cannot find name 'LayoutProps'`. Não é regressão: `LayoutProps` é tipo global que o Next.js 16 gera em `.next/types`, gitignored. Resolvido com `npx next typegen` (que gera apenas artefatos em `.next/`; nenhum arquivo versionado tocado). Idêntica à já registrada em `07-01`, `07-02`, `07-04`, `07-05` e `07-06`.

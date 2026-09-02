@@ -31,14 +31,14 @@ Status: Código-completo, validação final adiada
 Last activity: 2026-09-02 -- 07-08 checkpoint (cancelamento real no Asaas Sandbox) apresentado e adiado por decisão do operador
 
 **Checkpoint ADIADO (não fechado):** `07-08-PLAN.md` Task 1 — cancelamento real contra o Asaas Sandbox,
-única prova de que cancelar não apaga o período já pago (A3, "Alto se errado" no Assumptions Log). O
-operador está usando a porta 5432 para outro projeto (`bling_nf_checker-postgres-1`) agora e pediu para
-pular a verificação por ora ("estou rodando outro projeto, pula o teste por agora"). Nenhum passo do
-roteiro de 9 itens foi executado; nenhum número foi inventado ou transcrito. `07-VALIDATION.md` fica com
-`status: blocked`, não `approved`. Retomar quando o Postgres do `gestor_estoque` estiver acessível — ver
-`07-08-SUMMARY.md` § User Setup Required para os passos exatos.
-Estado do repo nas Waves 1-5 (07-01..07-07): `gates:fase-07` 6/6, `npm test` 1153/1153, `tsc` 0, `lint` 0
-erros. `npm run test:e2e` não roda neste ambiente (mesmo conflito de Postgres).
+única prova de que cancelar não apaga o período já pago (A3, "Alto se errado" no Assumptions Log). Em
+2026-09-02 o operador liberou o Postgres do projeto (estava ocupado por outro projeto,
+`bling_nf_checker-postgres-1`) e a suíte e2e completa passou a rodar de verdade — mas o próprio
+checkpoint humano (login real, cancelamento real, painel do Asaas Sandbox) segue não executado; nenhum
+passo do roteiro de 9 itens foi rodado, nenhum número foi inventado ou transcrito. `07-VALIDATION.md`
+fica com `status: blocked`, não `approved`. Retomar via `07-08-PLAN.md` Task 1.
+Estado do repo (07-01..07-07): `gates:fase-07` 6/6, `npm test` 1153/1153, `npm run test:e2e` **32/32
+contra Postgres real** (incluindo os 4 casos novos), `tsc` 0, `lint` 0 erros.
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -208,7 +208,8 @@ None yet.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 - ⚠️ [Phase 06] Revisão de segurança da fase (`/gsd-secure-phase 06`) não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7. Code review advisório já apontou 2 warnings não-bloqueantes (stale-slug em `aceitar-termos`, senha do seed do SUPERADMIN via CLI arg) — ver `06-REVIEW.md`
 - ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder `[TEXTO PROVISORIO - ...]` — publicar a versão real via `POST /api/termos` antes do deploy em produção (item de UAT confirmado como pendente de ação, não de código)
-- ⚠️ [Phase 07] BLOQUEANTE para fechar a fase — checkpoint `07-08` Task 1 (cancelamento real no Asaas Sandbox, prova de A3) ADIADO por decisão explícita do operador em 2026-09-02: a porta 5432 local está ocupada pelo Postgres de outro projeto (`bling_nf_checker-postgres-1`) e as credenciais do `.env` do gestor_estoque falham autenticação nele. Isso também impede `npm run test:e2e` (`e2e/cancelamento-de-assinatura.spec.ts`, 4 casos, `playwright test --list` confirma) de rodar contra Postgres real desde o `07-07`. Código 100% verde (6/6 gates, 1153/1153 testes, tsc/lint limpos); falta só a verificação humana. Retomar via `07-08-PLAN.md` Task 1 quando o Postgres do projeto estiver acessível — ver `07-08-SUMMARY.md` e `07-VALIDATION.md` (`status: blocked`)
+- ~~[Phase 07] `npm run test:e2e` não rodava contra Postgres real (conflito de porta 5432 com outro projeto)~~ — RESOLVIDO em 2026-09-02: operador subiu o Postgres do `gestor_estoque`; e2e completo 32/32 real, incluindo os 4 casos de `e2e/cancelamento-de-assinatura.spec.ts`, zero regressão
+- ⚠️ [Phase 07] BLOQUEANTE para fechar a fase — checkpoint `07-08` Task 1 (cancelamento real no Asaas Sandbox, prova de A3) segue ADIADO. O e2e local prova o contrato via fatos de billing seedados diretamente no banco, nunca via Asaas real — só o checkpoint humano prova que cancelar contra o gateway de verdade preserva `acessoAte`. Código 100% verde (6/6 gates, 1153/1153 testes unitários, 32/32 e2e, tsc/lint limpos); falta só a verificação humana com login real e conta Asaas Sandbox. Retomar via `07-08-PLAN.md` Task 1 — ver `07-08-SUMMARY.md` e `07-VALIDATION.md` (`status: blocked`)
 
 ## Deferred Items
 
