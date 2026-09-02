@@ -8,6 +8,7 @@ import { CausaTransicaoAcesso, ModoInterface, Prisma, StatusAcesso } from "@pris
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
 import { DIAS_DE_TRIAL } from "@/lib/avaliar-acesso";
 import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
+import { termoVigente } from "@/lib/termo-vigente";
 import bcrypt from "bcryptjs";
 
 export interface RegisterComUsuarioDTO {
@@ -16,6 +17,17 @@ export interface RegisterComUsuarioDTO {
   email: string;
   senha: string;
   modoInterface: ModoInterface;
+
+  /**
+   * TERM-01. O id da versão dos termos que o usuário VIU no formulário — não o
+   * que o servidor descobriria sozinho.
+   *
+   * Obrigatório, nunca opcional: o campo existe precisamente para que a
+   * comparação de TOCTOU seja possível (Pitfall 4). Torná-lo opcional
+   * devolveria ao chamador a opção de omitir o aceite, que é o que TERM-01
+   * proíbe.
+   */
+  termoAceitoId: string;
 }
 
 export interface CreateEmpresaDTO {
@@ -78,6 +90,62 @@ class EmpresaService {
   async registerComUsuario(data: RegisterComUsuarioDTO) {
     const slug = await generateUniqueSlug(data.nomeEmpresa);
     const senhaHash = await bcrypt.hash(data.senha, 10);
+    // I/O de LEITURA fora da transação interativa, junto das duas linhas acima:
+    // é a mesma disciplina de pool que o JSDoc de `aplicar()` em
+    // `app/api/cron/reconciliacao-diaria/route.ts` documenta.
+    const termo = await termoVigente();
+
+    // TERM-01 — o registro falha FECHADO, e o gate de TERM-04 (`lib/auth-guard.ts`
+    // / `lib/session.ts`) falha ABERTO com este MESMO `null`. A assimetria é
+    // deliberada, não uma incoerência a ser "harmonizada":
+    //
+    // - Aqui, a falha atinge UM cadastro, e criar conta sem aceite viola TERM-01
+    //   diretamente — não há desfecho seguro que não seja recusar.
+    // - Lá, gatear contra um documento inexistente derrubaria TODOS os tenants de
+    //   uma vez, e a recuperação dependeria de alguém conseguir logar para
+    //   publicar o termo.
+    //
+    // Os dois lados estão comentados de propósito (o outro está no ponto 2 do
+    // JSDoc de `lib/termo-vigente.ts`) para que ninguém "corrija" um deles para
+    // casar com o outro.
+    //
+    // Na prática esta guarda é INALCANÇÁVEL em qualquer ambiente que tenha rodado
+    // a migration de seed da v1 (plano 06-01) — inclusive a CI, que roda
+    // `prisma migrate deploy` e nada mais. Ela existe como backstop para um banco
+    // em estado inesperado, não como fluxo esperado.
+    //
+    // A mensagem é a copy E4 da UI-SPEC, genérica de propósito: a causa real
+    // ("nenhum termo publicado") é detalhe de servidor e não vaza para o cliente
+    // (CLAUDE.md § Error Handling).
+    if (!termo) {
+      console.error(
+        "[registro] nenhuma versão de Termos de Uso publicada — cadastro recusado (fail-closed, TERM-01)"
+      );
+
+      throw new HttpError(
+        "Não foi possível abrir o cadastro agora. Tente novamente em alguns instantes.",
+        503
+      );
+    }
+
+    // Pitfall 4 (TOCTOU). O usuário abre `/registro`, lê a v3, e enquanto preenche
+    // o formulário o SUPERADMIN publica a v4. Resolver "a vigente" no momento do
+    // submit gravaria um aceite da v4 contra alguém que leu a v3, destruindo a
+    // única propriedade que justifica a existência da tabela de aceites.
+    //
+    // `data.termoAceitoId` é dado CONTROLADO PELO CLIENTE: a checagem é
+    // IGUALDADE contra o vigente do servidor, nunca "usa o que veio" — e o valor
+    // gravado abaixo é sempre `termo.id`.
+    //
+    // Copy E2 da UI-SPEC, literal: a Server Action a devolve ao formulário sem
+    // reescrever, e a re-renderização mostra o texto novo (a UI-SPEC exige as
+    // duas metades juntas).
+    if (data.termoAceitoId !== termo.id) {
+      throw new HttpError(
+        "Os termos foram atualizados. Leia a nova versão e aceite novamente para criar sua conta.",
+        409
+      );
+    }
 
     // D-18: o dia do cadastro é o dia 0, e `meiaNoiteEmSaoPaulo` devolve o limite
     // SUPERIOR EXCLUSIVO do dia local. Por isso o deslocamento carrega um dia extra
@@ -110,6 +178,10 @@ class EmpresaService {
             email: data.email,
             senhaHash,
             empresaId: empresa.id,
+            // TERM-01: o bookkeeping de aceite nasce preenchido, o que torna o
+            // `usuario.update` de `termoService.registrarAceite` desnecessário
+            // aqui — ver o comentário da quarta escrita, abaixo.
+            termoAceitoId: termo.id,
           },
         });
 
@@ -130,6 +202,24 @@ class EmpresaService {
             statusAnterior: null,
             statusNovo: StatusAcesso.TRIAL,
             causa: CausaTransicaoAcesso.REGISTRO,
+          },
+        });
+
+        // TERM-01: o fato do aceite, quarta escrita da MESMA transação. Se o
+        // registro fizer rollback (ex.: P2002 de email duplicado), o aceite some
+        // junto e não fica fantasma na tabela de fatos — pelo mesmo argumento já
+        // escrito acima para a linha de auditoria.
+        //
+        // Escrita direta com `tx.` em vez de `termoService.registrarAceite`:
+        // aquele método opera sobre o `prisma` global, FORA desta transação (o
+        // aceite escapararia do rollback), e faz um `usuario.update` de
+        // bookkeeping que aqui é redundante — o `usuario.create` acima já nasce
+        // com `termoAceitoId` preenchido. É o mesmo raciocínio já registrado
+        // logo acima para `acessoService.registrarTransicao`.
+        await tx.aceiteTermo.create({
+          data: {
+            usuarioId: usuario.id,
+            termoId: termo.id,
           },
         });
 
