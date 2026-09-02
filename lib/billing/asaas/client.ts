@@ -1,5 +1,6 @@
 import { asaasApiKey, asaasApiUrl } from "./config";
 import type {
+  AsaasAssinaturaRemovida,
   AsaasCheckout,
   AsaasLista,
   AsaasPayment,
@@ -161,6 +162,29 @@ class AsaasClient {
 
   async buscarAssinatura(id: string): Promise<AsaasSubscription> {
     return chamar<AsaasSubscription>(`/subscriptions/${id}`);
+  }
+
+  /**
+   * Remove a assinatura recorrente no gateway (SUB-02, D-04).
+   *
+   * Fecha o ciclo que `criarCheckout` abre de propósito: lá o `endDate` é
+   * OMITIDO para que a assinatura fique aberta até o cancelamento. Este método é
+   * o único cancelamento que existe.
+   *
+   * **O endpoint NÃO é idempotente.** Remover uma assinatura já removida devolve
+   * 404, não 200 — a doc trata "não existe" e "não pertence à conta autenticada"
+   * como o mesmo erro. Este arquivo só traduz HTTP: o tratamento desse 404 (um
+   * duplo-clique não pode parecer falha ao usuário) mora em
+   * `assinaturaService.cancelar`, junto da ordem Asaas-primeiro-banco-depois.
+   *
+   * Efeito colateral no gateway: apaga também as cobranças `PENDING`/`OVERDUE`
+   * da recorrência; as **já pagas permanecem** — e é isso que preserva o
+   * `acessoAte` derivado do último pagamento, dando ao usuário o acesso residual
+   * que SUB-02 promete. (Premissa A3 do Assumptions Log; a confirmação contra o
+   * sandbox é o checkpoint do plano 07-08.)
+   */
+  async removerAssinatura(id: string): Promise<AsaasAssinaturaRemovida> {
+    return chamar<AsaasAssinaturaRemovida>(`/subscriptions/${id}`, { method: "DELETE" });
   }
 
   /** Webhooks já registrados na conta. Usado para tornar o registro idempotente. */
