@@ -1,8 +1,8 @@
 ---
 phase: 6
 slug: termos-de-uso-e-aceite
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-09-02
 ---
@@ -84,11 +84,11 @@ created: 2026-09-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies (verified by gsd-plan-checker across all 8 PLAN.md — task counts match automated-verify counts 1:1)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (06-01 Task 3 fixes `tests/setup/prisma-mock.ts`; remaining Wave 0 stub files created by their respective plans)
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-09-02 (gsd-plan-checker VERIFICATION PASSED)

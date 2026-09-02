@@ -1053,26 +1053,26 @@ Esta fase não é rename/refactor, mas **introduz estado novo em bancos que já 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **A tela de aceite deve mostrar o *diff* em relação à versão anterior?**
+   - RESOLVED: **não** nesta fase — texto puro não tem estrutura para diff legível, e diff de texto exigiria biblioteca nova (viola "zero pacotes"). Adotado pelo planner sem um task correspondente; registrado em `06-CONTEXT.md` §Deferred Ideas.
    - O que sabemos: D-09 pede o texto completo da versão vigente.
    - O que não está claro: se um usuário que já aceitou a v3 e vê a v4 deveria ver o que mudou.
-   - Recomendação: **não** nesta fase — texto puro não tem estrutura para diff legível, e diff de texto exigiria biblioteca nova (viola "zero pacotes"). Registrar como ideia diferida.
 
 2. **O SUPERADMIN precisa ver alguma tela de admin depois de logar?**
+   - RESOLVED: aceitar o painel vazio (funciona, não quebra nada), sem UI nova. Nenhum plano introduz uma home diferenciada por role — consistente com D-04.
    - O que sabemos: D-04 descartou UI de superadmin; D-01 diz que ele loga pelo fluxo normal.
    - O que não está claro: ele cairá no painel de admin da empresa interna, que estará vazio (zero produtos, zero combos).
-   - Recomendação: aceitar o painel vazio (funciona, não quebra nada) e documentar. A alternativa — uma home diferente por role — é UI de superadmin por outro nome, e D-04 a descartou.
 
 3. **Quem informa os clientes existentes de que verão uma tela de aceite nova?**
+   - RESOLVED: `06-08-PLAN.md` emite um `<human-check>` cobrindo exatamente este ponto antes do go-live em produção (formato `human_verify_mode: end-of-phase` deste projeto, em vez de `checkpoint:human-verify` inline).
    - O que sabemos: 100% dos usuários existentes entram no gate no próximo request (Runtime State Inventory).
-   - O que não está claro: se há comunicação prévia planejada.
-   - Recomendação: `checkpoint:human-verify` antes do deploy em produção. É comportamento correto, mas é uma mudança visível e não anunciada para todo cliente pagante.
+   - O que não está claro: se há comunicação prévia planejada — permanece uma decisão do operador, não do código.
 
 4. **A divergência `zod@4.4.3` vs `^4.5.4` deve ser resolvida nesta fase?**
+   - RESOLVED: **não** — nenhum plano depende de resolver a divergência (zod já é dependência instalada e funcional para os usos desta fase). Fica como item separado, fora do escopo da Fase 6, a ser investigado quando causar um problema real.
    - O que sabemos: pré-existe; `npm ls` sai com erro; o lockfile discorda da árvore instalada.
-   - Recomendação: rodar `npm ci` no início da fase para descobrir o que a CI realmente instala. Se a árvore limpa também divergir, é item separado — não deixar a fase inteira depender disso.
 
 ---
 
