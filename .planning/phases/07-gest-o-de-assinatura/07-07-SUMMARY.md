@@ -205,6 +205,15 @@ Nenhuma configuração de serviço externo é necessária para este plano. Conti
 
 **Não modificados (modo worktree):** `STATE.md`, `ROADMAP.md` e `REQUIREMENTS.md` — o orquestrador é o dono dessas escritas.
 
+## Self-Check: PASSED
+
+- `e2e/cancelamento-de-assinatura.spec.ts` — existe, 207 linhas (piso do plano: 90)
+- `scripts/gates-fase-07.mjs` — existe, 689 linhas (piso do plano: 150)
+- `package.json` — contém `gates:fase-07`; `git diff` contra a base traz **apenas** essa linha
+- `.planning/phases/07-gest-o-de-assinatura/07-07-SUMMARY.md` — existe
+- Commits `7356d6b`, `5970017` e `da53f38` presentes em `git log`; nenhuma deleção de arquivo em nenhum deles
+- `git status --short` vazio após todas as reversões de não-vacuidade
+
 ---
 *Phase: 07-gest-o-de-assinatura*
 *Completed: 2026-09-02*
