@@ -268,9 +268,9 @@ Plans:
 Plans:
 **Wave 1** *(os três rodam em paralelo — nenhum arquivo em comum)*
 
-- [ ] 07-01-PLAN.md — `acessoEfetivoAte` + `ultimoDiaDeAcessoEmSaoPaulo` (funções puras) e `asaasClient.removerAssinatura` (SUB-01, SUB-02)
-- [ ] 07-02-PLAN.md — Polling pós-checkout: `consultarStatusAcesso` sobre fatos locais, `PollerDeStatus` com backoff e teto, montado na tela de bloqueio (SUB-01)
-- [ ] 07-03-PLAN.md — `PagarButton` com `label`/`pendingLabel` e as duas entradas de navegação (`admin-nav` e `simples-top-bar`) (SUB-01, SUB-02)
+- [x] 07-01-PLAN.md — `acessoEfetivoAte` + `ultimoDiaDeAcessoEmSaoPaulo` (funções puras) e `asaasClient.removerAssinatura` (SUB-01, SUB-02)
+- [x] 07-02-PLAN.md — Polling pós-checkout: `consultarStatusAcesso` sobre fatos locais, `PollerDeStatus` com backoff e teto, montado na tela de bloqueio (SUB-01)
+- [x] 07-03-PLAN.md — `PagarButton` com `label`/`pendingLabel` e as duas entradas de navegação (`admin-nav` e `simples-top-bar`) (SUB-01, SUB-02)
 
 **Wave 2** *(blocked on 07-01)*
 
@@ -315,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 0/8 | Planned     | - |
+| 7. Gestão de Assinatura | 3/8 | In Progress|  |
 
 ## Requirement Coverage
 
