@@ -278,7 +278,7 @@ Plans:
 
 **Wave 3** *(blocked on 07-04)*
 
-- [ ] 07-05-PLAN.md — Server Action `cancelarAssinatura(slug)` sem parâmetro de id (D-05) e a view de confirmação de 2 cliques com a data exata (SUB-02)
+- [x] 07-05-PLAN.md — Server Action `cancelarAssinatura(slug)` sem parâmetro de id (D-05) e a view de confirmação de 2 cliques com a data exata (SUB-02)
 
 **Wave 4** *(blocked on 07-02, 07-03, 07-04, 07-05)*
 
@@ -315,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 4/8 | In Progress|  |
+| 7. Gestão de Assinatura | 5/8 | In Progress|  |
 
 ## Requirement Coverage
 
