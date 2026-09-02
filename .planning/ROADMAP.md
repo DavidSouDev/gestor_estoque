@@ -224,7 +224,7 @@ Plans:
   3. Versões anteriores dos termos permanecem íntegras e cada aceite fica registrado contra a versão específica que o usuário viu, com data/hora
   4. Um usuário cujo último aceite é anterior à versão vigente encontra um modal obrigatório ao logar no admin e não consegue usar o sistema até aceitar — mas consegue sair/deslogar sem ficar preso em um loop
 
-**Plans:** 1/8 plans executed
+**Plans:** 2/8 plans executed
 
 Plans:
 **Wave 1**
@@ -233,7 +233,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 06-02-PLAN.md — `lib/termo-vigente.ts` e `termo.service.ts`: publicar (INSERT sempre) e registrar aceite (transação idempotente) (TERM-02, TERM-03)
+- [x] 06-02-PLAN.md — `lib/termo-vigente.ts` e `termo.service.ts`: publicar (INSERT sempre) e registrar aceite (transação idempotente) (TERM-02, TERM-03)
 
 **Wave 3** *(blocked on Wave 2 — os três rodam em paralelo)*
 
@@ -281,7 +281,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
-| 6. Termos de Uso e Aceite | 1/8 | In Progress|  |
+| 6. Termos de Uso e Aceite | 2/8 | In Progress|  |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
 ## Requirement Coverage
