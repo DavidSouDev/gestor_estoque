@@ -20,10 +20,26 @@ const drenarEfeitos = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const TRIAL_FUTURO = new Date("2099-01-01T03:00:00.000Z");
 
+/**
+ * O termo publicado que o stub global de `tests/setup/prisma-mock.ts` devolve.
+ * Repetido aqui como constante para que os casos de termos comparem contra o
+ * MESMO `id` sem depender de o leitor abrir o arquivo de setup.
+ */
+const TERMO_VIGENTE = {
+  id: "termo-1",
+  versao: 1,
+  conteudo: "Termos de teste.",
+  publicadoEm: new Date("2026-01-01T03:00:00.000Z"),
+};
+
 const contaAtiva = {
   id: "user-1",
   email: "admin@teste.com",
   role: "ADMIN",
+  // Combinação NEUTRA de termos (plano 06-01): o ponteiro de último aceite da
+  // conta é o MESMO `id` do vigente, então `termosPendentes` é `false` e os
+  // casos que não são sobre termos continuam medindo só o que mediam antes.
+  termoAceitoId: TERMO_VIGENTE.id,
   empresaId: "empresa-1",
   empresa: {
     slug: "empresa-teste",
@@ -48,6 +64,7 @@ describe("revalidarConta", () => {
       statusAcesso: "TRIAL",
       acessoExpiraEm: TRIAL_FUTURO,
       carenciaAte: null,
+      termosPendentes: false,
     });
   });
 
@@ -190,5 +207,125 @@ describe("revalidarConta", () => {
     expect(consoleError.mock.calls[0][0]).toMatch(/^\[acesso\]/);
 
     consoleError.mockRestore();
+  });
+});
+
+describe("revalidarConta — termosPendentes (TERM-04)", () => {
+  /**
+   * Sobrescreve o stub global variando SÓ o que o caso mede: a role e o
+   * ponteiro de último aceite. Os fatos de billing continuam sendo os neutros
+   * (trial no futuro + mesmo status auditado) de propósito — uma empresa que
+   * caísse em BLOQUEADO mudaria `statusAcesso` e confundiria a leitura.
+   */
+  function stubComTermo(campos: { role?: string; termoAceitoId: string | null }) {
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      ...contaAtiva,
+      role: campos.role ?? "ADMIN",
+      termoAceitoId: campos.termoAceitoId,
+    } as never);
+  }
+
+  it("ADMIN que aceitou a versão vigente: não tem termos pendentes", async () => {
+    stubComTermo({ termoAceitoId: TERMO_VIGENTE.id });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(false);
+  });
+
+  it("ADMIN que nunca aceitou nada: tem termos pendentes", async () => {
+    stubComTermo({ termoAceitoId: null });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(true);
+  });
+
+  it("ADMIN que aceitou uma versão antiga: tem termos pendentes", async () => {
+    // A comparação é por `id`, nunca por `versao` nem por `publicadoEm`: o `id`
+    // é o único identificador estável do documento que a pessoa aceitou.
+    stubComTermo({ termoAceitoId: "termo-antigo" });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(true);
+  });
+
+  it("SUPERADMIN sem nenhum aceite: NÃO tem termos pendentes (D-03)", async () => {
+    // Mitigação de impasse, não conveniência (Pitfall 9): o SUPERADMIN é quem
+    // publica a versão vigente. Gateá-lo pela própria publicação trancaria a
+    // plataforma inteira, sem ninguém capaz de destravá-la.
+    stubComTermo({ role: "SUPERADMIN", termoAceitoId: null });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(false);
+  });
+
+  it("SUPERADMIN com aceite de versão antiga: continua sem termos pendentes", async () => {
+    stubComTermo({ role: "SUPERADMIN", termoAceitoId: "termo-antigo" });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(false);
+  });
+
+  it("banco sem nenhum termo publicado: não gateia ninguém (falha ABERTO)", async () => {
+    // Assimetria deliberada do RESEARCH: gatear contra um documento inexistente
+    // derrubaria TODOS os tenants de uma vez. O registro (06-06) faz o oposto
+    // com o mesmo `null`, e os dois lados estão comentados de propósito.
+    stubComTermo({ termoAceitoId: null });
+    prismaMock.termoDeUso.findFirst.mockResolvedValue(null as never);
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta?.termosPendentes).toBe(false);
+  });
+
+  it("erro na tabela de termos: devolve null (fail-closed, mesmo catch de D-01)", async () => {
+    // Consequência aceita (T-06-27): uma falha na tabela de termos derruba a
+    // SESSÃO inteira, não só o gate. O prefixo `[auth-guard]` no log é a
+    // ferramenta de distinguir "termos quebrados" de "conta revogada".
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    prismaMock.termoDeUso.findFirst.mockRejectedValue(
+      new Error("relation \"TermoDeUso\" does not exist") as never
+    );
+
+    await expect(revalidarConta("user-1", "empresa-1")).resolves.toBeNull();
+    expect(consoleError.mock.calls[0][0]).toMatch(/^\[auth-guard\]/);
+
+    consoleError.mockRestore();
+  });
+
+  it("seleciona termoAceitoId na raiz do select, sem include", async () => {
+    // A coluna é escalar e entra no `select` existente DE GRAÇA: nenhuma query
+    // nova por causa dela. `include` continua proibido no modelo Usuario (C-06).
+    prismaMock.usuario.findFirst.mockResolvedValue(contaAtiva as never);
+
+    await revalidarConta("user-1", "empresa-1");
+
+    const [args] = prismaMock.usuario.findFirst.mock.calls[0] as [
+      Record<string, unknown> & { select: Record<string, unknown> },
+    ];
+    expect(args.select.termoAceitoId).toBe(true);
+    expect(args).not.toHaveProperty("include");
+  });
+
+  it("os campos existentes de ContaAtiva continuam com os mesmos valores", async () => {
+    stubComTermo({ termoAceitoId: null });
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta).toEqual({
+      usuarioId: "user-1",
+      empresaId: "empresa-1",
+      empresaSlug: "empresa-teste",
+      email: "admin@teste.com",
+      role: "ADMIN",
+      statusAcesso: "TRIAL",
+      acessoExpiraEm: TRIAL_FUTURO,
+      carenciaAte: null,
+      termosPendentes: true,
+    });
   });
 });
