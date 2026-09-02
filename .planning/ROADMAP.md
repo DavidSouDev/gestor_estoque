@@ -286,7 +286,7 @@ Plans:
 
 **Wave 5** *(blocked on 07-06)*
 
-- [ ] 07-07-PLAN.md — e2e dos estados offline, bloqueio pós-cancelamento e isolamento + `npm run gates:fase-07` (SUB-01, SUB-02, SUB-03)
+- [x] 07-07-PLAN.md — e2e dos estados offline, bloqueio pós-cancelamento e isolamento + `npm run gates:fase-07` (SUB-01, SUB-02, SUB-03)
 
 **Wave 6** *(blocked on 07-07)*
 
@@ -315,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 6/8 | In Progress|  |
+| 7. Gestão de Assinatura | 7/8 | In Progress|  |
 
 ## Requirement Coverage
 

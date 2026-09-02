@@ -198,6 +198,7 @@ None yet.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 - ⚠️ [Phase 06] Revisão de segurança da fase (`/gsd-secure-phase 06`) não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7. Code review advisório já apontou 2 warnings não-bloqueantes (stale-slug em `aceitar-termos`, senha do seed do SUPERADMIN via CLI arg) — ver `06-REVIEW.md`
 - ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder `[TEXTO PROVISORIO - ...]` — publicar a versão real via `POST /api/termos` antes do deploy em produção (item de UAT confirmado como pendente de ação, não de código)
+- ⚠️ [Phase 07] `07-07`: o e2e `e2e/cancelamento-de-assinatura.spec.ts` (4 casos, `playwright test --list` confirma) NÃO foi executado contra Postgres real — a porta 5432 local está ocupada pelo Postgres de outro projeto (`bling_nf_checker-postgres-1`) e as credenciais do `.env` do gestor_estoque falham autenticação nele (`AuthenticationFailed` para o usuário `gestor`). Gates estáticos (6/6) e `npm test` (1153/1153) verdes; falta apenas a corrida real. Decisão do usuário: seguir para a Wave 6 sem bloquear, pendência fica registrada para rodar quando o Postgres correto do projeto estiver acessível — `npx playwright test e2e/cancelamento-de-assinatura.spec.ts`
 
 ## Deferred Items
 
