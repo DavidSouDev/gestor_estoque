@@ -1,5 +1,5 @@
 import { StatusAcesso } from "@prisma/client";
-import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
+import { formatarDiaEmSaoPaulo, meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
 
 /**
  * Carência única de 10 dias (D-04 e D-07): trial vencido e pagamento vencido
@@ -190,4 +190,74 @@ export function diasRestantesDeCarencia(carenciaAte: Date, agora: Date): number 
   }
 
   return Math.max(0, Math.round(dias));
+}
+
+/**
+ * SUB-01. A data em que o acesso REALMENTE termina se nada mais for pago: o
+ * MAIOR entre `trialFim` e `acessoAte`.
+ *
+ * Existe como segunda função — em vez de reusar `ResultadoAcesso.expiraEm` — por
+ * causa de D-05. Durante o trial, `avaliarAcesso` devolve `expiraEm = trialFim`
+ * mesmo quando `acessoAte` já está mais à frente, porque o trial vale até o fim
+ * para quem pagou durante ele. Consequência (Pitfall 2 de `07-RESEARCH.md`): uma
+ * empresa com `trialFim = 15/09` e `acessoAte = 15/10` que lesse `expiraEm`
+ * veria "ativo até 15/09" e acharia que perdeu o mês que já pagou. `expiraEm` é
+ * o campo certo para DECIDIR acesso; este é o campo certo para EXIBIR até quando
+ * o acesso vai.
+ *
+ * `acessoVitalicio` tem precedência absoluta e devolve `null` — mesma regra D-03
+ * da linha 56, "sem data de fim" e não "data de fim no passado".
+ *
+ * `canceladoEm` não é consultado: cancelar não encurta o período já pago (D-06).
+ *
+ * Função PURA e sem relógio: o resultado não depende de "agora" — a data de fim
+ * é um fato dos dados, não do instante em que se pergunta.
+ */
+export function acessoEfetivoAte(fatos: FatosDeAcesso): Date | null {
+  if (fatos.acessoVitalicio) {
+    return null;
+  }
+
+  const candidatos = [fatos.trialFim, fatos.acessoAte].filter(
+    (d): d is Date => d !== null
+  );
+
+  if (candidatos.length === 0) {
+    return null;
+  }
+
+  return new Date(Math.max(...candidatos.map((d) => d.getTime())));
+}
+
+/**
+ * SUB-01/SUB-02. O ÚLTIMO DIA de acesso em `dd/mm/aaaa` — a string que a tela de
+ * assinatura e o modal de cancelamento exibem. Único produtor dessa string; a UI
+ * nunca formata `acessoAte` por conta própria (mesma disciplina que o JSDoc de
+ * `diasRestantesDeCarencia` declara para "dias restantes").
+ *
+ * Evita duas metades de um mesmo erro, ambas invisíveis em code review:
+ *
+ * (a) `acessoAte` e `trialFim` são LIMITES SUPERIORES EXCLUSIVOS — a meia-noite
+ *     de São Paulo do dia SEGUINTE ao último dia de acesso. `avaliarAcesso`
+ *     compara `agora < fatos.acessoAte` (linha 76) e `acessoAteAposPagamento`,
+ *     em `lib/billing/asaas/datas.ts`, documenta-se como "o LIMITE SUPERIOR
+ *     EXCLUSIVO". Renderizar o valor cru diria "ativo até 15/10" num dia em que
+ *     o usuário já não tem nada.
+ * (b) Formatar sem `timeZone` desliza mais um dia de calendário em qualquer
+ *     servidor fora de São Paulo — por isso `formatarDiaEmSaoPaulo`, e não
+ *     `lib/format.ts:formatDate`.
+ *
+ * Subtrair 1 MILISSEGUNDO (e não um dia inteiro) é deliberado: o dia de
+ * calendário de São Paulo do instante `limite - 1ms` é sempre o último dia de
+ * acesso, inclusive se o limite algum dia não for exatamente meia-noite e
+ * inclusive atravessando mudança de offset.
+ */
+export function ultimoDiaDeAcessoEmSaoPaulo(fatos: FatosDeAcesso): string | null {
+  const limite = acessoEfetivoAte(fatos);
+
+  if (limite === null) {
+    return null;
+  }
+
+  return formatarDiaEmSaoPaulo(new Date(limite.getTime() - 1));
 }

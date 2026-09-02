@@ -17,6 +17,31 @@ const formatador = new Intl.DateTimeFormat("en-CA", {
   hour12: false,
 });
 
+const formatadorDeDia = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: FUSO,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/**
+ * O dia de calendário de `instante` no relógio de parede de São Paulo, em
+ * `dd/mm/aaaa`. Única formatação de data desta fase.
+ *
+ * Mora AQUI, e não em `lib/format.ts`, de propósito: `formatDate` de lá NÃO
+ * passa `timeZone` e é consumida por dezenas de telas de catálogo/estoque —
+ * acrescentar fuso lá mudaria o comportamento de tudo. Este arquivo já é
+ * declarado como o dono do relógio de parede de São Paulo, e a UI-SPEC exige que
+ * o helper de data da fase COMPONHA este arquivo em vez de reimplementá-lo.
+ *
+ * Sem `timeZone` explícito, um instante como `2026-10-01T02:00:00Z` — que em São
+ * Paulo ainda é 30/09 às 23:00 — sairia como `01/10/2026` em qualquer servidor
+ * em UTC, deslizando um dia inteiro de calendário.
+ */
+export function formatarDiaEmSaoPaulo(instante: Date): string {
+  return formatadorDeDia.format(instante);
+}
+
 function partes(instante: Date) {
   const p = Object.fromEntries(
     formatador.formatToParts(instante).map((x) => [x.type, x.value])

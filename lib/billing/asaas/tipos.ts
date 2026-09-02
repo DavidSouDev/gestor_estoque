@@ -58,6 +58,12 @@ export interface AsaasSubscription {
   checkoutSession?: string | null;
 }
 
+/** Resposta de `DELETE /subscriptions/{id}`. */
+export interface AsaasAssinaturaRemovida {
+  deleted: boolean;
+  id: string;
+}
+
 /**
  * Webhook registrado no Asaas (`GET`/`POST`/`PUT` em `/webhooks`).
  *
