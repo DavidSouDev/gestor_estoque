@@ -100,12 +100,36 @@ describe("termoVigente", () => {
     expect(args).not.toHaveProperty("include");
   });
 
-  it("duas chamadas no mesmo escopo disparam UMA unica query", async () => {
+  it("e memoizavel por request: zero argumentos e argumento de query estavel", async () => {
+    // POR QUE ESTE TESTE NÃO AFIRMA `toHaveBeenCalledTimes(1)`:
+    //
+    // `React.cache` só memoiza dentro do escopo de um request/render — em React
+    // 19 o dispatcher (`ReactSharedInternals.A`) é `null` fora dele e a função
+    // embrulhada simplesmente delega para a original, SEM cache. Em Vitest
+    // (ambiente `node`, sem render de RSC) as duas chamadas abaixo disparam duas
+    // queries, e afirmar o contrário aqui seria afirmar algo falso sobre o
+    // ambiente de teste, não sobre o código. A asserção de deduplicação real
+    // pertence ao nível e2e/integração, onde existe um request de verdade.
+    //
+    // O que ESTE nível consegue provar são as duas pré-condições sem as quais a
+    // memoização nunca aconteceria, nem num request real:
+    // (a) aridade zero — a chave do cache do React são os argumentos; um
+    //     parâmetro qualquer aqui daria uma chave por chamador e mataria o
+    //     compartilhamento entre layout, page e componentes do mesmo render;
+    // (b) argumento de query estável — a mesma projeção e a mesma ordenação em
+    //     toda chamada, sem nada derivado do relógio ou do chamador.
     prismaMock.termoDeUso.findFirst.mockResolvedValue(termoV3 as never);
 
+    expect(termoVigente.length).toBe(0);
+
     await termoVigente();
     await termoVigente();
 
-    expect(prismaMock.termoDeUso.findFirst).toHaveBeenCalledTimes(1);
+    const chamadas = prismaMock.termoDeUso.findFirst.mock.calls;
+    expect(chamadas[0]).toEqual(chamadas[1]);
+    expect(chamadas[0][0]).toEqual({
+      orderBy: [{ publicadoEm: "desc" }, { versao: "desc" }],
+      select: { id: true, versao: true, conteudo: true, publicadoEm: true },
+    });
   });
 });
