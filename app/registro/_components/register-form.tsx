@@ -10,8 +10,15 @@ const INPUT_CLASS =
 
 export function RegisterForm({
   action,
+  termo,
 }: {
   action: (state: RegisterState, formData: FormData) => Promise<RegisterState>;
+  // REQUERIDO, não opcional: o caso `null` (banco sem termo publicado) é tratado
+  // por `app/registro/page.tsx`, que renderiza o estado degradado no lugar deste
+  // formulário. Tornar a prop opcional devolveria a este componente a
+  // possibilidade de renderizar meio estado — um formulário sem aceite, que o
+  // servidor recusaria (E3) só depois do usuário preencher tudo.
+  termo: { id: string; versao: number; conteudo: string };
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [modo, setModo] = useState<"SIMPLES" | "COMPLETO">("COMPLETO");
@@ -99,6 +106,69 @@ export function RegisterForm({
         </p>
         <ModoInterfacePicker value={modo} onChange={setModo} />
         <input type="hidden" name="modoInterface" value={modo} />
+      </div>
+
+      {/*
+        Metade CLIENT de D-11. O `required` do checkbox é a primeira das duas
+        validações; a segunda vive em `app/registro/actions.ts` (E3) e existe
+        porque um submit por cliente próprio ou com JS desabilitado nunca passa
+        por esta.
+
+        Posição deliberada: logo DEPOIS do seletor de modo e logo ANTES do bloco
+        de erro, para que uma recusa server-side (E2/E3) apareça imediatamente
+        acima do botão de submit, onde o erro já aparece hoje.
+
+        Disclosure nativo do HTML, não modal: o projeto não tem sistema de modais
+        (focus trap, scroll lock, Escape, return-focus, portal) e criar um para
+        revelar um bloco de texto seria inventar um design system. O disclosure
+        nativo satisfaz D-11 literalmente e continua funcionando com JS
+        desabilitado — o que importa nesta, a única tela do produto sem sessão.
+      */}
+      <div>
+        <details className="rounded-xl border border-slate-200 bg-slate-50/60 px-3">
+          <summary className="cursor-pointer select-none py-3 text-sm/[1.5] font-semibold text-slate-600">
+            Ler os Termos de Uso (versão {termo.versao})
+          </summary>
+          {/*
+            `role="region"` + `aria-label` + `tabIndex` porque uma caixa rolável
+            sem conteúdo focável é inalcançável pelo teclado.
+
+            O texto é nó de texto React, com escape automático: injetar HTML
+            bruto é PROIBIDO nesta fase (D-05 torna o conteúdo texto puro
+            justamente para eliminar essa superfície).
+          */}
+          <div
+            role="region"
+            aria-label="Texto dos Termos de Uso"
+            tabIndex={0}
+            className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-4 text-sm/[1.5] text-slate-700"
+          >
+            {termo.conteudo}
+          </div>
+        </details>
+
+        {/*
+          O input fica DENTRO do `<label>`: a linha inteira de 45px vira área de
+          clique e nenhum par `htmlFor`/`id` é necessário.
+        */}
+        <label className="flex cursor-pointer items-start gap-3 py-3 text-sm/[1.5] text-slate-600">
+          <input
+            type="checkbox"
+            name="aceiteTermos"
+            required
+            className="h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-800"
+          />
+          <span>
+            Li e aceito os <span className="font-semibold text-slate-800">Termos de Uso</span>
+          </span>
+        </label>
+
+        {/*
+          Dado CONTROLADO PELO CLIENTE. O servidor compara por igualdade contra
+          o vigente dele e recusa na divergência (E2) — nunca usa este valor
+          como seletor.
+        */}
+        <input type="hidden" name="termoId" value={termo.id} />
       </div>
 
       {state.error && (
