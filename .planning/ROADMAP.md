@@ -264,8 +264,41 @@ Plans:
   3. O usuário cancela o plano pela própria tela e vê a data exata até quando manterá o acesso (fim dos 30 dias do último pagamento)
   4. Uma empresa cancelada que ultrapassa o fim do período pago é bloqueada pelo mesmo fluxo das demais — admin bloqueado e catálogo despublicado
 
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+**Wave 1** *(os três rodam em paralelo — nenhum arquivo em comum)*
+
+- [ ] 07-01-PLAN.md — `acessoEfetivoAte` + `ultimoDiaDeAcessoEmSaoPaulo` (funções puras) e `asaasClient.removerAssinatura` (SUB-01, SUB-02)
+- [ ] 07-02-PLAN.md — Polling pós-checkout: `consultarStatusAcesso` sobre fatos locais, `PollerDeStatus` com backoff e teto, montado na tela de bloqueio (SUB-01)
+- [ ] 07-03-PLAN.md — `PagarButton` com `label`/`pendingLabel` e as duas entradas de navegação (`admin-nav` e `simples-top-bar`) (SUB-01, SUB-02)
+
+**Wave 2** *(blocked on 07-01)*
+
+- [ ] 07-04-PLAN.md — `assinaturaService`: `fatosDeAssinatura`, `consultarAssinatura` degradável e `cancelar` com a fronteira gateway→banco (SUB-01, SUB-02, SUB-03)
+
+**Wave 3** *(blocked on 07-04)*
+
+- [ ] 07-05-PLAN.md — Server Action `cancelarAssinatura(slug)` sem parâmetro de id (D-05) e a view de confirmação de 2 cliques com a data exata (SUB-02)
+
+**Wave 4** *(blocked on 07-02, 07-03, 07-04, 07-05)*
+
+- [ ] 07-06-PLAN.md — `AssinaturaCard` com 5 estados e duas zonas de dado + `page.tsx` decidindo na ordem normativa (SUB-01, SUB-02)
+
+**Wave 5** *(blocked on 07-06)*
+
+- [ ] 07-07-PLAN.md — e2e dos estados offline, bloqueio pós-cancelamento e isolamento + `npm run gates:fase-07` (SUB-01, SUB-02, SUB-03)
+
+**Wave 6** *(blocked on 07-07)*
+
+- [ ] 07-08-PLAN.md — Checkpoint bloqueante: cancelamento real no sandbox (fecha A1/A2/A3) + fechamento de `07-VALIDATION.md` (SUB-01, SUB-02, SUB-03)
+
 **UI hint**: yes
+
+**Nota de escopo**: SUB-03 já está inteiramente implementado desde as Fases 2 e 4 — `avaliarAcesso`
+devolve `CANCELADO` ao expirar com `canceladoEm` preenchido, e `acessoBloqueado` trata `CANCELADO`
+igual a `BLOQUEADO`. A única linha que faltava no sistema é a que grava `canceladoEm` (plano 07-04).
+Nenhuma migration, nenhum valor novo de enum e nenhuma alteração em `lib/avaliar-acesso.ts` (além das
+duas funções puras novas), `lib/session.ts`, `webhook-asaas.service.ts` ou `eventos.ts` estão no escopo.
 
 ## Progress
 
@@ -282,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 0/TBD | Not started | - |
+| 7. Gestão de Assinatura | 0/8 | Planned     | - |
 
 ## Requirement Coverage
 
