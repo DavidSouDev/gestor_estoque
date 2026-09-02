@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 05 complete — verified, ready for Phase 6
-last_updated: "2026-09-01T21:42:33.569Z"
-last_activity: 2026-09-01
+status: verifying
+stopped_at: Phase 6 context gathered
+last_updated: "2026-09-02T11:30:00.170Z"
+last_activity: 2026-09-01 -- Phase 05 execution complete
 progress:
   total_phases: 7
   completed_phases: 5
@@ -201,6 +201,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-01T18:14:00.529Z
-Stopped at: Phase 05 context gathered
-Resume file: .planning/phases/05-worker-di-rio-de-reconcilia-o/05-CONTEXT.md
+Last session: 2026-09-02T11:30:00.147Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-termos-de-uso-e-aceite/06-CONTEXT.md
