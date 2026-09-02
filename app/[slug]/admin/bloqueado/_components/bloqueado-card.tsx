@@ -1,4 +1,5 @@
 import { PagarButton } from "../../_components/pagar-button";
+import { PollerDeStatus } from "../../_components/poller-de-status";
 
 export interface BloqueadoCardProps {
   primaryColor: string;
@@ -6,6 +7,11 @@ export interface BloqueadoCardProps {
   erroCheckout: boolean;
   pagarAction: () => Promise<void>;
   logoutAction: () => Promise<void>;
+  /**
+   * D-01. Chega já vinculada ao slug pelo servidor, no mesmo idioma das duas
+   * actions acima — este componente nunca escolhe de qual empresa fala.
+   */
+  consultarStatusAction: () => Promise<{ liberado: boolean }>;
 }
 
 /**
@@ -32,6 +38,7 @@ export function BloqueadoCard({
   erroCheckout,
   pagarAction,
   logoutAction,
+  consultarStatusAction,
 }: BloqueadoCardProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -68,6 +75,20 @@ export function BloqueadoCard({
               O painel da sua loja está suspenso por falta de pagamento, e o catálogo saiu do ar.
               Assim que o pagamento for confirmado, tudo volta automaticamente.
             </p>
+
+            {/* D-01, montado INCONDICIONALMENTE. Esta é a tela de retorno do
+                checkout para o cliente inadimplente que acabou de pagar — o caso
+                que envolve dinheiro —, porque a `successUrl` aponta para
+                `/{slug}/admin` e a DAL manda quem está suspenso para cá.
+
+                Não é condicionado a um marcador de `searchParams` porque isso
+                exigiria mudar a `successUrl`, que a UI-SPEC e o Achado 7 mandam
+                explicitamente NÃO mudar; e o custo é baixo (uma leitura local
+                por tick, com teto de 7). Quando o status destrava,
+                `router.refresh()` faz esta page reexecutar a guarda que JÁ
+                existe e o próprio Next devolve o usuário ao painel — nenhuma
+                lógica de navegação nova. */}
+            <PollerDeStatus consultarAction={consultarStatusAction} />
 
             {erroCheckout && (
               // Mesmo bloco de erro do login e do registro — o único padrão de

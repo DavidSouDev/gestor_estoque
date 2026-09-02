@@ -1,5 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+// A tela passou a montar `PollerDeStatus`, que é client component e chama
+// `useRouter`. Sem este mock TODOS os casos abaixo quebram na renderização —
+// inclusive os da Fase 4, que são a rede de segurança de que esta tela não
+// mudou. O objeto devolvido é estável porque entra nas dependências de um
+// `useEffect`.
+const { routerMock } = vi.hoisted(() => ({
+  routerMock: { refresh: vi.fn() },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => routerMock,
+}));
+
 import { BloqueadoCard } from "./bloqueado-card";
 
 const props = {
@@ -8,6 +22,7 @@ const props = {
   erroCheckout: false,
   pagarAction: vi.fn(),
   logoutAction: vi.fn(),
+  consultarStatusAction: vi.fn(async () => ({ liberado: false })),
 };
 
 describe("BloqueadoCard", () => {
@@ -60,6 +75,16 @@ describe("BloqueadoCard", () => {
 
     expect(screen.queryByText(/cancel/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/vence/i)).not.toBeInTheDocument();
+  });
+
+  it("monta a tira de convergência pós-checkout como live region polite", () => {
+    // D-01: incondicional, para TODO visitante bloqueado — é a tela de retorno
+    // do checkout de quem acabou de pagar.
+    render(<BloqueadoCard {...props} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Verificando o status do seu acesso..."
+    );
   });
 
   it("pinta a barra de gradiente com as duas cores do tenant", () => {
