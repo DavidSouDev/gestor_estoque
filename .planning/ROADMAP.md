@@ -282,7 +282,7 @@ Plans:
 
 **Wave 4** *(blocked on 07-02, 07-03, 07-04, 07-05)*
 
-- [ ] 07-06-PLAN.md — `AssinaturaCard` com 5 estados e duas zonas de dado + `page.tsx` decidindo na ordem normativa (SUB-01, SUB-02)
+- [x] 07-06-PLAN.md — `AssinaturaCard` com 5 estados e duas zonas de dado + `page.tsx` decidindo na ordem normativa (SUB-01, SUB-02)
 
 **Wave 5** *(blocked on 07-06)*
 
@@ -315,7 +315,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
 | 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
-| 7. Gestão de Assinatura | 5/8 | In Progress|  |
+| 7. Gestão de Assinatura | 6/8 | In Progress|  |
 
 ## Requirement Coverage
 
