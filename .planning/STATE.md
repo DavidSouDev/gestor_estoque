@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 6 context gathered
-last_updated: "2026-09-02T11:30:00.170Z"
+stopped_at: Phase 6 UI-SPEC approved
+last_updated: "2026-09-02T11:56:29.260Z"
 last_activity: 2026-09-01 -- Phase 05 execution complete
 progress:
   total_phases: 7
@@ -201,6 +201,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-02T11:30:00.147Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-termos-de-uso-e-aceite/06-CONTEXT.md
+Last session: 2026-09-02T11:56:29.240Z
+Stopped at: Phase 6 UI-SPEC approved
+Resume file: .planning/phases/06-termos-de-uso-e-aceite/06-UI-SPEC.md
