@@ -281,7 +281,7 @@ Phase 6 (Termos de Uso) não depende da cadeia de cobrança (Phases 2-5) e pode 
 | 3. Gateway Asaas e Ingestão de Webhooks | 6/7 | In Progress|  |
 | 4. Aplicação do Bloqueio | 9/9 | Complete    | 2026-09-01 |
 | 5. Worker Diário de Reconciliação | 5/5 | Complete    | 2026-09-01 |
-| 6. Termos de Uso e Aceite | 8/8 | Complete   | 2026-09-02 |
+| 6. Termos de Uso e Aceite | 8/8 | Complete    | 2026-09-02 |
 | 7. Gestão de Assinatura | 0/TBD | Not started | - |
 
 ## Requirement Coverage

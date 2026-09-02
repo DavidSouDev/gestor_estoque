@@ -43,10 +43,10 @@ Pré-requisitos técnicos identificados pela pesquisa como bloqueadores reais pa
 
 ### Termos de Uso
 
-- [ ] **TERM-01**: Tela de termos de uso é exibida no registro da conta, com aceite obrigatório para concluir o cadastro
-- [ ] **TERM-02**: Novo papel `SUPERADMIN` (distinto do `ADMIN` por empresa) é o único autorizado a atualizar os termos de uso via endpoint
-- [ ] **TERM-03**: Termos são versionados de forma imutável; cada aceite de um Usuario fica registrado contra uma versão específica
-- [ ] **TERM-04**: Se a versão vigente dos termos for mais recente que o último aceite do usuário, um modal obrigatório bloqueia o uso do admin até o aceite
+- [x] **TERM-01**: Tela de termos de uso é exibida no registro da conta, com aceite obrigatório para concluir o cadastro
+- [x] **TERM-02**: Novo papel `SUPERADMIN` (distinto do `ADMIN` por empresa) é o único autorizado a atualizar os termos de uso via endpoint
+- [x] **TERM-03**: Termos são versionados de forma imutável; cada aceite de um Usuario fica registrado contra uma versão específica
+- [x] **TERM-04**: Se a versão vigente dos termos for mais recente que o último aceite do usuário, um modal obrigatório bloqueia o uso do admin até o aceite
 
 ### Gestão de Assinatura
 
@@ -108,10 +108,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACC-04 | Phase 4 | Complete |
 | WRK-01 | Phase 5 | Complete |
 | WRK-02 | Phase 5 | Complete |
-| TERM-01 | Phase 6 | Pending |
-| TERM-02 | Phase 6 | Pending |
-| TERM-03 | Phase 6 | Pending |
-| TERM-04 | Phase 6 | Pending |
+| TERM-01 | Phase 6 | Complete |
+| TERM-02 | Phase 6 | Complete |
+| TERM-03 | Phase 6 | Complete |
+| TERM-04 | Phase 6 | Complete |
 | SUB-01 | Phase 7 | Pending |
 | SUB-02 | Phase 7 | Pending |
 | SUB-03 | Phase 7 | Pending |

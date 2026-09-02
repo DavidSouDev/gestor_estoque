@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-09-02T12:33:53.457Z"
-last_activity: 2026-09-02 -- Phase 06 execution started
+last_updated: "2026-09-02T15:27:54.992Z"
+last_activity: 2026-09-02
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 40
-  completed_plans: 32
-  percent: 71
+  completed_plans: 40
+  percent: 86
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e tem o catálogo despublicado — sem exceções e sem que dados de pagamento fiquem armazenados no nosso sistema.
-**Current focus:** Phase 06 — termos-de-uso-e-aceite
+**Current focus:** Phase 07 — gestão-de-assinatura
 
 ## Current Position
 
-Phase: 06 (termos-de-uso-e-aceite) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 06
-Last activity: 2026-09-02 -- Phase 06 execution started
+Phase: 7
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-02
 
 **Checkpoint fechado:** `04-09-PLAN.md` Task 3 — contagem prévia obrigatória contra o banco alvo
 antes do merge (04-RESEARCH.md §Achado crítico 5 / §Pitfall 8), no mesmo espírito do checkpoint de
@@ -68,7 +68,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 
 **Velocity:**
 
-- Total plans completed: 32
+- Total plans completed: 40
 - Average duration: —
 - Total execution time: 0.0 hours
 
@@ -81,6 +81,7 @@ Progress: [██████████] 100% (9/9 planos da fase 04)
 | 03 | 7 | - | - |
 | 04 | 9 | - | - |
 | 05 | 5 | - | - |
+| 06 | 8 | - | - |
 
 **Recent Trend:**
 
@@ -173,6 +174,11 @@ Recent decisions affecting current work:
 - [Phase ?]: [04-09] Checkpoint da contagem previa aprovado pelo operador sem reserva; os numeros nao foram transcritos e nao foram inventados — o que fica registrado e a aprovacao, nao a distribuicao
 - [Phase ?]: [04-09] A3 confirmada contra runtime real: layout NAO e boundary de autorizacao, a seguranca esta no requireAdminSession de cada page e o banner stale e falha benigna
 - [Phase ?]: [04-09] A4 confirmada contra runtime real: redirect() para URL externa funciona a partir de Server Action; o fallback de devolver a URL e navegar no cliente NAO foi necessario
+- [Phase 06]: Gate de aceite de termos e uma rota dedicada (/{slug}/admin/aceitar-termos) fora de (protected), nao um modal — mesma decisao arquitetural do banner de bloqueio da Fase 4 (layout nao e boundary de autorizacao)
+- [Phase 06]: Autorizacao de POST /api/termos e sempre pela role revalidada do banco (revalidarConta), nunca pelo role do JWT — gate estatico gates:fase-06 prova isso
+- [Phase 06]: TermoDeUso e imutavel por design (FK onDelete: Restrict em AceiteTermo.termoId) — nova versao juridica publica-se como INSERT, nunca UPDATE
+- [Phase 06]: Aceite de termos nasce atomico com a conta no registro (quarta escrita da mesma $transaction em empresaService.registerComUsuario) — nao existe caminho de servidor que crie conta sem aceite
+- [Phase 06]: Revisao de seguranca da fase (/gsd-secure-phase 06) foi pulada por decisao explicita do usuario para avancar a Fase 7 — pendente, nao esquecida
 
 ### Pending Todos
 
@@ -190,6 +196,8 @@ None yet.
 - A conta de sandbox exige cadastro completo (`commercialInfo`/`bankAccountInfo`/`documentation` aprovados) antes de o checkout ser habilitado — repetir na conta de produção antes do go-live
 - Fila de retrabalho `EventoWebhookAsaas WHERE processadoEm IS NULL` segue SEM dreno depois da Fase 5 (D-06/D-10): um cliente que pagou e cujo webhook falhou permanece bloqueado até intervenção manual. Candidata a fase futura — exige `webhookAsaasService.processar`, que re-busca no Asaas.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
+- ⚠️ [Phase 06] Revisão de segurança da fase (`/gsd-secure-phase 06`) não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7. Code review advisório já apontou 2 warnings não-bloqueantes (stale-slug em `aceitar-termos`, senha do seed do SUPERADMIN via CLI arg) — ver `06-REVIEW.md`
+- ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder `[TEXTO PROVISORIO - ...]` — publicar a versão real via `POST /api/termos` antes do deploy em produção (item de UAT confirmado como pendente de ação, não de código)
 
 ## Deferred Items
 
@@ -201,6 +209,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-02T11:56:29.240Z
-Stopped at: Phase 6 UI-SPEC approved
-Resume file: .planning/phases/06-termos-de-uso-e-aceite/06-UI-SPEC.md
+Last session: 2026-09-02T15:35:00Z
+Stopped at: Phase 6 complete, ready to plan Phase 7
+Resume file: None

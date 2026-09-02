@@ -27,6 +27,10 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - ✓ Webhook do gateway é idempotente (não processa o mesmo evento duas vezes) e sempre responde 200 rapidamente, processando de forma assíncrona — Validado na Fase 3: Gateway Asaas e Ingestão de Webhooks (GTW-04), com reentrega real testada contra o Asaas Sandbox
 - ✓ Worker diário reconcilia todas as empresas (expira trials, inicia carências, aplica bloqueios), idempotente e seguro mesmo rodando duas vezes no mesmo dia ou pulando um dia — Validado na Fase 5: Worker Diário de Reconciliação (WRK-01), com prova ao vivo contra Postgres real (idempotência observada em duas chamadas HTTP consecutivas, não apenas em mock)
 - ✓ Worker exposto como endpoint HTTP (`GET /api/cron/reconciliacao-diaria`) protegido por `CRON_SECRET` (gate time-safe), funcionando independente da decisão final de hosting (Vercel Cron, VPS cron) — Validado na Fase 5: Worker Diário de Reconciliação (WRK-02); a decisão de hosting em si (D-07) continua adiada
+- ✓ Tela de termos de uso exibida no momento do registro, com aceite obrigatório (checkbox, não submete sem marcar) gravado atomicamente com a criação da conta — Validado na Fase 6: Termos de Uso e Aceite (TERM-01)
+- ✓ Novo papel `SUPERADMIN`, único autorizado a publicar novas versões dos termos via `POST /api/termos`, autorização sempre pela role revalidada do banco (nunca do JWT) — Validado na Fase 6: Termos de Uso e Aceite (TERM-02)
+- ✓ Termos de uso versionados de forma imutável (nunca editados/apagados enquanto houver aceite apontando para a versão) — Validado na Fase 6: Termos de Uso e Aceite (TERM-03)
+- ✓ Gate obrigatório de aceite: um usuário com aceite desatualizado é redirecionado para `/{slug}/admin/aceitar-termos` no admin e recebe 403 em qualquer rota REST, exceto o próprio SUPERADMIN — Validado na Fase 6: Termos de Uso e Aceite (TERM-04)
 
 ### Active
 
@@ -38,9 +42,6 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 - [ ] Webhook do gateway atualiza o status de pagamento da empresa (sucesso/falha de cobrança)
 - [ ] Gateway de pagamento: Asaas (checkout hospedado com assinatura recorrente) — decidido após pesquisa (ver `.planning/research/STACK.md`)
 - [ ] Cancelamento de plano pelo usuário: acesso mantido até o fim dos 30 dias do último pagamento; depois disso, mesmo fluxo de bloqueio
-- [ ] Tela de termos de uso exibida no momento do registro da conta, com aceite obrigatório
-- [ ] Endpoint para atualizar os termos de uso, restrito a um novo papel `SUPERADMIN` (hoje só existe `ADMIN`, que é por empresa — sem esse papel novo, qualquer admin de qualquer empresa poderia reescrever os termos da plataforma)
-- [ ] Aceite de termos por Usuario (login individual, não por empresa): se `termos.atualizadoEm` for mais recente que o aceite do usuário, modal obrigatório aparece ao logar no admin — sistema não pode ser usado sem aceitar
 - [ ] Tela de gerenciamento de assinatura para o usuário: ver status do pagamento e cancelar o plano
 
 ### Out of Scope
@@ -64,7 +65,7 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 
 **Motivação:** o sistema hoje só verifica se o admin está logado, sem nenhum controle de cobrança. Esta é a primeira monetização real do produto.
 
-**Estado atual:** Fase 5 (Worker Diário de Reconciliação) concluída em 2026-09-01 — `GET /api/cron/reconciliacao-diaria` reconcilia todas as empresas por lote, idempotente, com freio composto (>20% E ≥5 perdas) contra bloqueio em massa; hosting continua adiado (D-07) e o endpoint é agnóstico por construção. Checkpoint humano de `CRON_SECRET` aprovado. 916 testes unitários + 24 e2e verdes, gates estáticos das Fases 4 e 5 em 6/6 cada. Código revisado sem achados críticos (3 warnings advisórios sobre os gates não estarem no CI ainda). Próxima: Fase 6 (Termos de Uso e Aceite).
+**Estado atual:** Fase 6 (Termos de Uso e Aceite) concluída em 2026-09-02 — novo papel `SUPERADMIN`, termos versionados imutáveis, `POST /api/termos` autorizado sempre pela role revalidada do banco, gate obrigatório de aceite em `requireAdminSession` (redirect) e `requireAuth` (403), rota dedicada `/{slug}/admin/aceitar-termos`, e aceite atômico na transação de registro. 1019 testes unitários + 28 e2e verdes (contra Postgres real), gates estáticos das Fases 4-6 em 6/6, 6/6 e 5/5. Código revisado sem achados críticos (2 warnings — stale-slug no gate de aceite, senha do seed do SUPERADMIN via CLI arg). Verificação: 14/14 must-haves, 4/4 requisitos (TERM-01..04); os 3 itens de UAT (go-live: publicar texto jurídico real, aviso ao operador, ordem de deploy) foram confirmados pelo operador em UAT. Revisão de segurança da fase (`/gsd-secure-phase 06`) ainda não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7. Próxima: Fase 7 (Gestão de Assinatura).
 
 ## Constraints
 
@@ -81,7 +82,8 @@ Uma empresa que não paga (após o prazo de carência) perde acesso ao admin e t
 | Assinatura recorrente automática via gateway (não cobrança manual por link) | Menos fricção para o cliente, cobrança automática mês a mês | — Pending |
 | Plano único por enquanto | Simplicidade para v1; múltiplos planos só se o modelo se provar rentável | — Pending |
 | Trial de 14 dias para empresas novas | Tempo suficiente para testar catálogo/estoque sem exigir pagamento imediato no registro | — Pending |
-| Aceite de termos de uso por Usuario (não por Empresa) | Cada login precisa concordar individualmente com os termos vigentes | — Pending |
+| Aceite de termos de uso por Usuario (não por Empresa) | Cada login precisa concordar individualmente com os termos vigentes | Confirmado na Fase 6 — `Usuario.termoAceitoId`, gate independente do status de pagamento da Empresa |
+| Gate de aceite é uma rota dedicada (`/{slug}/admin/aceitar-termos`), não um modal | Layout não é boundary de autorização — mesma decisão arquitetural já validada na Fase 4 para o banner de bloqueio; uma rota fora de `(protected)` evita loop de redirect e tem guarda própria simétrica | Confirmado na Fase 6 — 28/28 e2e passando, incluindo o caso de bloqueio-por-inadimplência ter precedência sobre termos |
 | Gateway de pagamento: Asaas | Pesquisa recomendou Asaas sobre Stripe — Pix sem exigir aprovação/convite no Brasil (Stripe exige), sem mensalidade, ~4% de taxa, NFS-e nativa, cobranças por período mapeiam bem para o modelo de acesso | — Pending |
 | Reativação cobra apenas o mês corrente, não os meses em atraso | Gateways de assinatura não suportam cobrança retroativa nativamente; cobrar por período sem prestação de serviço é arriscado sob o CDC | — Pending |
 | Status de acesso derivado de datas (`acessoAte`, `trialFim`), não de um campo de status já calculado | O worker diário vira uma rede de segurança (reconciliador), não a autoridade — uma falha no cron não libera nem bloqueia incorretamente | Confirmado na Fase 5 — `ultimoStatusAuditado` é bookkeeping do compare-and-swap, nunca fonte de decisão (gate estático `gates:fase-05` prova isso) |
@@ -104,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-01 after Phase 5 completion*
+*Last updated: 2026-09-02 after Phase 6 completion*
