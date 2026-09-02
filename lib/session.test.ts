@@ -33,11 +33,21 @@ import {
 import { signAuthToken, type AuthTokenPayload } from "./jwt";
 import { prismaMock } from "@/tests/setup/prisma-mock";
 
+/**
+ * `id` do termo publicado que o stub default de tests/setup/prisma-mock.ts
+ * devolve em `termoDeUso.findFirst`.
+ */
+const TERMO_VIGENTE_ID = "termo-1";
+
 /** Conta ativa que o stub default de tests/setup/prisma-mock.ts devolve. */
 const contaAtiva = {
   id: "user-1",
   email: "admin@teste.com",
   role: "ADMIN",
+  // Combinação NEUTRA de termos: o ponteiro de último aceite é o MESMO `id` do
+  // vigente, então `termosPendentes` é `false` e os casos que medem o gate de
+  // assinatura continuam medindo só ele.
+  termoAceitoId: TERMO_VIGENTE_ID,
   empresaId: "empresa-1",
   empresa: { slug: "empresa-teste" },
 };
@@ -115,6 +125,27 @@ const BILLING: Record<string, FatosDoStub> = {
 function stubComStatus(status: keyof typeof BILLING) {
   prismaMock.usuario.findFirst.mockResolvedValue({
     ...contaAtiva,
+    empresa: {
+      slug: "empresa-teste",
+      ...BILLING[status],
+      ultimoStatusAuditado: status,
+    },
+  } as never);
+}
+
+/**
+ * Igual a `stubComStatus`, mas variando também a role e o ponteiro de último
+ * aceite — os dois insumos do gate de TERM-04.
+ */
+function stubComTermos(
+  status: keyof typeof BILLING,
+  termoAceitoId: string | null,
+  role: string = "ADMIN"
+) {
+  prismaMock.usuario.findFirst.mockResolvedValue({
+    ...contaAtiva,
+    role,
+    termoAceitoId,
     empresa: {
       slug: "empresa-teste",
       ...BILLING[status],
@@ -341,6 +372,75 @@ describe("session", () => {
       await expect(requireAdminSession("outra-empresa")).rejects.toThrow(
         "REDIRECT:/outra-empresa/admin/login"
       );
+    });
+  });
+
+  describe("requireAdminSession — gate de termos (TERM-04)", () => {
+    it("termos pendentes: redireciona para a tela de aceite", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComTermos("EM_DIA", null);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/aceitar-termos"
+      );
+    });
+
+    it("aceite de versão antiga também é pendente", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComTermos("EM_DIA", "termo-antigo");
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/aceitar-termos"
+      );
+    });
+
+    it("bloqueio E termos pendentes: o BLOQUEIO vence (precedência, D-08)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComTermos("BLOQUEADO", null);
+
+      // Esta é a metade em teste da prova de ausência de loop: o estado
+      // (bloqueado, pendente) só é estável porque o gate de assinatura vem
+      // primeiro E porque `/admin/bloqueado` NÃO checa termos. A outra metade —
+      // a guarda simétrica da página — é do plano 06-05. Invertida a ordem, o
+      // cliente inadimplente teria um passo a mais entre ele e o pagamento
+      // (T-04-10) e o par de rotas passaria a se redirecionar mutuamente.
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/bloqueado"
+      );
+      expect(redirectMock).not.toHaveBeenCalledWith(
+        "/empresa-teste/admin/aceitar-termos"
+      );
+    });
+
+    it("sem bloqueio e sem termos pendentes: renderiza (devolve o payload)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComTermos("EM_DIA", TERMO_VIGENTE_ID);
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("SUPERADMIN em empresa vitalícia sem aceite: não redireciona (D-02 + D-03)", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      stubComTermos("VITALICIO", null, "SUPERADMIN");
+
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      expect(redirectMock).not.toHaveBeenCalled();
+    });
+
+    it("sessão inválida + termos pendentes: continua indo para o login", async () => {
+      cookieStore.get.mockReturnValue(undefined);
+      stubComTermos("EM_DIA", null);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+      expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
     });
   });
 
