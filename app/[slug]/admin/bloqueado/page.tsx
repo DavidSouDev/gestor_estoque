@@ -19,7 +19,7 @@ import { getVerifiedSession } from "@/lib/session";
 import { revalidarConta } from "@/lib/auth-guard";
 import { acessoBloqueado } from "@/lib/avaliar-acesso";
 import { empresaService } from "@/app/services/empresa.service";
-import { iniciarPagamento } from "../_lib/assinatura-actions";
+import { consultarStatusAcesso, iniciarPagamento } from "../_lib/assinatura-actions";
 import { logout } from "../_lib/auth-actions";
 import { BloqueadoCard } from "./_components/bloqueado-card";
 
@@ -61,6 +61,7 @@ export default async function AdminBloqueadoPage({
       erroCheckout={erro === "checkout"}
       pagarAction={iniciarPagamento.bind(null, slug)}
       logoutAction={logout.bind(null, slug)}
+      consultarStatusAction={consultarStatusAcesso.bind(null, slug)}
     />
   );
 }
