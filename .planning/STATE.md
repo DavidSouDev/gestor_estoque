@@ -5,7 +5,7 @@ milestone_name: milestone
 status: blocked
 stopped_at: Phase 7 Plan 08 checkpoint deferred (Postgres port conflict)
 last_updated: "2026-09-02T20:15:00.000Z"
-last_activity: 2026-09-02 -- e2e 32/32 real (Postgres freed); Phase 07 security audit SECURED (60/60); 07-08 sandbox checkpoint still deferred
+last_activity: 2026-09-05 -- Quick task 260905-eqn: texto real dos Termos de Uso redigido e publicado como v27 na instância local (v1 intacta, sha256 conferido); publicação em producao segue pendente (acao do operador + revisao juridica)
 progress:
   total_phases: 7
   completed_phases: 6
@@ -208,9 +208,15 @@ None yet.
 - ~~BLOQUEANTE do merge da Fase 04 — checkpoint `04-09` Task 3 (contagem prévia contra o banco alvo + verificações A3/A4)~~ — RESOLVIDO em 2026-09-01: o operador rodou a contagem contra o banco alvo e as duas verificações manuais, e aprovou sem reserva
 - ⚠️ [Phase 06] Revisão de segurança da fase (`/gsd-secure-phase 06`) não rodou — pulada por decisão explícita do usuário para seguir para a Fase 7, ainda pendente (decisão do usuário, fora do escopo da Fase 7). Code review advisório já apontou 2 warnings não-bloqueantes (stale-slug em `aceitar-termos`, senha do seed do SUPERADMIN via CLI arg) — ver `06-REVIEW.md`
 - ✅ [Phase 07] `/gsd-secure-phase 07` executada em 2026-09-02 — **SECURED, 60/60 threats fechadas** (52 + T-07-SC ×8). T-07-48 (A3 — cancelar no gateway real pode apagar o período pago) fica como risco aceito explícito: o checkpoint 07-08 que provaria isso segue adiado, mas o alcance é limitado — `acessoAte` no nosso banco não é tocado por `cancelar()` independente do desfecho no Asaas. 2 flags não-bloqueantes (UF-07-01, UF-07-02). Ver `07-SECURITY.md`
-- ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder `[TEXTO PROVISORIO - ...]` — publicar a versão real via `POST /api/termos` antes do deploy em produção (item de UAT confirmado como pendente de ação, não de código)
+- ⚠️ [Phase 06] Texto jurídico da v1 dos termos ainda é o placeholder em PRODUÇÃO `[TEXTO PROVISORIO - ...]`. O texto real já existe versionado (`.planning/quick/260905-eqn-publicar-texto-real-dos-termos-de-uso-su/termos-de-uso-v2.txt`) e a ferramenta de publicação existe (`npm run termos:publicar`), com publicação provada contra a instância local (v27, sha256 conferido, v1 intacta — ver `260905-eqn-SUMMARY.md`). Falta a ação do operador em produção com credencial de produção e, antes dela, revisão jurídica (CDC/LGPD) do texto — foi redigido por IA e não revisado por advogado; pontos concretos de exposição no SUMMARY (limitação de responsabilidade x CDC, bloqueio sem exceções/sem reembolso proporcional, papéis controladora/operadora da LGPD)
 - ~~[Phase 07] `npm run test:e2e` não rodava contra Postgres real (conflito de porta 5432 com outro projeto)~~ — RESOLVIDO em 2026-09-02: operador subiu o Postgres do `gestor_estoque`; e2e completo 32/32 real, incluindo os 4 casos de `e2e/cancelamento-de-assinatura.spec.ts`, zero regressão
 - ⚠️ [Phase 07] BLOQUEANTE para fechar a fase — checkpoint `07-08` Task 1 (cancelamento real no Asaas Sandbox, prova de A3) segue ADIADO. O e2e local prova o contrato via fatos de billing seedados diretamente no banco, nunca via Asaas real — só o checkpoint humano prova que cancelar contra o gateway de verdade preserva `acessoAte`. Código 100% verde (6/6 gates, 1153/1153 testes unitários, 32/32 e2e, tsc/lint limpos); falta só a verificação humana com login real e conta Asaas Sandbox. Retomar via `07-08-PLAN.md` Task 1 — ver `07-08-SUMMARY.md` e `07-VALIDATION.md` (`status: blocked`)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260905-eqn | Publicar texto real dos Termos de Uso (substituir placeholder da v1) via POST /api/termos como v2 | 2026-09-05 | a8bb366 | [260905-eqn-publicar-texto-real-dos-termos-de-uso-su](./quick/260905-eqn-publicar-texto-real-dos-termos-de-uso-su/) |
 
 ## Deferred Items
 
