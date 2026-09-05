@@ -1,0 +1,271 @@
+TERMOS DE USO
+
+
+1. IDENTIFICAÇÃO E ACEITE
+
+1.1. Este documento reúne as condições de uso da plataforma de gestão de estoque e catálogo online descrita adiante, aqui chamada simplesmente de Plataforma.
+
+1.2. A Plataforma é operada por David Rafael de Lima Sousa, inscrito no CNPJ sob o número 59.111.718/0001-06, aqui chamado de Plataforma ou de nós.
+
+1.3. O canal oficial de contato, inclusive para dúvidas sobre estes Termos, pedidos relativos à conta e exercício de direitos sobre dados pessoais, é o endereço de e-mail davidsoudev@gmail.com.
+
+1.4. Ao marcar a caixa de aceite no cadastro, ou ao aceitar uma nova versão destes Termos quando ela for exibida no painel, você declara que leu, entendeu e concorda com todas as condições abaixo.
+
+1.5. O seu aceite é registrado de forma versionada e individual: guardamos qual usuário aceitou, qual versão do documento foi aceita e em que momento isso aconteceu. Versões já publicadas nunca são reescritas, de modo que sempre é possível recuperar exatamente o texto que você aceitou.
+
+1.6. Se você não concorda com alguma condição deste documento, não crie a conta e não utilize a Plataforma.
+
+
+2. DEFINIÇÕES
+
+2.1. Plataforma: o sistema web de gestão de estoque e catálogo, incluindo o painel administrativo e o catálogo público, além dos serviços acessórios necessários para o seu funcionamento.
+
+2.2. Empresa Contratante: a pessoa física ou jurídica que cria uma conta na Plataforma e passa a manter nela os seus próprios dados de produtos, estoque e catálogo. Cada Empresa Contratante é um ambiente isolado dentro do sistema.
+
+2.3. Usuário Administrador: a conta de acesso ao painel administrativo vinculada a uma Empresa Contratante. A Plataforma mantém hoje uma conta administrativa por Empresa Contratante. Não existe, nesta versão do sistema, cadastro de usuários adicionais dentro da mesma empresa.
+
+2.4. Catálogo Público: a página de acesso livre que exibe os produtos, combos e promoções cadastrados pela Empresa Contratante. Ela fica disponível em um endereço próprio derivado do identificador escolhido pela empresa, no formato de uma barra seguida desse identificador, por exemplo barra minha-empresa. Qualquer visitante pode acessá-la sem criar conta e sem se identificar.
+
+2.5. Gateway de Pagamento: o prestador externo responsável por processar a cobrança recorrente da assinatura. A Plataforma utiliza o Asaas para essa finalidade.
+
+2.6. Visitante: qualquer pessoa que acessa o Catálogo Público sem possuir conta na Plataforma.
+
+
+3. OBJETO DO SERVIÇO
+
+3.1. A Plataforma oferece, mediante assinatura, um sistema para que a Empresa Contratante organize o seu negócio e mostre o que vende.
+
+3.2. Estão disponíveis, no painel administrativo: cadastro e edição de produtos, montagem de combos, criação de promoções, registro de movimentações de estoque, configuração da identidade visual e dos dados públicos da empresa, e o acompanhamento da própria assinatura.
+
+3.3. Está disponível, fora do painel, o Catálogo Público: uma vitrine acessível a qualquer visitante, sem conta e sem cadastro, que exibe os itens que a Empresa Contratante escolheu publicar.
+
+3.4. A Plataforma é um sistema de organização e exibição. Ela não intermedeia as vendas da Empresa Contratante, não processa pagamentos dos clientes dela, não realiza entregas e não participa das relações entre a Empresa Contratante e os seus próprios clientes.
+
+3.5. A responsabilidade por preços, descrições, disponibilidade, qualidade, entrega, garantia e atendimento dos produtos anunciados é integralmente da Empresa Contratante.
+
+
+4. CADASTRO E CONTA
+
+4.1. Para usar a Plataforma você precisa criar uma conta informando dados verdadeiros, completos e atualizados.
+
+4.2. Você é responsável por manter esses dados corretos ao longo do tempo. Informação desatualizada pode impedir avisos importantes sobre cobrança, bloqueio e mudanças nestes Termos.
+
+4.3. A senha de acesso é pessoal e intransferível. Guarde-a com cuidado, não a compartilhe e não a reutilize em outros serviços.
+
+4.4. Toda atividade realizada com as suas credenciais é considerada sua. Se você suspeitar de acesso indevido, troque a senha imediatamente e comunique o fato pelo endereço davidsoudev@gmail.com.
+
+4.5. A conta é vinculada a uma única Empresa Contratante e não pode ser transferida a terceiros sem o nosso conhecimento.
+
+4.6. Você não pode criar contas com identidade falsa, nem se passar por outra pessoa ou empresa.
+
+
+5. PLANO E PAGAMENTO
+
+5.1. A Plataforma é oferecida em um plano único, com mensalidade de R$ 29,90 por mês, cobrada de forma recorrente.
+
+5.2. A cobrança é processada integralmente por um Gateway de Pagamento externo, o Asaas, por meio de um ambiente de pagamento hospedado por ele.
+
+5.3. ATENÇÃO, e este é um ponto central deste documento: a Plataforma não recebe, não processa e não armazena dados de cartão de crédito ou de qualquer outro meio de pagamento. Esses dados são digitados diretamente no ambiente do Gateway de Pagamento, trafegam para ele e permanecem sob a guarda dele. Em nenhum momento eles passam pelos nossos servidores ou pelo nosso banco de dados.
+
+5.4. O que fica registrado no nosso sistema, a respeito da assinatura, é apenas: os identificadores que o Gateway de Pagamento atribui ao cliente e à assinatura, a situação atual da assinatura, e as datas que determinam até quando o acesso está garantido. Nada além disso.
+
+5.5. O pagamento de um período estende o acesso até o fim desse período. A renovação é automática enquanto a assinatura permanecer ativa e enquanto o pagamento for concluído com sucesso.
+
+5.6. Encargos, tarifas, prazos de compensação e regras específicas do meio de pagamento escolhido são definidos pelo Gateway de Pagamento e pela instituição financeira envolvida, e não pela Plataforma.
+
+5.7. O valor da mensalidade pode ser alterado no futuro. Uma alteração de preço será comunicada com antecedência ao endereço de e-mail cadastrado e valerá apenas para os períodos seguintes ao aviso, nunca para um período já pago.
+
+
+6. PERÍODO DE TESTE GRATUITO
+
+6.1. Toda conta nova começa com um período de teste gratuito de 14 dias, contados a partir do cadastro.
+
+6.2. Durante o teste gratuito o acesso ao painel administrativo e ao Catálogo Público é completo, sem limitação de recursos.
+
+6.3. Não é necessário informar cartão nem qualquer outro meio de pagamento para iniciar o teste gratuito.
+
+6.4. O teste gratuito não é cobrado e não se converte automaticamente em cobrança: ao final dele, se nenhum pagamento tiver sido concluído, aplica-se a regra de carência descrita na seção seguinte.
+
+6.5. Se a Empresa Contratante assinar durante o período de teste, os dias restantes do teste não são perdidos. O acesso continua válido até o fim do teste e o período pago é somado a partir do que valer por último.
+
+6.6. O teste gratuito é concedido uma vez por conta.
+
+
+7. INADIMPLÊNCIA, CARÊNCIA E BLOQUEIO
+
+7.1. Terminado o período de teste, ou vencido o período pago, sem que um novo pagamento tenha sido concluído, começa um prazo de carência de 10 dias.
+
+7.2. Durante a carência o acesso permanece normal: o painel administrativo continua aberto e o Catálogo Público continua no ar. A Plataforma exibe um aviso no painel indicando que a assinatura está vencida e quantos dias ainda restam.
+
+7.3. A carência existe para absorver atrasos comuns, como uma fatura com compensação lenta ou um cartão que precisou ser atualizado. Ela é contada a partir da data que vencer por último entre o fim do teste gratuito e o fim do período pago.
+
+7.4. Encerrada a carência sem que o pagamento tenha sido concluído, o acesso é bloqueado. O bloqueio produz dois efeitos, e eles acontecem sem exceções: o painel administrativo deixa de ser acessível, e o Catálogo Público deixa de ser exibido para os visitantes.
+
+7.5. O bloqueio é automático e decorre exclusivamente da ausência de pagamento. Ele não depende de decisão individual, não é negociado caso a caso e não comporta liberação manual por pedido.
+
+7.6. É igualmente importante dizer o que o bloqueio NÃO faz. O bloqueio não apaga nada. Produtos, combos, promoções, movimentações de estoque, configurações da empresa e imagens permanecem armazenados exatamente como estavam. O bloqueio suspende o acesso, não destrói o conteúdo.
+
+7.7. A Plataforma envia avisos ao endereço de e-mail cadastrado sobre o vencimento e sobre o bloqueio, mas o recebimento desses avisos não é condição para que o bloqueio ocorra. Manter a assinatura em dia é responsabilidade da Empresa Contratante.
+
+
+8. REATIVAÇÃO DO ACESSO
+
+8.1. O pagamento do período corrente reativa o acesso automaticamente, assim que o Gateway de Pagamento confirmar a operação.
+
+8.2. A reativação não exige novo cadastro, não gera nova conta e não faz a Empresa Contratante perder o histórico: os dados voltam a ficar acessíveis no estado em que estavam quando o bloqueio ocorreu.
+
+8.3. Não há cobrança retroativa. Os meses em que a conta esteve bloqueada não são cobrados na volta. Você paga o período que passa a usar, e apenas ele.
+
+8.4. Com a confirmação do pagamento, o Catálogo Público volta a ser exibido e o painel administrativo volta a abrir normalmente.
+
+8.5. A confirmação depende do Gateway de Pagamento e do meio de pagamento escolhido. Pagamentos com compensação mais lenta podem levar mais tempo para refletir a reativação.
+
+
+9. CANCELAMENTO
+
+9.1. A Empresa Contratante pode cancelar a assinatura a qualquer momento, pelo próprio painel administrativo, sem necessidade de contato, ligação ou justificativa.
+
+9.2. O cancelamento interrompe as renovações seguintes. Não haverá nova cobrança automática depois dele.
+
+9.3. O cancelamento não encurta o período já pago. O acesso ao painel e a exibição do Catálogo Público permanecem até o último dia do período vigente, e só então cessam.
+
+9.4. Não há reembolso proporcional do período corrente. Como o acesso permanece até o fim do período pago, o valor já pago corresponde a um serviço que continua disponível.
+
+9.5. Ao final do período pago, sem nova assinatura, a conta passa a ter o mesmo tratamento descrito na seção sobre bloqueio: painel inacessível e Catálogo Público fora do ar, com os dados preservados.
+
+9.6. Para voltar a usar a Plataforma depois do cancelamento, basta assinar novamente. Aplica-se então a regra de reativação, inclusive a ausência de cobrança retroativa.
+
+
+10. DADOS DA EMPRESA CONTRATANTE E ISOLAMENTO
+
+10.1. Os dados cadastrados pela Empresa Contratante pertencem a ela. Produtos, combos, promoções, movimentações de estoque, textos, imagens e configurações de identidade visual são conteúdo dela, não nosso.
+
+10.2. A Plataforma não vende, não cede e não licencia esse conteúdo a terceiros, e não o utiliza para finalidade estranha à prestação do serviço.
+
+10.3. A Plataforma é organizada de modo que cada Empresa Contratante seja um ambiente isolado. Uma empresa não acessa, não consulta e não modifica os dados de outra. Esse isolamento é parte da arquitetura do sistema, e não uma configuração opcional.
+
+10.4. A única exceção prevista ao isolamento é o Catálogo Público, que é público por definição e mostra apenas o que a própria Empresa Contratante decidiu publicar.
+
+10.5. Enquanto a conta existir, a Empresa Contratante pode solicitar cópia dos seus dados pelo endereço davidsoudev@gmail.com.
+
+10.6. Concedemos à Plataforma apenas a autorização necessária para armazenar, processar e exibir esse conteúdo com a finalidade de operar o serviço contratado, inclusive exibi-lo no Catálogo Público quando a Empresa Contratante assim configurar.
+
+
+11. PROTEÇÃO DE DADOS PESSOAIS E LGPD
+
+11.1. Esta seção descreve como tratamos dados pessoais, em conformidade com a Lei Geral de Proteção de Dados Pessoais, a LGPD.
+
+11.2. Papéis. A Plataforma atua como CONTROLADORA em relação aos dados de cadastro e de conta da própria Empresa Contratante e do seu Usuário Administrador, porque é ela quem decide as finalidades e os meios desse tratamento. E atua como OPERADORA em relação aos dados que a Empresa Contratante insere no sistema para o seu próprio negócio, tratando-os conforme as instruções dela.
+
+11.3. Dados tratados como controladora. São eles: nome e endereço de e-mail do Usuário Administrador; senha, armazenada exclusivamente como resultado de função de hash com algoritmo bcrypt, nunca em texto claro e nunca recuperável por nós; telefone de contato, quando informado; identificadores de cliente e de assinatura atribuídos pelo Gateway de Pagamento; situação da assinatura e as datas que determinam o acesso; registros de auditoria das mudanças de situação de acesso da conta; e o registro do aceite destes Termos, com a versão aceita e o momento do aceite.
+
+11.4. Dados tratados como operadora. São os dados que a Empresa Contratante cadastra: dados públicos da empresa, como nome, telefone, perfil no Instagram, logotipo, banner, descrição e cores da identidade visual, além do identificador público usado no endereço do catálogo; e o conteúdo operacional, como produtos, combos, promoções e movimentações de estoque.
+
+11.5. Se a Empresa Contratante inserir dados pessoais de terceiros nesse conteúdo, ela é a controladora desses dados e responde pela base legal e pela licitude do tratamento.
+
+11.6. Visitantes do Catálogo Público. A Plataforma não exige cadastro, não cria conta e não coleta dados de identificação de quem apenas visita o Catálogo Público.
+
+11.7. Finalidades. Os dados são tratados para: permitir o acesso à conta e autenticar o Usuário Administrador; operar as funcionalidades contratadas; controlar a assinatura, a cobrança e o acesso; exibir o Catálogo Público conforme configurado pela Empresa Contratante; cumprir obrigações legais e regulatórias; e apurar, exercer ou defender direitos.
+
+11.8. Bases legais. O tratamento se apoia, conforme o caso, na execução do contrato, no cumprimento de obrigação legal ou regulatória, no exercício regular de direitos e no legítimo interesse, sempre nos limites da LGPD.
+
+11.9. Operadores e subprocessadores. Para operar o serviço, contamos com prestadores externos, cada um em uma função específica: o Gateway de Pagamento, Asaas, para processar a cobrança recorrente; um provedor de armazenamento de objetos, para guardar as imagens enviadas pela Empresa Contratante; e um provedor de hospedagem de aplicação e de banco de dados, para manter o sistema no ar. Esses prestadores tratam dados apenas conforme necessário para as funções descritas.
+
+11.10. Compartilhamento. Fora dos prestadores citados, os dados não são compartilhados com terceiros, salvo por determinação legal, ordem de autoridade competente ou exercício regular de direitos.
+
+11.11. Segurança. Adotamos medidas técnicas e administrativas razoáveis para proteger os dados, entre elas o armazenamento de senha apenas como hash, o controle de acesso por sessão autenticada e o isolamento entre empresas descrito na seção anterior. Nenhum sistema é absolutamente imune a incidentes, e não prometemos o contrário.
+
+11.12. Direitos do titular. Você pode solicitar, a qualquer momento: confirmação da existência de tratamento; acesso aos seus dados; correção de dados incompletos, inexatos ou desatualizados; anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade; portabilidade; informação sobre compartilhamento; informação sobre a possibilidade de não fornecer consentimento e as consequências disso; e revogação do consentimento, quando essa for a base legal aplicável.
+
+11.13. Canal de exercício. Os pedidos devem ser enviados para davidsoudev@gmail.com. Responderemos em prazo razoável, e sempre dentro do prazo previsto na legislação aplicável, podendo solicitar informações adicionais para confirmar a identidade de quem pede.
+
+11.14. Retenção. Os dados são mantidos enquanto a conta existir e, após o encerramento, pelo prazo descrito na seção sobre rescisão, ou pelo prazo maior exigido por obrigação legal ou pela defesa de direitos.
+
+11.15. Incidentes. Em caso de incidente de segurança com risco relevante aos titulares, comunicaremos os afetados e a autoridade nacional competente, nos termos da LGPD.
+
+
+12. OBRIGAÇÕES E CONDUTA
+
+12.1. A Empresa Contratante compromete-se a informar dados verdadeiros sobre si e sobre os produtos que anuncia, e a manter o Catálogo Público condizente com o que efetivamente oferece.
+
+12.2. É proibido publicar na Plataforma conteúdo ilícito, enganoso, discriminatório, ofensivo, que viole direitos de terceiros ou que anuncie produto cuja comercialização seja vedada pela legislação brasileira.
+
+12.3. É proibido publicar imagem, texto, marca ou qualquer material de terceiro sem autorização de quem detém os direitos correspondentes.
+
+12.4. É proibido tentar acessar dados de outra Empresa Contratante, explorar falhas do sistema, contornar o controle de assinatura, automatizar acesso de modo a degradar o serviço, ou realizar engenharia reversa da Plataforma com a finalidade de burlar suas proteções.
+
+12.5. É proibido usar a Plataforma para envio de mensagens não solicitadas, para disseminação de código malicioso ou para qualquer prática que comprometa a segurança de terceiros.
+
+12.6. Se você identificar uma falha de segurança na Plataforma, pedimos que a comunique de forma responsável para davidsoudev@gmail.com, sem explorá-la e sem divulgá-la publicamente antes que ela seja corrigida.
+
+12.7. O descumprimento desta seção autoriza a suspensão imediata do acesso e o encerramento da conta, na forma da seção sobre rescisão.
+
+
+13. DISPONIBILIDADE E LIMITAÇÃO DE RESPONSABILIDADE
+
+13.1. A Plataforma é fornecida no estado em que se encontra e conforme disponível. Fazemos esforços razoáveis para mantê-la funcionando bem, mas não garantimos operação ininterrupta, isenta de falhas ou livre de erros.
+
+13.2. Poderá haver indisponibilidade por manutenção programada, correção emergencial, atualização do sistema, ou por falha de terceiros dos quais a operação depende, como provedores de hospedagem, de banco de dados, de armazenamento de imagens e o próprio Gateway de Pagamento.
+
+13.3. Não assumimos compromisso de tempo mínimo de disponibilidade, de prazo de resposta a chamados nem de atendimento em horário determinado. O que existe é o canal de contato indicado neste documento.
+
+13.4. Não nos responsabilizamos por lucros cessantes, perda de oportunidade de negócio, perda de clientela, danos indiretos ou danos que não decorram diretamente de ato nosso.
+
+13.5. Na máxima extensão permitida pela legislação aplicável, a nossa responsabilidade total, por qualquer causa relacionada à Plataforma, fica limitada ao valor efetivamente pago pela Empresa Contratante nos 12 meses anteriores ao fato que originar a reclamação.
+
+13.6. Ressalva expressa e relevante: as limitações desta seção não afastam direitos indisponíveis assegurados por lei, inclusive os direitos previstos na legislação consumerista quando a relação for de consumo. Se a legislação aplicável considerar inválida alguma limitação aqui prevista, ela deixa de produzir efeito naquilo em que for inválida, e o restante deste documento permanece em vigor.
+
+13.7. A Empresa Contratante é responsável por manter cópias próprias das informações que considerar críticas para o seu negócio.
+
+13.8. A Plataforma não responde por descumprimento de obrigações causado por evento fora do seu controle razoável, como caso fortuito, força maior, interrupção generalizada de energia ou de conectividade, e determinação de autoridade.
+
+
+14. ALTERAÇÃO DESTES TERMOS
+
+14.1. Estes Termos podem ser alterados para refletir mudanças no serviço, na legislação aplicável ou nas condições comerciais.
+
+14.2. Uma alteração é publicada como um documento NOVO, com identificação de versão própria. As versões anteriores são preservadas e nunca são reescritas ou apagadas. Isso existe para que sempre seja possível saber, sem ambiguidade, qual texto cada usuário aceitou.
+
+14.3. A partir da publicação de uma nova versão, o acesso ao painel administrativo passa a exigir o aceite dela. Ao entrar, você verá o novo texto e a data em que foi publicado, e o painel só abre depois do aceite.
+
+14.4. Enquanto a nova versão não for aceita, o acesso ao painel fica restrito a essa tela de aceite. Você continua podendo encerrar a sessão normalmente.
+
+14.5. Se você não concordar com a nova versão, pode cancelar a assinatura e encerrar a conta, conforme as seções sobre cancelamento e rescisão. Não há penalidade por essa escolha.
+
+14.6. O Catálogo Público de uma Empresa Contratante em dia não é afetado pela pendência de aceite do Usuário Administrador.
+
+
+15. RESCISÃO E ENCERRAMENTO DA CONTA
+
+15.1. A Empresa Contratante pode encerrar a relação a qualquer momento, cancelando a assinatura pelo painel e solicitando o encerramento da conta pelo endereço davidsoudev@gmail.com.
+
+15.2. A Plataforma pode encerrar a conta, mediante comunicação ao e-mail cadastrado, nas seguintes hipóteses: violação das obrigações previstas na seção sobre obrigações e conduta; inadimplência prolongada, assim entendida a permanência do bloqueio sem regularização; uso da Plataforma para finalidade ilícita; e cumprimento de determinação legal ou de autoridade competente.
+
+15.3. Em caso de violação grave, com risco a terceiros, a outros clientes ou à integridade do sistema, a suspensão do acesso pode ser imediata, com a comunicação sendo feita em seguida.
+
+15.4. Efeitos do encerramento: o Catálogo Público deixa de ser exibido, o painel administrativo deixa de ser acessível e as renovações são interrompidas.
+
+15.5. Após o encerramento, os dados da Empresa Contratante permanecem recuperáveis por 90 dias, período em que a conta pode ser restabelecida mediante solicitação e regularização da assinatura.
+
+15.6. Decorrido esse prazo, os dados são eliminados de forma definitiva, ressalvados aqueles que precisarmos manter para cumprimento de obrigação legal ou regulatória, ou para o exercício regular de direitos, hipótese em que a retenção fica limitada a essa finalidade.
+
+15.7. O encerramento não dispensa o pagamento de valores devidos e vencidos até a data em que ele ocorreu, nem gera direito a reembolso do período corrente, conforme a seção sobre cancelamento.
+
+
+16. DISPOSIÇÕES GERAIS E FORO
+
+16.1. Estes Termos regem a relação entre a Plataforma e a Empresa Contratante quanto ao uso do serviço, e substituem entendimentos anteriores sobre o mesmo objeto.
+
+16.2. Se qualquer cláusula deste documento for considerada inválida ou inexequível, as demais permanecem em pleno vigor, e a cláusula afetada será interpretada de modo a preservar, na medida do possível, a intenção original.
+
+16.3. A tolerância quanto ao descumprimento de qualquer obrigação não implica renúncia, novação ou alteração do que está previsto aqui.
+
+16.4. Estes Termos não criam vínculo societário, associativo, de emprego, de franquia ou de representação entre a Plataforma e a Empresa Contratante. Cada parte responde pelas suas próprias obrigações fiscais, trabalhistas e regulatórias.
+
+16.5. A Empresa Contratante não pode ceder ou transferir os direitos e obrigações destes Termos sem a nossa anuência prévia. A Plataforma pode cedê-los em caso de reorganização societária, incorporação ou transferência da operação, mantidas as condições aqui previstas.
+
+16.6. As comunicações relativas a estes Termos são feitas por e-mail, para o endereço cadastrado pela Empresa Contratante e para davidsoudev@gmail.com no sentido inverso. É responsabilidade da Empresa Contratante manter o seu endereço atualizado e acessível.
+
+16.7. Estes Termos são regidos e interpretados de acordo com a legislação brasileira.
+
+16.8. Fica eleito o foro da comarca de Santa Cruz do Capibaribe, no Estado de Pernambuco, para dirimir controvérsias decorrentes destes Termos, com renúncia a qualquer outro, por mais privilegiado que seja, ressalvada a competência de foro diverso quando assegurada por norma de ordem pública, inclusive em relação de consumo.
