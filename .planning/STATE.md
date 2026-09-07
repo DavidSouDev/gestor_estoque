@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: blocked
 stopped_at: Phase 7 Plan 08 checkpoint deferred (Postgres port conflict)
-last_updated: "2026-09-07T12:15:00.000Z"
-last_activity: 2026-09-07 -- Quick task 260907-cuq: aceite dos Termos de Uso no /registro amarrado ao submit de "Criar minha loja" (abre o modal no primeiro clique, "Li e aceito, criar minha loja" fecha e envia); checkbox e botao-gatilho removidos; server action valida termosAceitos="true"; 1159/1159 testes, e2e 32/32
+last_updated: "2026-09-07T12:55:00.000Z"
+last_activity: 2026-09-07 -- Quick task 260907-dow: corrigido defeito onde todo P2002 do Prisma 7 + driver adapter caia na mensagem generica de erro (meta.target nao existe mais nesse caminho); novo lib/prisma-error.ts extrai o campo colidido dos dois formatos, com prova RED->GREEN de 6 casos; email duplicado em /registro volta a devolver "Este email ja esta em uso."; 1171/1171 testes
 progress:
   total_phases: 7
   completed_phases: 6
@@ -219,6 +219,7 @@ None yet.
 | 260905-eqn | Publicar texto real dos Termos de Uso (substituir placeholder da v1) via POST /api/termos como v2 | 2026-09-05 | a8bb366 | [260905-eqn-publicar-texto-real-dos-termos-de-uso-su](./quick/260905-eqn-publicar-texto-real-dos-termos-de-uso-su/) |
 | 260907-bxr | Trocar accordion dos Termos de Uso no registro por modal de leitura obrigatoria | 2026-09-07 | 4fcab4e | [260907-bxr-trocar-accordion-dos-termos-de-uso-no-re](./quick/260907-bxr-trocar-accordion-dos-termos-de-uso-no-re/) |
 | 260907-cuq | Ajustar fluxo do modal de Termos de Uso: remover botao gatilho e checkbox, abrir modal ao clicar em Criar minha loja antes do submit real | 2026-09-07 | e8bd5f0 | [260907-cuq-ajustar-fluxo-do-modal-de-termos-de-uso-](./quick/260907-cuq-ajustar-fluxo-do-modal-de-termos-de-uso-/) |
+| 260907-dow | Corrigir extracao do campo colidido em erros P2002 do Prisma 7 driver adapter (meta.target nao existe mais) | 2026-09-07 | 3dc53ae | [260907-dow-corrigir-extracao-do-campo-colidido-em-e](./quick/260907-dow-corrigir-extracao-do-campo-colidido-em-e/) |
 
 ## Deferred Items
 
