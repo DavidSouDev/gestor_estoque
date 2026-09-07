@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: blocked
 stopped_at: Phase 7 Plan 08 checkpoint deferred (Postgres port conflict)
-last_updated: "2026-09-02T20:15:00.000Z"
-last_activity: 2026-09-05 -- Quick task 260905-eqn: texto real dos Termos de Uso redigido e publicado como v27 na instância local (v1 intacta, sha256 conferido); publicação em producao segue pendente (acao do operador + revisao juridica)
+last_updated: "2026-09-07T11:35:00.000Z"
+last_activity: 2026-09-07 -- Quick task 260907-bxr: accordion dos Termos de Uso no /registro trocado por modal nativo (<dialog>), leitura obrigatoria via clique/Escape/backdrop; checkbox de aceite preservado; 1156/1156 testes, e2e 4/4 contra Chromium real
 progress:
   total_phases: 7
   completed_phases: 6
@@ -217,6 +217,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260905-eqn | Publicar texto real dos Termos de Uso (substituir placeholder da v1) via POST /api/termos como v2 | 2026-09-05 | a8bb366 | [260905-eqn-publicar-texto-real-dos-termos-de-uso-su](./quick/260905-eqn-publicar-texto-real-dos-termos-de-uso-su/) |
+| 260907-bxr | Trocar accordion dos Termos de Uso no registro por modal de leitura obrigatoria | 2026-09-07 | 4fcab4e | [260907-bxr-trocar-accordion-dos-termos-de-uso-no-re](./quick/260907-bxr-trocar-accordion-dos-termos-de-uso-no-re/) |
 
 ## Deferred Items
 
