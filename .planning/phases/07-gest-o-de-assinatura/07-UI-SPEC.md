@@ -382,6 +382,7 @@ Pill tone in States B and D follows the **local** status, not the gateway's: `CA
 - The card shell (`rounded-2xl border border-slate-100 bg-white p-6 shadow-sm`) is the dashboard/estoque card, not the `rounded-3xl … shadow-xl` full-screen shell of `bloqueado-card.tsx`. This screen sits **inside** the admin chrome; it is a page, not a takeover.
 - **`AvisoCarencia` is not duplicated here.** The layout already renders it above `children` on every admin screen (`(protected)/layout.tsx`). A second amber block on this one page would double the warning for a user in carência.
 - The screen renders identically in SIMPLES and COMPLETO. **No `SimplesAssistant`-style variant is built** — §Non-Goals.
+- **The skeleton above is the shipped one, with the three composition deltas of §Addendum — quick 260907-ejn applied** (tile border, plan-value weight, CTA zone). No zone was moved, merged or removed; read the addendum at the end of this file before touching tile or CTA markup.
 
 ### 2. Status pill glyphs
 
@@ -649,3 +650,39 @@ No registry, no block, no external component source is consumed by this phase. N
 - [ ] Dimension 6 Registry Safety: PASS
 
 **Approval:** pending
+
+---
+
+## Addendum — quick 260907-ejn (visual comercial)
+
+The screen is where the product asks for money, and it read like a settings form: everything slate at 12–14px, tiles with no definition, the CTA stacked as if it were one more item. Three composition deltas were applied. **No prohibition in this contract was amended to fit them** — where a desirable "salesy" move hit a rule, the rule won, and the refused move is listed below so nobody rediscovers it as an oversight.
+
+**The binding skeleton is unchanged.** No zone was moved, merged or removed; Zone 1 still renders identically in all five states and Zone 2 is still the only one that degrades. Copy frozen by §Copywriting Contract is byte-identical.
+
+### Deltas applied
+
+| # | What changed | Exact class | Token that authorises it |
+|---|--------------|-------------|--------------------------|
+| 1 | The three tiles (`Acesso até`, `Plano`, `Próxima cobrança`) gain a frame | `rounded-xl border border-slate-100 bg-slate-50 p-4` — identical in all three; the Zone 2 tile keeps its leading `mt-4` spacing and differs by nothing else | §Color lists `slate-100` as the card border token. The parity between tiles is what keeps the degraded-state assertion (`tile de Acesso até` identical between `ativa` and `degradado`) true. |
+| 2 | The plan value gains weight | `mt-1 text-sm/[1.5] font-semibold text-slate-800` | §Typography — "four sizes, two weights". 14px/600 is already the button-label token, not a fifth token. The `<p>` still holds `{precoMensal}` and the ` por mês` literal as two sibling text nodes, with no child element. |
+| 3 | The CTA gets its own zone | `<form>` becomes `mt-6 border-t border-slate-100 pt-6`, plus one `<p className="mt-3 text-xs text-slate-500">` below the button reading `O acesso é liberado assim que o pagamento for confirmado.` | Same border token; Meta size + secondary text colour, both from the tables. §Copywriting Contract freezes the existing strings — it does not forbid a new element. The line lives inside the `podePagar` block, so it never renders for an active, vitalício or degraded subscriber. |
+
+### Refused — desirable, but forbidden. Do not reintroduce.
+
+| Move | Rule that refuses it |
+|------|----------------------|
+| Price as a 24px hero number | §Typography, "Binding rule: exactly one Display value on the screen" — Display is exclusive to the `Acesso até` date. |
+| Any `font-bold` (weight 700) for emphasis | §Typography: no new markup in this phase may use weight 700. |
+| Tiles, pill or card border tinted with the tenant colour | §Color: accent does not apply to tiles, pill, card border, text or the SIMPLES bar. The 3 permitted uses are already spent (pay button background + ring, active `AdminNav` row). |
+| Emerald or gradient tiles to "sell" | §Color: the emerald ramp is semantic, restricted to the pill in the active and vitalício states. |
+| Weight 600 on the `Próxima cobrança` value | Giving a field that can be missing the same weight as one that never is would make the degraded state read as broken instead of partial (D-02b). |
+| Merging Zone 2 into the Zone 1 grid | §Component Contracts, "Zone structure (binding)" — the zone split **is** the degradation mechanism of D-02b. |
+| Price seal, discount badge, plan comparison | §Non-Goals: "Plan or price selection" is out of the whole milestone. R$ 29,90 is displayed, never chosen. |
+| Billing history, card brand, "secure payment via …" | §Non-Goals plus the milestone's central constraint: no payment data touches this system, and the gateway's vocabulary never appears (BILL-01). |
+| A bigger shell or `shadow-xl` | §Component Contracts: the shell is the dashboard card, not the full-screen takeover of `bloqueado-card.tsx`. |
+| A second amber block highlighting carência | §Non-Goals: the layout already renders `AvisoCarencia` above `children` on every admin screen. |
+| An icon library, animation or modal to "add life" | §Non-Goals plus Gate 6 of `gates:fase-07`, which fails on any install. |
+
+### SIMPLES-mode affordance — decided, not forgotten
+
+Reinforcing the `/assinatura` entry point in `SimplesTopBar` was evaluated and **deliberately declined** (operator decision, option A). The access already exists and is already covered by tests; three rules block making it louder — §Touch Targets (the two new entry points "are siblings appended to those rows and must match them"), §Color (the tenant colour is explicitly not used on the `SimplesTopBar` icon button), and the component test asserting the Assinatura link's class is identical to the gear's. A SIMPLES tenant in carência already receives the amber `AvisoCarencia` with a pay button above `children` on every admin screen, which is a stronger urgency signal than any bar badge. The reasoning is recorded in `simples-top-bar.tsx` next to the link itself.
