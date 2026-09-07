@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useActionState } from "react";
 import type { RegisterState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
@@ -23,9 +23,53 @@ export function RegisterForm({
   const [state, formAction, pending] = useActionState(action, {});
   const [modo, setModo] = useState<"SIMPLES" | "COMPLETO">("COMPLETO");
   const dialogoRef = useRef<HTMLDialogElement>(null);
+  const formularioRef = useRef<HTMLFormElement>(null);
+  const provaRef = useRef<HTMLInputElement>(null);
+
+  // A memória do aceite é um REF, não estado (D-B): `setState` é assíncrono e o
+  // `requestSubmit()` disparado logo em seguida leria o valor velho. Este ref é a
+  // única fonte de verdade do "já aceitou"; o hidden input é só a projeção dele
+  // no payload.
+  const jaAceitouRef = useRef(false);
+
+  /**
+   * O gate do aceite (D-A). Mora no `onSubmit` do `<form>`, e não no `onClick` do
+   * botão, por dois motivos: o browser roda a validação nativa ANTES de disparar
+   * o submit, então o modal só aparece com o resto do formulário já preenchido;
+   * e o submit implícito por Enter num campo de texto também passa por aqui.
+   *
+   * `preventDefault()` num handler de `onSubmit` CANCELA a Server Action: o React
+   * despacha este plugin antes do de form action e testa `defaultPrevented` antes
+   * de invocá-la.
+   */
+  function aoSubmeter(evento: FormEvent<HTMLFormElement>) {
+    if (!jaAceitouRef.current) {
+      evento.preventDefault();
+      dialogoRef.current?.showModal();
+      return;
+    }
+
+    // Escrever aqui, e não no clique do modal, é o que mantém o SEGUNDO submit
+    // válido (D-C): o React 19 reseta os campos não controlados depois de cada
+    // action, apagando este valor. O `FormData` só é montado depois deste
+    // handler, então a escrita entra a tempo.
+    if (provaRef.current) {
+      provaRef.current.value = "true";
+    }
+  }
+
+  /**
+   * Fecha o modal e reentra no `onSubmit` acima — que desta vez deixa passar.
+   * Nenhuma lógica de submissão duplicada: o caminho é o mesmo do formulário.
+   */
+  function aoAceitar() {
+    jaAceitouRef.current = true;
+    dialogoRef.current?.close();
+    formularioRef.current?.requestSubmit();
+  }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formularioRef} action={formAction} onSubmit={aoSubmeter} className="space-y-4">
       <div>
         <label htmlFor="nomeEmpresa" className="mb-1.5 block text-xs font-semibold text-slate-600">
           Nome da empresa
@@ -110,18 +154,19 @@ export function RegisterForm({
       </div>
 
       {/*
-        Metade CLIENT de D-11. O `required` do checkbox é a primeira das duas
-        validações; a segunda vive em `app/registro/actions.ts` (E3) e existe
-        porque um submit por cliente próprio ou com JS desabilitado nunca passa
-        por esta.
+        Metade CLIENT de D-11. O gate é o próprio submit: o primeiro clique em
+        "Criar minha loja" abre este modal em vez de disparar a action, e a prova
+        de aceite só é escrita no submit que vem DEPOIS do botão de aceite. A
+        segunda metade vive em `app/registro/actions.ts` (E3) e existe porque um
+        submit por cliente próprio ou com JS desabilitado nunca passa por esta.
 
-        Posição deliberada: logo DEPOIS do seletor de modo e logo ANTES do bloco
-        de erro, para que uma recusa server-side (E2/E3) apareça imediatamente
-        acima do botão de submit, onde o erro já aparece hoje.
+        Amarrar a leitura ao caminho obrigatório do cadastro é o ponto: enquanto
+        o aceite era um controle marcável ao lado de um botão de leitura opcional,
+        dava para consentir sem nunca abrir o texto.
 
-        MODAL, não mais disclosure: o texto expandindo inline empurrava o
-        formulário para baixo dentro do card, e em mobile o usuário perdia o
-        contexto do cadastro. O overlay separa "ler" de "preencher".
+        MODAL, não disclosure: o texto expandindo inline empurrava o formulário
+        para baixo dentro do card, e em mobile o usuário perdia o contexto do
+        cadastro. O overlay separa "ler" de "preencher".
 
         `<dialog>` NATIVO, e não uma biblioteca: focus trap, Escape, retorno de
         foco, top layer e backdrop vêm prontos do browser. Instalar headlessui,
@@ -129,21 +174,12 @@ export function RegisterForm({
         fixa a contagem de dependências — e escrever focus trap à mão seria
         inventar um design system para revelar um bloco de texto.
 
-        CUSTO ACEITO: com JS desabilitado o modal não abre — regressão real em
-        relação ao `<details>`, nesta que é a única tela do produto sem sessão.
-        Aceita porque o aceite não depende do modal abrir: o `required` do
-        checkbox e a validação server-side (E3) continuam sendo as duas guardas,
-        e nenhuma delas passa por aqui.
+        CUSTO ACEITO: com JS desabilitado o modal não abre. O desfecho, porém, é
+        falha FECHADA — sem JS a Server Action de `useActionState` não roda de
+        qualquer forma, e um POST montado à mão chega ao servidor sem a prova e é
+        recusado pela copy E3. Nunca existe conta criada sem aceite.
       */}
       <div>
-        <button
-          type="button"
-          onClick={() => dialogoRef.current?.showModal()}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-left text-sm/[1.5] font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-200"
-        >
-          Ler os Termos de Uso (versão {termo.versao})
-        </button>
-
         {/*
           Sem estado React para aberto/fechado: o próprio `<dialog>` é a única
           fonte de verdade. Escape fecha o elemento nativamente, sem passar pelo
@@ -194,34 +230,46 @@ export function RegisterForm({
             {/*
               `type="button"` nos DOIS botões é requisito, não estilo: o
               `<dialog>` vive dentro do `<form>`, e um `<button>` sem `type`
-              dentro de form é `submit` por padrão — abrir ou fechar o modal
-              dispararia o cadastro (T-Q07-02).
+              dentro de form é `submit` por padrão — fechar o modal dispararia o
+              cadastro, e o de aceite submeteria DUAS vezes (T-Q08-02).
+
+              "Fechar" permanece, como secundário (D-D): sem ele, Escape e clique
+              no backdrop virariam as únicas saídas — descobríveis por quem já
+              sabe, invisíveis para todo mundo. Fechar não é aceitar: o próximo
+              submit reabre o modal.
             */}
-            <button
-              type="button"
-              onClick={() => dialogoRef.current?.close()}
-              className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md active:scale-[0.98]"
-            >
-              Fechar
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => dialogoRef.current?.close()}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Fechar
+              </button>
+
+              <button
+                type="button"
+                onClick={aoAceitar}
+                className="flex-1 rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md active:scale-[0.98]"
+              >
+                Li e aceito, criar minha loja
+              </button>
+            </div>
           </div>
         </dialog>
 
         {/*
-          O input fica DENTRO do `<label>`: a linha inteira de 45px vira área de
-          clique e nenhum par `htmlFor`/`id` é necessário.
+          A prova de aceite (D-B). NÃO CONTROLADO de propósito: o valor é escrito
+          por ref dentro do `onSubmit`, e `setState` seguido de `requestSubmit()`
+          imediato enviaria o valor velho.
+
+          `defaultValue=""` é a garantia de T-Q08-03: o campo nasce vazio e o
+          único caminho para ele valer `"true"` no DOM real é o clique no botão
+          de aceite do modal. É a mesma força que o controle marcável dava — nem
+          mais, nem menos (D-E): um POST montado à mão sempre pôde forjar o valor,
+          e é para isso que existe a validação server-side.
         */}
-        <label className="flex cursor-pointer items-start gap-3 py-3 text-sm/[1.5] text-slate-600">
-          <input
-            type="checkbox"
-            name="aceiteTermos"
-            required
-            className="h-5 w-5 shrink-0 rounded border-slate-300 accent-slate-800"
-          />
-          <span>
-            Li e aceito os <span className="font-semibold text-slate-800">Termos de Uso</span>
-          </span>
-        </label>
+        <input type="hidden" name="termosAceitos" defaultValue="" ref={provaRef} />
 
         {/*
           Dado CONTROLADO PELO CLIENTE. O servidor compara por igualdade contra

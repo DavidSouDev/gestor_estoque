@@ -14,6 +14,44 @@ const TERMO = {
   conteudo: "Primeira cláusula dos termos.\n\nSegunda cláusula dos termos.",
 };
 
+/**
+ * Nome acessível do botão de submit. Sempre como STRING, nunca como regex: o
+ * rótulo do botão de aceite CONTÉM este texto como substring, e uma regex casaria
+ * parcialmente com os dois assim que o modal estivesse aberto.
+ */
+const SUBMIT = "Criar minha loja";
+const ACEITAR = "Li e aceito, criar minha loja";
+
+type Usuario = ReturnType<typeof userEvent.setup>;
+
+/**
+ * Preencher os cinco campos obrigatórios é PRÉ-REQUISITO de todo teste que
+ * espera o modal abrir. O jsdom roda `reportValidity()` antes de disparar o
+ * evento `submit`: com um `required` vazio nenhum submit acontece, e o gate do
+ * modal — que vive no `onSubmit` — nunca seria alcançado.
+ */
+async function preencherObrigatorios(user: Usuario) {
+  const campos: [string, string][] = [
+    ["Nome da empresa", "Mercearia São José"],
+    ["Seu nome", "David"],
+    ["E-mail", "david@teste.com"],
+    ["Senha", "senha1234"],
+    ["Confirmar senha", "senha1234"],
+  ];
+
+  for (const [rotulo, valor] of campos) {
+    const campo = screen.getByLabelText(rotulo);
+
+    // `clear()` antes de digitar torna o helper reutilizável DENTRO do mesmo
+    // teste. Depois que uma action termina, o React 19 reseta o formulário e em
+    // seguida repõe o valor anterior no campo — digitar por cima concatenaria os
+    // dois, produzindo um e-mail inválido que `reportValidity()` barraria antes
+    // de qualquer submit.
+    await user.clear(campo);
+    await user.type(campo, valor);
+  }
+}
+
 describe("RegisterForm", () => {
   it("renderiza os campos obrigatórios do formulário", () => {
     render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
@@ -56,30 +94,27 @@ describe("RegisterForm", () => {
 
     render(<RegisterForm action={action} termo={TERMO} />);
 
-    await user.type(screen.getByLabelText("Nome da empresa"), "Mercearia São José");
-    await user.type(screen.getByLabelText("Seu nome"), "David");
-    await user.type(screen.getByLabelText("E-mail"), "david@teste.com");
-    await user.type(screen.getByLabelText("Senha"), "senha1234");
-    await user.type(screen.getByLabelText("Confirmar senha"), "senha1234");
-    // Sem isto o submit nem dispara: o checkbox `required` faz a validação
-    // nativa barrar o formulário antes da action. É a mesma linha que os 9
-    // specs e2e passaram a precisar — a metade client de D-11 funcionando.
-    await user.click(screen.getByLabelText(/Li e aceito os Termos de Uso/));
-
-    await user.click(screen.getByRole("button", { name: /criar minha loja/i }));
+    await preencherObrigatorios(user);
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    await user.click(screen.getByRole("button", { name: ACEITAR }));
 
     expect(await screen.findByText("E-mail já cadastrado")).toBeInTheDocument();
     expect(action).toHaveBeenCalled();
   });
 
   describe("bloco de Termos de Uso (D-11, metade client)", () => {
-    it("renderiza o gatilho do modal com o número da versão recebida", () => {
+    it("não renderiza mais gatilho de leitura separado nem caixa de seleção de aceite", () => {
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
 
-      const gatilho = screen.getByRole("button", { name: "Ler os Termos de Uso (versão 3)" });
+      // Com o `<dialog>` fechado ele está sob `display: none` e fora da árvore de
+      // acessibilidade: todo botão alcançável aqui é do corpo do formulário. Nenhum
+      // deles pode mais falar dos termos — a leitura deixou de ser um passo lateral.
+      expect(screen.queryAllByRole("button", { name: /Termos/ })).toHaveLength(0);
 
-      expect(gatilho).toBeInTheDocument();
-      expect(gatilho.tagName).toBe("BUTTON");
+      // O aceite deixou de ser um controle marcável: não existe mais NENHUMA caixa
+      // de seleção no formulário, o que torna impossível aceitar sem abrir o modal.
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(document.querySelector('input[type="checkbox"]')).toBeNull();
     });
 
     it("mantém o modal fechado por padrão", () => {
@@ -101,17 +136,47 @@ describe("RegisterForm", () => {
       expect(container.querySelector("details")).toBeNull();
     });
 
-    it("só revela o texto do termo depois de abrir o modal, numa região rolável e focável", async () => {
+    it("mantém o hidden input de prova vazio antes de qualquer aceite", () => {
+      render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+      const prova = document.querySelector('input[name="termosAceitos"]') as HTMLInputElement;
+
+      // T-Q08-03: o campo nasce vazio e só é escrito dentro do `onSubmit`, depois
+      // do aceite. Um `defaultValue` já preenchido seria elevação de privilégio.
+      expect(prova).not.toBeNull();
+      expect(prova.type).toBe("hidden");
+      expect(prova.value).toBe("");
+    });
+
+    it("o primeiro submit válido abre o modal em vez de chamar a action", async () => {
+      const action = vi.fn().mockResolvedValue({});
+      const user = userEvent.setup();
+      const { container } = render(<RegisterForm action={action} termo={TERMO} />);
+
+      const dialogo = container.querySelector("dialog") as HTMLDialogElement;
+      expect(dialogo.open).toBe(false);
+
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+      expect(dialogo.open).toBe(true);
+      expect(action).not.toHaveBeenCalled();
+    });
+
+    it("exibe o título com a versão recebida e o texto numa região rolável e focável", async () => {
       const user = userEvent.setup();
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
 
-      // Com o `<dialog>` fechado o conteúdo está sob `display: none` e, portanto,
-      // fora da árvore de acessibilidade — o texto não empurra mais o formulário.
       expect(
         screen.queryByRole("region", { name: "Texto dos Termos de Uso" })
       ).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+      expect(
+        screen.getByRole("heading", { name: "Termos de Uso (versão 3)" })
+      ).toBeInTheDocument();
 
       const regiao = screen.getByRole("region", { name: "Texto dos Termos de Uso" });
 
@@ -120,50 +185,87 @@ describe("RegisterForm", () => {
       expect(regiao).toHaveAttribute("tabindex", "0");
     });
 
-    it("fecha o modal pelo botão Fechar sem submeter o formulário", async () => {
+    it("aceitar fecha o modal e chama a action uma vez com a prova e o termoId", async () => {
       const action = vi.fn().mockResolvedValue({});
       const user = userEvent.setup();
       const { container } = render(<RegisterForm action={action} termo={TERMO} />);
 
       const dialogo = container.querySelector("dialog") as HTMLDialogElement;
 
-      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+      await user.click(screen.getByRole("button", { name: ACEITAR }));
+
+      expect(dialogo.open).toBe(false);
+      expect(action).toHaveBeenCalledTimes(1);
+
+      // `calls[0][1]` é o `FormData` que a Server Action recebeu — o payload real,
+      // não o DOM. É ele que amarra o contrato com `app/registro/actions.ts`.
+      const payload = action.mock.calls[0][1] as FormData;
+
+      expect(payload.get("termosAceitos")).toBe("true");
+      expect(payload.get("termoId")).toBe("termo-vigente-1");
+    });
+
+    it("não reabre o modal num segundo submit depois do aceite", async () => {
+      const action = vi.fn().mockResolvedValue({ error: "E-mail já cadastrado" });
+      const user = userEvent.setup();
+      const { container } = render(<RegisterForm action={action} termo={TERMO} />);
+
+      const dialogo = container.querySelector("dialog") as HTMLDialogElement;
+
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+      await user.click(screen.getByRole("button", { name: ACEITAR }));
+
+      expect(await screen.findByText("E-mail já cadastrado")).toBeInTheDocument();
+
+      // D-C observado de verdade: depois que a action termina, o React 19 reseta
+      // o formulário e o hidden input de prova volta a ficar VAZIO. Sem a
+      // reescrita dentro do `onSubmit`, este segundo envio chegaria ao servidor
+      // sem prova e seria recusado com a E3.
+      expect(
+        (document.querySelector('input[name="termosAceitos"]') as HTMLInputElement).value
+      ).toBe("");
+
+      // Preencher de novo é o que um usuário corrigindo o e-mail faria.
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+      expect(dialogo.open).toBe(false);
+      expect(action).toHaveBeenCalledTimes(2);
+
+      // D-C: o mesmo reset apaga o hidden input de prova. Reescrevê-lo a cada
+      // submit autorizado é o que impede o segundo envio de ser recusado com a E3
+      // por um motivo que o usuário não teria como entender.
+      const segundoPayload = action.mock.calls[1][1] as FormData;
+
+      expect(segundoPayload.get("termosAceitos")).toBe("true");
+    });
+
+    it("fecha o modal pelo botão Fechar sem submeter, e o submit seguinte reabre", async () => {
+      const action = vi.fn().mockResolvedValue({});
+      const user = userEvent.setup();
+      const { container } = render(<RegisterForm action={action} termo={TERMO} />);
+
+      const dialogo = container.querySelector("dialog") as HTMLDialogElement;
+
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
       expect(dialogo.open).toBe(true);
 
       await user.click(screen.getByRole("button", { name: "Fechar" }));
 
+      // T-Q08-02: os dois botões do modal vivem DENTRO do `<form>`. Sem
+      // `type="button"` explícito, fechar o modal submeteria o cadastro.
       expect(dialogo.open).toBe(false);
-      // T-Q07-02: os dois botões do modal vivem DENTRO do `<form>`. Sem
-      // `type="button"` explícito, abrir ou fechar o modal submeteria o cadastro.
       expect(action).not.toHaveBeenCalled();
-    });
 
-    it("exige o checkbox de aceite antes do submit", () => {
-      render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+      // D-D: fechar não é aceitar. O pedágio continua de pé.
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
 
-      const checkbox = screen.getByLabelText(/Li e aceito os Termos de Uso/) as HTMLInputElement;
-
-      expect(checkbox).toBeInTheDocument();
-      expect(checkbox.type).toBe("checkbox");
-      expect(checkbox.name).toBe("aceiteTermos");
-      expect(checkbox).toBeRequired();
-      expect(checkbox.checked).toBe(false);
-    });
-
-    it("permite marcar o aceite SEM abrir o modal", async () => {
-      const user = userEvent.setup();
-      const { container } = render(
-        <RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />
-      );
-
-      // Superfície congelada: `getByLabel(/Li e aceito os Termos de Uso/).check()`
-      // aparece 13 vezes em 11 specs e2e, e nenhum deles abre o modal.
-      await user.click(screen.getByLabelText(/Li e aceito os Termos de Uso/));
-
-      expect((screen.getByLabelText(/Li e aceito os Termos de Uso/) as HTMLInputElement).checked).toBe(
-        true
-      );
-      expect((container.querySelector("dialog") as HTMLDialogElement).open).toBe(false);
+      expect(dialogo.open).toBe(true);
+      expect(action).not.toHaveBeenCalled();
     });
 
     it("envia o id do termo que o usuário viu num input escondido", () => {
@@ -187,7 +289,8 @@ describe("RegisterForm", () => {
         <RegisterForm action={vi.fn().mockResolvedValue({})} termo={termoComMarcacao} />
       );
 
-      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
 
       expect(container.querySelector("img")).toBeNull();
       expect(
@@ -195,10 +298,10 @@ describe("RegisterForm", () => {
       ).toHaveTextContent('<img src=x onerror="alert(1)"> cláusula');
     });
 
-    it("mantém o rótulo do botão de submit intacto (13 locators e2e dependem dele)", () => {
+    it("mantém o rótulo do botão de submit intacto (11 specs e2e dependem dele)", () => {
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
 
-      expect(screen.getByRole("button", { name: "Criar minha loja" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: SUBMIT })).toBeInTheDocument();
     });
   });
 });

@@ -25,8 +25,8 @@ test.describe("Sessão revogada", () => {
     await page.getByLabel("E-mail").fill(empresa.email);
     await page.getByLabel("Senha", { exact: true }).fill(empresa.senha);
     await page.getByLabel("Confirmar senha").fill(empresa.senha);
-    await page.getByLabel(/Li e aceito os Termos de Uso/).check();
     await page.getByRole("button", { name: "Criar minha loja" }).click();
+    await page.getByRole("button", { name: "Li e aceito, criar minha loja" }).click();
 
     await expect(page).toHaveURL(/\/admin$/);
 

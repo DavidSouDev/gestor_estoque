@@ -22,9 +22,11 @@ export async function register(
   const senha = String(formData.get("senha") ?? "");
   const confirmarSenha = String(formData.get("confirmarSenha") ?? "");
   const modoInterfaceRaw = String(formData.get("modoInterface") ?? "");
-  // Sem `String(...)`: um checkbox desmarcado simplesmente NÃO é enviado pelo
-  // browser, e a diferença entre `null` e `"on"` é o que a validação abaixo lê.
-  const aceiteTermos = formData.get("aceiteTermos");
+  // `String(... ?? "")` colapsa os três estados de fracasso num só: campo
+  // ausente do payload, campo presente e vazio (o hidden input existe mas nunca
+  // foi escrito) e campo forjado com outro valor. Todos viram uma string
+  // diferente de `"true"` e caem na mesma recusa, sem ramificação extra.
+  const termosAceitos = String(formData.get("termosAceitos") ?? "");
   const termoId = String(formData.get("termoId") ?? "").trim();
 
   if (!nomeEmpresa) {
@@ -52,20 +54,23 @@ export async function register(
   }
 
   // D-11 — a metade SERVER da validação dupla de TERM-01. A metade CLIENT é o
-  // `required` do checkbox (plano 06-07), e as duas existem sempre: "nunca
-  // confiar só no client" é o padrão que este mesmo arquivo já aplica a email e
-  // senha, e um formulário submetido com JS desabilitado ou por cliente próprio
-  // não passa pela primeira metade.
+  // gate do modal: este campo só recebe valor no submit que ocorre DEPOIS do
+  // clique em "Li e aceito, criar minha loja", de modo que no DOM real não
+  // existe caminho para ele chegar preenchido sem o aceite explícito.
   //
-  // `"on"` é o valor nativo de um checkbox marcado; a copy é a E3 da UI-SPEC,
-  // literal.
-  if (aceiteTermos !== "on") {
+  // As duas metades existem sempre: "nunca confiar só no client" é o padrão que
+  // este mesmo arquivo já aplica a email e senha, e um formulário submetido com
+  // JS desabilitado ou por cliente próprio não passa pela primeira.
+  //
+  // A copy é a E3 da UI-SPEC, literal.
+  if (termosAceitos !== "true") {
     return { error: "É preciso aceitar os Termos de Uso para criar a conta." };
   }
 
-  // MESMA mensagem de propósito. O hidden input viaja junto do checkbox, então a
-  // ausência dele só acontece com formulário adulterado ou renderizado num estado
-  // impossível — expor uma mensagem técnica ao usuário não o ajudaria a agir.
+  // MESMA mensagem de propósito. O hidden input do termo viaja junto do da prova
+  // de aceite, então a ausência dele só acontece com formulário adulterado ou
+  // renderizado num estado impossível — expor uma mensagem técnica ao usuário
+  // não o ajudaria a agir.
   if (!termoId) {
     return { error: "É preciso aceitar os Termos de Uso para criar a conta." };
   }
