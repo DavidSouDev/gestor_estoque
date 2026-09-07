@@ -73,7 +73,9 @@ describe("AdminNav", () => {
       const rotulos = screen.getAllByRole("link").map((link) => link.textContent);
 
       // Os seis existentes estão ordenados por frequência diária de uso; assinatura
-      // é o destino menos visitado do produto e fecha esse gradiente.
+      // é o destino menos visitado do produto e fecha esse gradiente. Termos de Uso
+      // pertence ao mesmo agrupamento de nível de conta e é ainda menos visitado,
+      // então fecha a lista.
       expect(rotulos).toEqual([
         "Início",
         "Meus Produtos",
@@ -82,6 +84,7 @@ describe("AdminNav", () => {
         "Estoque",
         "Minha Loja",
         "Assinatura",
+        "Termos de Uso",
       ]);
     });
 
@@ -91,6 +94,60 @@ describe("AdminNav", () => {
       expect(screen.getByRole("link", { name: /assinatura/i })).not.toHaveStyle({
         backgroundColor: "#2563eb",
       });
+    });
+  });
+
+  // TERM-RELEITURA depende de existir um caminho VISÍVEL até /admin/termos. Sem
+  // este item, a tela só seria alcançável digitando a URL — que é exatamente a
+  // lacuna que o quick task 260907-fhk fecha.
+  describe("entrada de Termos de Uso", () => {
+    it("aponta para a rota de termos do slug", () => {
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.getByRole("link", { name: /termos de uso/i })).toHaveAttribute(
+        "href",
+        "/loja-teste/admin/termos"
+      );
+    });
+  });
+});
+
+// Mesmo padrão de remontagem do bloco `AdminNav em /assinatura`: o mock de
+// `usePathname` é fixo por arquivo, então provar o estado ativo da rota nova
+// exige um módulo remontado com pathname próprio.
+describe("AdminNav em /termos", () => {
+  const baseProps = {
+    slug: "loja-teste",
+    empresaNome: "Mercearia Teste",
+    email: "admin@teste.com",
+    primaryColor: "#2563eb",
+    logoutAction: vi.fn().mockResolvedValue(undefined),
+  };
+
+  afterEach(() => {
+    vi.doUnmock("next/navigation");
+    vi.resetModules();
+  });
+
+  it("marca o item de Termos de Uso como ativo e não ativa Assinatura nem Início", async () => {
+    vi.resetModules();
+    vi.doMock("next/navigation", () => ({
+      usePathname: () => "/loja-teste/admin/termos",
+    }));
+
+    const { AdminNav: AdminNavRemontado } = await import("./admin-nav");
+    render(<AdminNavRemontado {...baseProps} />);
+
+    expect(screen.getByRole("link", { name: /termos de uso/i })).toHaveStyle({
+      backgroundColor: "#2563eb",
+    });
+    // `pathname.startsWith(item.href)` casa com /termos e com nenhuma outra
+    // rota, porque nenhum href existente é prefixo dele.
+    expect(screen.getByRole("link", { name: /assinatura/i })).not.toHaveStyle({
+      backgroundColor: "#2563eb",
+    });
+    expect(screen.getByRole("link", { name: /início/i })).not.toHaveStyle({
+      backgroundColor: "#2563eb",
     });
   });
 });

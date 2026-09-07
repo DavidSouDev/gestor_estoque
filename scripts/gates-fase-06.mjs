@@ -353,7 +353,13 @@ function gate3() {
 const AGULHA_AMBAR = "amb" + "er-";
 
 const ESCOPO_SEM_AMBAR = {
-  diretorios: ["app/[slug]/admin/aceitar-termos"],
+  diretorios: [
+    "app/[slug]/admin/aceitar-termos",
+    // Tela de RELEITURA dos termos (quick 260907-fhk): superfície de termos
+    // nova, logo dentro do mesmo escopo — deixá-la de fora permitiria amanhã
+    // exatamente a colisão de vocabulário que este gate documenta.
+    "app/[slug]/admin/(protected)/termos",
+  ],
   arquivos: ["app/registro/_components/register-form.tsx"],
 };
 

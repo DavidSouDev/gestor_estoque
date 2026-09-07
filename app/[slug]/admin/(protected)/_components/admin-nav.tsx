@@ -18,6 +18,8 @@ const ICONS = {
   marca:
     "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
   assinatura: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+  termos:
+    "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   sair: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
   collapse: "M11 19l-7-7 7-7m8 14l-7-7 7-7",
   expand: "M13 5l7 7-7 7M5 5l7 7-7 7",
@@ -35,6 +37,11 @@ function buildNavItems(slug: string) {
     // uso, e assinatura é o destino menos visitado do produto — pertence ao fim
     // desse gradiente, junto dos controles de nível de conta.
     { href: `/${slug}/admin/assinatura`, label: "Assinatura", icon: ICONS.assinatura },
+    // Último de todos, pelo mesmo critério: releitura de contrato pertence ao
+    // agrupamento de "controles de nível de conta" que assinatura abre, e é o
+    // destino MENOS visitado do produto inteiro — a tela existe para consulta
+    // eventual, não para uso diário.
+    { href: `/${slug}/admin/termos`, label: "Termos de Uso", icon: ICONS.termos },
   ];
 }
 
