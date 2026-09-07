@@ -73,34 +73,69 @@ describe("RegisterForm", () => {
   });
 
   describe("bloco de Termos de Uso (D-11, metade client)", () => {
-    it("renderiza o disclosure com o número da versão recebida", () => {
+    it("renderiza o gatilho do modal com o número da versão recebida", () => {
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
 
-      const disclosure = screen.getByText("Ler os Termos de Uso (versão 3)");
+      const gatilho = screen.getByRole("button", { name: "Ler os Termos de Uso (versão 3)" });
 
-      expect(disclosure).toBeInTheDocument();
-      expect(disclosure.tagName).toBe("SUMMARY");
+      expect(gatilho).toBeInTheDocument();
+      expect(gatilho.tagName).toBe("BUTTON");
     });
 
-    it("mantém o disclosure fechado por padrão", () => {
+    it("mantém o modal fechado por padrão", () => {
       const { container } = render(
         <RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />
       );
 
-      const details = container.querySelector("details") as HTMLDetailsElement;
+      const dialogos = container.querySelectorAll("dialog");
 
-      expect(details).not.toBeNull();
-      expect(details.open).toBe(false);
+      expect(dialogos).toHaveLength(1);
+      expect((dialogos[0] as HTMLDialogElement).open).toBe(false);
     });
 
-    it("renderiza o texto completo do termo dentro de uma região rolável e focável", () => {
+    it("não usa mais disclosure (<details>) para os termos", () => {
+      const { container } = render(
+        <RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />
+      );
+
+      expect(container.querySelector("details")).toBeNull();
+    });
+
+    it("só revela o texto do termo depois de abrir o modal, numa região rolável e focável", async () => {
+      const user = userEvent.setup();
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+      // Com o `<dialog>` fechado o conteúdo está sob `display: none` e, portanto,
+      // fora da árvore de acessibilidade — o texto não empurra mais o formulário.
+      expect(
+        screen.queryByRole("region", { name: "Texto dos Termos de Uso" })
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
 
       const regiao = screen.getByRole("region", { name: "Texto dos Termos de Uso" });
 
       expect(regiao).toHaveTextContent("Primeira cláusula dos termos.");
       expect(regiao).toHaveTextContent("Segunda cláusula dos termos.");
       expect(regiao).toHaveAttribute("tabindex", "0");
+    });
+
+    it("fecha o modal pelo botão Fechar sem submeter o formulário", async () => {
+      const action = vi.fn().mockResolvedValue({});
+      const user = userEvent.setup();
+      const { container } = render(<RegisterForm action={action} termo={TERMO} />);
+
+      const dialogo = container.querySelector("dialog") as HTMLDialogElement;
+
+      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
+      expect(dialogo.open).toBe(true);
+
+      await user.click(screen.getByRole("button", { name: "Fechar" }));
+
+      expect(dialogo.open).toBe(false);
+      // T-Q07-02: os dois botões do modal vivem DENTRO do `<form>`. Sem
+      // `type="button"` explícito, abrir ou fechar o modal submeteria o cadastro.
+      expect(action).not.toHaveBeenCalled();
     });
 
     it("exige o checkbox de aceite antes do submit", () => {
@@ -115,6 +150,22 @@ describe("RegisterForm", () => {
       expect(checkbox.checked).toBe(false);
     });
 
+    it("permite marcar o aceite SEM abrir o modal", async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />
+      );
+
+      // Superfície congelada: `getByLabel(/Li e aceito os Termos de Uso/).check()`
+      // aparece 13 vezes em 11 specs e2e, e nenhum deles abre o modal.
+      await user.click(screen.getByLabelText(/Li e aceito os Termos de Uso/));
+
+      expect((screen.getByLabelText(/Li e aceito os Termos de Uso/) as HTMLInputElement).checked).toBe(
+        true
+      );
+      expect((container.querySelector("dialog") as HTMLDialogElement).open).toBe(false);
+    });
+
     it("envia o id do termo que o usuário viu num input escondido", () => {
       render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
 
@@ -125,15 +176,18 @@ describe("RegisterForm", () => {
       expect(hidden.value).toBe("termo-vigente-1");
     });
 
-    it("não renderiza o texto do termo por HTML bruto (D-05, sem XSS)", () => {
+    it("não renderiza o texto do termo por HTML bruto (D-05, sem XSS)", async () => {
       const termoComMarcacao = {
         ...TERMO,
         conteudo: '<img src=x onerror="alert(1)"> cláusula',
       };
+      const user = userEvent.setup();
 
       const { container } = render(
         <RegisterForm action={vi.fn().mockResolvedValue({})} termo={termoComMarcacao} />
       );
+
+      await user.click(screen.getByRole("button", { name: /Ler os Termos de Uso/ }));
 
       expect(container.querySelector("img")).toBeNull();
       expect(

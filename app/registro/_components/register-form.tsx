@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useActionState } from "react";
 import type { RegisterState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
@@ -22,6 +22,7 @@ export function RegisterForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [modo, setModo] = useState<"SIMPLES" | "COMPLETO">("COMPLETO");
+  const dialogoRef = useRef<HTMLDialogElement>(null);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -118,34 +119,93 @@ export function RegisterForm({
         de erro, para que uma recusa server-side (E2/E3) apareça imediatamente
         acima do botão de submit, onde o erro já aparece hoje.
 
-        Disclosure nativo do HTML, não modal: o projeto não tem sistema de modais
-        (focus trap, scroll lock, Escape, return-focus, portal) e criar um para
-        revelar um bloco de texto seria inventar um design system. O disclosure
-        nativo satisfaz D-11 literalmente e continua funcionando com JS
-        desabilitado — o que importa nesta, a única tela do produto sem sessão.
+        MODAL, não mais disclosure: o texto expandindo inline empurrava o
+        formulário para baixo dentro do card, e em mobile o usuário perdia o
+        contexto do cadastro. O overlay separa "ler" de "preencher".
+
+        `<dialog>` NATIVO, e não uma biblioteca: focus trap, Escape, retorno de
+        foco, top layer e backdrop vêm prontos do browser. Instalar headlessui,
+        radix ou react-modal derrubaria o Gate 5 de `npm run gates:fase-06`, que
+        fixa a contagem de dependências — e escrever focus trap à mão seria
+        inventar um design system para revelar um bloco de texto.
+
+        CUSTO ACEITO: com JS desabilitado o modal não abre — regressão real em
+        relação ao `<details>`, nesta que é a única tela do produto sem sessão.
+        Aceita porque o aceite não depende do modal abrir: o `required` do
+        checkbox e a validação server-side (E3) continuam sendo as duas guardas,
+        e nenhuma delas passa por aqui.
       */}
       <div>
-        <details className="rounded-xl border border-slate-200 bg-slate-50/60 px-3">
-          <summary className="cursor-pointer select-none py-3 text-sm/[1.5] font-semibold text-slate-600">
-            Ler os Termos de Uso (versão {termo.versao})
-          </summary>
-          {/*
-            `role="region"` + `aria-label` + `tabIndex` porque uma caixa rolável
-            sem conteúdo focável é inalcançável pelo teclado.
+        <button
+          type="button"
+          onClick={() => dialogoRef.current?.showModal()}
+          className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-left text-sm/[1.5] font-semibold text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-200"
+        >
+          Ler os Termos de Uso (versão {termo.versao})
+        </button>
 
-            O texto é nó de texto React, com escape automático: injetar HTML
-            bruto é PROIBIDO nesta fase (D-05 torna o conteúdo texto puro
-            justamente para eliminar essa superfície).
+        {/*
+          Sem estado React para aberto/fechado: o próprio `<dialog>` é a única
+          fonte de verdade. Escape fecha o elemento nativamente, sem passar pelo
+          React — um `useState` paralelo dessincronizaria no primeiro Escape.
+
+          O `onClick` no próprio `<dialog>` fecha por clique no backdrop: o
+          backdrop É o elemento, então cliques no conteúdo têm `target` interno.
+        */}
+        <dialog
+          ref={dialogoRef}
+          aria-labelledby="titulo-termos-de-uso"
+          onClick={(event) => {
+            if (event.target === dialogoRef.current) {
+              dialogoRef.current?.close();
+            }
+          }}
+          className="m-auto w-[calc(100vw-2rem)] max-w-lg rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/50"
+        >
+          {/*
+            `max-h-[85vh]` no wrapper é o que garante mobile: o texto rola dentro
+            da caixa em vez de a caixa crescer para fora da tela.
           */}
-          <div
-            role="region"
-            aria-label="Texto dos Termos de Uso"
-            tabIndex={0}
-            className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-4 text-sm/[1.5] text-slate-700"
-          >
-            {termo.conteudo}
+          <div className="flex max-h-[85vh] flex-col gap-4 p-6">
+            <h2 id="titulo-termos-de-uso" className="text-base font-semibold text-slate-800">
+              Termos de Uso (versão {termo.versao})
+            </h2>
+
+            {/*
+              `role="region"` + `aria-label` + `tabIndex` porque uma caixa rolável
+              sem conteúdo focável é inalcançável pelo teclado.
+
+              O texto é nó de texto React, com escape automático: injetar HTML
+              bruto é PROIBIDO nesta fase (D-05 torna o conteúdo texto puro
+              justamente para eliminar essa superfície).
+
+              `min-h-0` é o que faz o `overflow-y-auto` funcionar dentro do flex
+              column acima.
+            */}
+            <div
+              role="region"
+              aria-label="Texto dos Termos de Uso"
+              tabIndex={0}
+              className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50/60 p-4 text-sm/[1.5] text-slate-700"
+            >
+              {termo.conteudo}
+            </div>
+
+            {/*
+              `type="button"` nos DOIS botões é requisito, não estilo: o
+              `<dialog>` vive dentro do `<form>`, e um `<button>` sem `type`
+              dentro de form é `submit` por padrão — abrir ou fechar o modal
+              dispararia o cadastro (T-Q07-02).
+            */}
+            <button
+              type="button"
+              onClick={() => dialogoRef.current?.close()}
+              className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md active:scale-[0.98]"
+            >
+              Fechar
+            </button>
           </div>
-        </details>
+        </dialog>
 
         {/*
           O input fica DENTRO do `<label>`: a linha inteira de 45px vira área de
