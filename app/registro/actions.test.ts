@@ -35,8 +35,9 @@ const TERMO_VIGENTE_ID = "termo-1";
 
 /**
  * Um `FormData` que passa em TODAS as validações. Cada caso só remove ou altera
- * o campo que quer exercitar — sem isto, um caso que testa o checkbox falharia
- * antes, numa validação anterior da cadeia, e passaria pelo motivo errado.
+ * o campo que quer exercitar — sem isto, um caso que testa a prova de aceite
+ * falharia antes, numa validação anterior da cadeia, e passaria pelo motivo
+ * errado.
  */
 function formValido(overrides: Record<string, string | null> = {}) {
   const base: Record<string, string> = {
@@ -46,7 +47,7 @@ function formValido(overrides: Record<string, string | null> = {}) {
     senha: "senha-plana",
     confirmarSenha: "senha-plana",
     modoInterface: "COMPLETO",
-    aceiteTermos: "on",
+    termosAceitos: "true",
     termoId: TERMO_VIGENTE_ID,
   };
 
@@ -54,8 +55,8 @@ function formValido(overrides: Record<string, string | null> = {}) {
 
   for (const [chave, valor] of Object.entries({ ...base, ...overrides })) {
     // `null` no override significa "este campo não vem no payload", que é
-    // diferente de "vem vazio" — um checkbox desmarcado simplesmente não é
-    // enviado pelo browser.
+    // diferente de "vem vazio" — os dois estados existem de verdade e o
+    // servidor precisa recusar ambos.
     if (valor !== null) {
       formData.set(chave, valor);
     }
@@ -101,35 +102,48 @@ describe("register — validações existentes", () => {
 /**
  * D-11 — a metade SERVER da validação dupla.
  *
- * A metade CLIENT é o `required` do checkbox (plano 06-07). As duas, sempre: um
- * formulário submetido com JS desabilitado ou por cliente próprio não passa pela
- * primeira metade, e "nunca confiar só no client" é o padrão que este mesmo
- * arquivo já aplica a email e senha.
+ * A metade CLIENT é o gate do modal: `termosAceitos` só recebe valor no submit
+ * que ocorre DEPOIS do clique em "Li e aceito, criar minha loja". As duas
+ * metades, sempre: um formulário submetido com JS desabilitado ou por cliente
+ * próprio não passa pela primeira, e "nunca confiar só no client" é o padrão
+ * que este mesmo arquivo já aplica a email e senha.
  */
 describe("register — aceite dos termos (TERM-01 / D-11)", () => {
   const COPY_E3 = "É preciso aceitar os Termos de Uso para criar a conta.";
 
-  it("recusa quando `aceiteTermos` não vem no payload, sem chamar o service", async () => {
-    const resultado = await register({}, formValido({ aceiteTermos: null }));
+  it("recusa quando `termosAceitos` não vem no payload, sem chamar o service", async () => {
+    const resultado = await register({}, formValido({ termosAceitos: null }));
 
     expect(resultado).toEqual({ error: COPY_E3 });
     expect(registerComUsuarioMock).not.toHaveBeenCalled();
     expect(createAdminSessionMock).not.toHaveBeenCalled();
   });
 
-  it("recusa quando `aceiteTermos` vem com valor diferente de \"on\"", async () => {
-    // `"on"` é o valor nativo de um checkbox marcado. Qualquer outra coisa é
-    // payload forjado.
-    const resultado = await register({}, formValido({ aceiteTermos: "true" }));
+  it("recusa quando `termosAceitos` vem vazio (hidden input nunca escrito)", async () => {
+    // Estado REAL de quem não clicou no modal: o hidden input é sempre enviado
+    // pelo browser, mas com o `defaultValue=""` que o componente renderiza.
+    const resultado = await register({}, formValido({ termosAceitos: "" }));
+
+    expect(resultado).toEqual({ error: COPY_E3 });
+    expect(registerComUsuarioMock).not.toHaveBeenCalled();
+    expect(createAdminSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("recusa quando `termosAceitos` vem com valor forjado", async () => {
+    // `"on"` era o valor do antigo checkbox de aceite. Usá-lo como payload
+    // forjado documenta a migração dentro do próprio teste: quem repetir o
+    // formato antigo é recusado como qualquer outro valor arbitrário.
+    const resultado = await register({}, formValido({ termosAceitos: "on" }));
 
     expect(resultado).toEqual({ error: COPY_E3 });
     expect(registerComUsuarioMock).not.toHaveBeenCalled();
   });
 
   it("recusa quando `termoId` não vem no payload", async () => {
-    // Mesma mensagem de propósito: o hidden input viaja junto do checkbox, e sua
-    // ausência só acontece com formulário adulterado ou renderizado num estado
-    // impossível. Uma mensagem técnica não ajudaria o usuário a agir.
+    // Mesma mensagem de propósito: o hidden input do termo viaja junto do da
+    // prova de aceite, e sua ausência só acontece com formulário adulterado ou
+    // renderizado num estado impossível. Uma mensagem técnica não ajudaria o
+    // usuário a agir.
     const resultado = await register({}, formValido({ termoId: null }));
 
     expect(resultado).toEqual({ error: COPY_E3 });
