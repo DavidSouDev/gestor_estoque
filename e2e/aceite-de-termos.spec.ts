@@ -27,10 +27,10 @@ import {
  * mesmo padrão de `seedFatosBilling`, e pelo mesmo motivo (quando a chamada
  * retorna, a linha já está no banco).
  *
- * Cada teste registra a SUA empresa pela UI, com o checkbox já marcado, o que
- * grava o aceite da versão vigente naquele instante. A versão nova publicada
- * DEPOIS é o que torna aquele aceite obsoleto — é assim que o gate é acionado
- * sem nenhuma escrita direta no banco e sem manipular a sessão.
+ * Cada teste registra a SUA empresa pela UI, aceitando pelo modal que o próprio
+ * submit abre, o que grava o aceite da versão vigente naquele instante. A versão
+ * nova publicada DEPOIS é o que torna aquele aceite obsoleto — é assim que o gate
+ * é acionado sem nenhuma escrita direta no banco e sem manipular a sessão.
  */
 
 /**
@@ -58,8 +58,8 @@ async function registrarPelaUI(page: Page) {
   await page.getByLabel("E-mail").fill(empresa.email);
   await page.getByLabel("Senha", { exact: true }).fill(empresa.senha);
   await page.getByLabel("Confirmar senha").fill(empresa.senha);
-  await page.getByLabel(/Li e aceito os Termos de Uso/).check();
   await page.getByRole("button", { name: "Criar minha loja" }).click();
+  await page.getByRole("button", { name: "Li e aceito, criar minha loja" }).click();
 
   await expect(page).toHaveURL(/\/admin$/, { timeout: PRIMEIRA_VISITA });
 
