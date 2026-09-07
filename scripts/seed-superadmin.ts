@@ -125,6 +125,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { camposDaColisaoUnica } from "@/lib/prisma-error";
 
 /**
  * Parte legível do slug. O que torna o slug não-adivinhável é o sufixo sorteado
@@ -274,7 +275,10 @@ async function principal(): Promise<void> {
     console.log(`  login            /${criado.empresa.slug}/admin/login`);
   } catch (falha) {
     if (falha instanceof Prisma.PrismaClientKnownRequestError && falha.code === "P2002") {
-      const alvo = Array.isArray(falha.meta?.target) ? (falha.meta.target as string[]) : [];
+      // Sem o helper, esta mensagem imprimia `colisão de unicidade em []` em
+      // TODA colisão real: o `meta` do P2002 com driver adapter não carrega
+      // `target`. Ver o JSDoc de `lib/prisma-error.ts`.
+      const alvo = camposDaColisaoUnica(falha);
 
       // Colisão de slug é astronomicamente improvável (4 bytes de CSPRNG) e o
       // desfecho certo é simplesmente rodar de novo — não relaxar o sufixo.

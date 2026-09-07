@@ -161,12 +161,34 @@ function mockTransaction() {
     );
 }
 
-function makeP2002(target: string[]) {
-  return new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-    code: "P2002",
-    clientVersion: "0.0.0",
-    meta: { target },
-  });
+/**
+ * Monta um P2002 na forma REAL de produção — a que o Postgres + `@prisma/adapter-pg`
+ * produzem. Verificada por leitura do bundle instalado:
+ * `@prisma/adapter-pg/dist/index.js:472-478` devolve
+ * `{ kind: "UniqueConstraintViolation", constraint: { fields } }` como `.cause`
+ * do `DriverAdapterError`, e `@prisma/query-plan-executor/dist/index.js:106181`
+ * o embrulha em `meta: { driverAdapterError }`.
+ *
+ * A forma ANTIGA (`meta: { target }`), que esta suíte simulava até então, NÃO
+ * chega mais nesse caminho — era por isso que estes testes ficavam verdes
+ * enquanto o cadastro real caía na mensagem genérica de falha. A cobertura do
+ * formato antigo mora em `lib/prisma-error.test.ts` (D-F); não duplicá-la aqui.
+ */
+function makeP2002(campos: string[]) {
+  const driverAdapterError = new Error(
+    `Unique constraint failed on the fields: (\`${campos.join("`, `")}\`)`,
+    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: campos } } }
+  );
+  driverAdapterError.name = "DriverAdapterError";
+
+  return new Prisma.PrismaClientKnownRequestError(
+    `Unique constraint failed on the fields: (\`${campos.join("`, `")}\`)`,
+    {
+      code: "P2002",
+      clientVersion: "7.9.1",
+      meta: { modelName: "Usuario", driverAdapterError },
+    }
+  );
 }
 
 beforeEach(() => {

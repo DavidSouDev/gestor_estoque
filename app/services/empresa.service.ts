@@ -9,6 +9,7 @@ import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
 import { DIAS_DE_TRIAL } from "@/lib/avaliar-acesso";
 import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
 import { termoVigente } from "@/lib/termo-vigente";
+import { camposDaColisaoUnica } from "@/lib/prisma-error";
 import bcrypt from "bcryptjs";
 
 export interface RegisterComUsuarioDTO {
@@ -227,13 +228,17 @@ class EmpresaService {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+        // A extração mora em `lib/prisma-error.ts` porque o `meta` deste erro,
+        // com driver adapter, NÃO carrega `target` — ler `meta.target` aqui
+        // fazia todo P2002 escapar como erro cru e virar a mensagem genérica de
+        // falha no cadastro. Ver o JSDoc do helper para o caminho real.
+        const campos = camposDaColisaoUnica(error);
 
-        if (target.includes("email")) {
+        if (campos.includes("email")) {
           throw new HttpError("Este email já está em uso.", 409);
         }
 
-        if (target.includes("slug")) {
+        if (campos.includes("slug")) {
           throw new HttpError(
             "Não foi possível gerar um identificador único para a empresa. Tente novamente.",
             409
