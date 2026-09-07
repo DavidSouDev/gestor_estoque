@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/http-error";
+import { camposDaColisaoUnica } from "@/lib/prisma-error";
 import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -83,13 +84,17 @@ class UsuarioService {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const target = Array.isArray(error.meta?.target) ? (error.meta.target as string[]) : [];
+        // A extração mora em `lib/prisma-error.ts` porque o `meta` deste erro,
+        // com driver adapter, NÃO carrega `target` — ler `meta.target` aqui
+        // fazia todo P2002 escapar como erro cru, apagando a distinção entre
+        // colisão de `empresaId` e de `email`. Ver o JSDoc do helper.
+        const campos = camposDaColisaoUnica(error);
 
-        if (target.includes("empresaId")) {
+        if (campos.includes("empresaId")) {
           throw new HttpError("Esta empresa já possui um administrador cadastrado.", 409);
         }
 
-        if (target.includes("email")) {
+        if (campos.includes("email")) {
           throw new HttpError("Este email já está em uso.", 409);
         }
       }
