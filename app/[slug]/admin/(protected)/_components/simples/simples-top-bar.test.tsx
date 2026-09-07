@@ -76,14 +76,55 @@ describe("SimplesTopBar", () => {
       ).toBeTruthy();
     });
 
-    it("usa o mesmo tratamento visual da engrenagem", () => {
+  });
+
+  // TERM-RELEITURA depende de um caminho visível até /admin/termos nos DOIS
+  // modos. `admin-nav.tsx` cobre só o COMPLETO.
+  describe("entrada de Termos de Uso", () => {
+    it("aponta para a rota de termos do slug", () => {
       render(
         <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
       );
 
-      expect(screen.getByTitle("Assinatura").className).toBe(
-        screen.getByTitle("Configurações").className
+      expect(screen.getByTitle("Termos de Uso")).toHaveAttribute(
+        "href",
+        "/minha-loja/admin/termos"
       );
     });
+
+    it("fica depois da engrenagem e antes do botão de sair", () => {
+      render(
+        <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
+      );
+
+      const engrenagem = screen.getByTitle("Configurações");
+      const termos = screen.getByTitle("Termos de Uso");
+      const sair = screen.getByTitle("Sair");
+
+      expect(
+        engrenagem.compareDocumentPosition(termos) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(
+        termos.compareDocumentPosition(sair) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
   });
+
+  // A paridade vale entre TODOS os ícones de navegação da barra, não só entre os
+  // dois primeiros: é a decisão travada do quick 260907-ejn (07-UI-SPEC §Touch
+  // Targets — pontos de entrada novos "must match" os irmãos; §Color — a cor do
+  // tenant não entra nestes botões). `Sair` fica de fora de propósito: é o único
+  // com hover vermelho.
+  it.each(["Assinatura", "Termos de Uso"])(
+    "o ícone de %s usa o mesmo tratamento visual da engrenagem",
+    (titulo) => {
+      render(
+        <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />
+      );
+
+      expect(screen.getByTitle(titulo).className).toBe(
+        screen.getByTitle("Configurações").className
+      );
+    }
+  );
 });
