@@ -23,6 +23,25 @@ describe("GET /api/catalogo/produtos/[id]", () => {
     expect(response.status).toBe(404);
   });
 
+  // T-04-04. O gate mora no service (que devolve `null` para empresa bloqueada);
+  // o handler não ganha branch novo, e é justamente isso que torna as duas
+  // respostas byte-idênticas. NÃO usar `notFound()` aqui: o try/catch em volta o
+  // converteria em 500 — fail-open (Pitfall 3 / T-04-07).
+  it("responde 404 com o MESMO corpo do id inexistente quando a empresa está bloqueada", async () => {
+    vi.mocked(produtoService.findCatalogoById).mockResolvedValue(null);
+
+    const inexistente = await GET(buildRequest({}), buildParams({ id: "inexistente" }));
+    const corpoInexistente = await inexistente.json();
+
+    const bloqueada = await GET(buildRequest({}), buildParams({ id: "produto-de-empresa-bloqueada" }));
+    const corpoBloqueada = await bloqueada.json();
+
+    expect(bloqueada.status).toBe(404);
+    expect(corpoBloqueada).toEqual({ message: "Produto não encontrado." });
+    expect(corpoBloqueada).toEqual(corpoInexistente);
+    expect(inexistente.status).toBe(bloqueada.status);
+  });
+
   it("retorna o produto do catálogo quando encontrado", async () => {
     vi.mocked(produtoService.findCatalogoById).mockResolvedValue({ id: "produto-1" } as never);
 

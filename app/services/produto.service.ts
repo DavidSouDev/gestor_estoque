@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slugify";
 import { pickUniqueWithSuffix } from "@/lib/unique-suffix";
+import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
 
 export interface CreateProdutoDTO {
   empresaId: string;
@@ -98,16 +99,63 @@ class ProdutoService {
     });
   }
 
+  /**
+   * ACC-03 / D-07. Leitura pública de produto por id, gateada pelo status da
+   * empresa DONA do recurso.
+   *
+   * Por que gatear aqui e não só na resolução de slug (T-04-04):
+   * `PRODUTO_CATALOGO_SELECT` expõe `empresaId` no corpo público, então qualquer
+   * visitante que navegou no catálogo enquanto a loja estava saudável guardou os
+   * UUIDs e pode sondá-los depois. A sondagem estilo IDOR não é hipotética.
+   *
+   * D-06: `CANCELADO` e `BLOQUEADO` convergem no mesmo `null` — o rótulo
+   * distinto é só trilha de auditoria, não regra de gate.
+   *
+   * Os fatos de billing da empresa vêm no MESMO `findFirst`, por select
+   * aninhado, e isso é deliberado: uma segunda query só no caminho de rejeição
+   * faria "existe mas está bloqueada" custar o dobro de "não existe", e um
+   * visitante anônimo enumeraria tenants pelo relógio (T-04-02).
+   *
+   * T-04-05: o filtro `empresa: { deletedAt: null }` fecha um buraco
+   * PRÉ-EXISTENTE — até aqui o método não filtrava por tenant nenhum.
+   */
   async findCatalogoById(id: string) {
-    return prisma.produto.findFirst({
+    const produto = await prisma.produto.findFirst({
       where: {
         id,
         ativo: true,
         visivelCatalogo: true,
         deletedAt: null,
+        // BUG PRÉ-EXISTENTE fechado neste mesmo patch (T-04-05): sem esta linha,
+        // os produtos de uma empresa removida por soft delete continuam
+        // publicamente legíveis por id.
+        empresa: { deletedAt: null },
       },
-      select: PRODUTO_CATALOGO_SELECT,
+      // O select aninhado é montado AQUI, no call site, nunca dentro de
+      // `PRODUTO_CATALOGO_SELECT`: aquela constante é reutilizada por
+      // `listCatalogo` e por `COMBO_CATALOGO_SELECT`, e mexer nela mudaria o
+      // corpo público de outros endpoints.
+      select: {
+        ...PRODUTO_CATALOGO_SELECT,
+        empresa: { select: EMPRESA_PUBLICAVEL_SELECT },
+      },
     });
+
+    if (!produto) {
+      return null;
+    }
+
+    if (!empresaPodePublicar(produto.empresa, new Date())) {
+      return null;
+    }
+
+    // A chave `empresa` é interna ao gate e sai do retorno: o formato da
+    // resposta pública fica idêntico ao de antes deste patch, e nenhum fato de
+    // billing atravessa (T-04-01).
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { empresa, ...publico } = produto;
+
+    return publico;
   }
 
   async list(empresaId: string) {

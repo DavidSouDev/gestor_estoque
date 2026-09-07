@@ -20,7 +20,11 @@ export async function POST(request: Request) {
 
     const usuario = await usuarioService.validatePassword(email, senha);
 
-    if (!usuario || !usuario.ativo) {
+    // Mesma condição que o DAL aplica na revalidação: quem for rejeitado lá no
+    // request seguinte já é rejeitado aqui na entrada, sem emitir token de 7
+    // dias. Checagem por veracidade (e não `!== null`) para tratar o campo
+    // ausente como "não removida".
+    if (!usuario || !usuario.ativo || usuario.empresa.deletedAt) {
       return NextResponse.json(
         {
           message: "Email ou senha inválidos.",

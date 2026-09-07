@@ -23,6 +23,25 @@ describe("GET /api/catalogo/combos/[id]", () => {
     expect(response.status).toBe(404);
   });
 
+  // T-04-04. Espelho exato do caso de produto: o gate mora no service, o handler
+  // não ganha branch novo, e por isso as duas respostas são byte-idênticas.
+  // NÃO usar `notFound()` aqui — o try/catch em volta o converteria em 500
+  // (Pitfall 3 / T-04-07).
+  it("responde 404 com o MESMO corpo do id inexistente quando a empresa está bloqueada", async () => {
+    vi.mocked(comboService.findCatalogoById).mockResolvedValue(null);
+
+    const inexistente = await GET(buildRequest({}), buildParams({ id: "inexistente" }));
+    const corpoInexistente = await inexistente.json();
+
+    const bloqueada = await GET(buildRequest({}), buildParams({ id: "combo-de-empresa-bloqueada" }));
+    const corpoBloqueada = await bloqueada.json();
+
+    expect(bloqueada.status).toBe(404);
+    expect(corpoBloqueada).toEqual({ message: "Combo não encontrado." });
+    expect(corpoBloqueada).toEqual(corpoInexistente);
+    expect(inexistente.status).toBe(bloqueada.status);
+  });
+
   it("retorna o combo do catálogo quando encontrado", async () => {
     vi.mocked(comboService.findCatalogoById).mockResolvedValue({ id: "combo-1" } as never);
 

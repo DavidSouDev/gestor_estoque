@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildRequest } from "../../../tests/helpers/request";
 import { buildAuthToken, testAuthPayload } from "../../../tests/helpers/auth";
+import { prismaMock } from "../../../tests/setup/prisma-mock";
 
 vi.mock("../../services/produto.service", () => ({
   produtoService: {
@@ -72,5 +73,61 @@ describe("POST /api/produtos", () => {
     expect(produtoService.create).toHaveBeenCalledWith(
       expect.objectContaining({ nome: "Produto", empresaId: testAuthPayload.empresaId })
     );
+  });
+});
+
+/**
+ * ACC-02, ponta a ponta, numa rota escolhida por ser QUALQUER UMA.
+ *
+ * Este arquivo não foi editado fora deste bloco, e `app/api/produtos/route.ts`
+ * não foi tocado por esta fase: o handler já devolvia `{ status: error.status }`
+ * genericamente. É essa propriedade — e não um `if` novo em cada rota — que faz
+ * o gate valer para os 29 handlers de uma vez. Se alguém trocar o repasse
+ * genérico por um 401 hardcodado aqui, este teste cai.
+ */
+describe("/api/produtos — gate de assinatura herdado da guarda de auth", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "admin@teste.com",
+      role: "ADMIN",
+      empresaId: "empresa-1",
+      // Termos em dia (mesmo `id` do vigente que o stub global devolve): estes
+      // casos medem o gate de ASSINATURA, e o 402 tem que vir de lá. Sem isto o
+      // gate de termos da Fase 6 também estaria armado e o 402 continuaria
+      // aparecendo — mas por precedência, não por ser o único gate ativo.
+      termoAceitoId: "termo-1",
+      empresa: {
+        slug: "empresa-teste",
+        acessoAte: new Date("2020-01-01T03:00:00.000Z"),
+        trialFim: null,
+        canceladoEm: null,
+        acessoVitalicio: false,
+        ultimoStatusAuditado: "BLOQUEADO",
+      },
+    } as never);
+  });
+
+  it("GET de empresa bloqueada: 402 e o service nem chega a ser chamado", async () => {
+    const token = await buildAuthToken();
+
+    const response = await GET(buildRequest({ token }));
+    const body = await response.json();
+
+    expect(response.status).toBe(402);
+    expect(body).toEqual({ message: "Assinatura suspensa por falta de pagamento." });
+    expect(produtoService.list).not.toHaveBeenCalled();
+  });
+
+  it("POST de empresa bloqueada: 402, nenhuma escrita", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({ method: "POST", token, body: { nome: "Produto" } })
+    );
+
+    expect(response.status).toBe(402);
+    expect(produtoService.create).not.toHaveBeenCalled();
   });
 });

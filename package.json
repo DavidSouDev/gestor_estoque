@@ -12,7 +12,16 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "gates:fase-04": "node scripts/gates-fase-04.mjs",
+    "gates:fase-05": "node scripts/gates-fase-05.mjs",
+    "gates:fase-06": "node scripts/gates-fase-06.mjs",
+    "gates:fase-07": "node scripts/gates-fase-07.mjs",
+    "acesso:contagem": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/contagem-status-acesso.ts",
+    "asaas:webhook": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/registrar-webhook-asaas.ts",
+    "seed:billing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-fatos-billing.ts",
+    "seed:superadmin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-superadmin.ts",
+    "termos:publicar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/publicar-termos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
@@ -24,7 +33,8 @@
     "pg": "^8.22.0",
     "prisma": "^7.9.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

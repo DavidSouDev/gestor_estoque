@@ -7,6 +7,10 @@ on:
 
 env:
   JWT_SECRET: ci-test-jwt-secret
+  # Literal de CI, NAO segredo real: protege apenas o Postgres efemero do
+  # container deste job, que nao tem dado de ninguem. O segredo de producao vive
+  # no painel do host (D-07) e nunca no repositorio.
+  CRON_SECRET: ci-test-cron-secret-nao-e-segredo-real
 
 jobs:
   unit:

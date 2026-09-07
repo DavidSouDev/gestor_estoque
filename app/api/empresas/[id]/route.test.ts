@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { buildRequest, buildParams } from "../../../../tests/helpers/request";
-import { buildAuthToken, testAuthPayload } from "../../../../tests/helpers/auth";
+import { buildRequest, buildParams } from "@/tests/helpers/request";
+import { buildAuthToken, testAuthPayload } from "@/tests/helpers/auth";
 
-vi.mock("../../../services/empresa.service", () => ({
+vi.mock("@/app/services/empresa.service", () => ({
   empresaService: {
     findById: vi.fn(),
     update: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock("../../../services/empresa.service", () => ({
   },
 }));
 
-import { empresaService } from "../../../services/empresa.service";
+import { empresaService } from "@/app/services/empresa.service";
 import { GET, PATCH, DELETE } from "./route";
 
 const empresaDoToken = { id: testAuthPayload.empresaId, nome: "Empresa Teste" };
@@ -93,6 +93,28 @@ describe("PATCH /api/empresas/[id]", () => {
     expect(response.status).toBe(200);
     expect(body.nome).toBe("Novo nome");
     expect(empresaService.update).toHaveBeenCalledWith(testAuthPayload.empresaId, { nome: "Novo nome" });
+  });
+
+  it("ignora campos de billing enviados no corpo do PATCH", async () => {
+    const token = await buildAuthToken();
+    vi.mocked(empresaService.update).mockResolvedValue({ ...empresaDoToken, nome: "Novo nome" } as never);
+
+    // Cenário de ataque real: o ADMIN faz PATCH na PRÓPRIA empresa do token, então o check
+    // `id !== auth.empresaId` do route handler não protege nada.
+    // Neste arquivo o empresaService está mockado por inteiro (linhas 6-14), portanto o allowlist
+    // NÃO é exercitado aqui — este caso documenta a superfície HTTP e o cenário de ataque.
+    // A prova de runtime de que os campos de billing são descartados mora em
+    // app/services/empresa.service.test.ts > "não aceita campos de billing no payload".
+    const response = await PATCH(
+      buildRequest({
+        method: "PATCH",
+        token,
+        body: { nome: "Novo nome", acessoVitalicio: true },
+      }),
+      buildParams({ id: testAuthPayload.empresaId })
+    );
+
+    expect(response.status).toBe(200);
   });
 });
 

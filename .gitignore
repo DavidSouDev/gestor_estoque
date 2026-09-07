@@ -35,6 +35,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# `.env.example` é um template SEM segredos e precisa ser versionado: é a única
+# documentação executável de quais variáveis a aplicação exige.
+!.env.example
 
 # vercel
 .vercel

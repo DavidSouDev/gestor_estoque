@@ -42,6 +42,83 @@ export function SimplesTopBar({
         </svg>
       </Link>
 
+      {/* `admin-nav.tsx` só renderiza para modoInterface === "COMPLETO", então sem
+          esta entrada um tenant SIMPLES não teria nenhuma rota até /assinatura.
+          O path do ícone é duplicado de `ICONS.assinatura` DE PROPÓSITO: aquele
+          objeto é privado de `admin-nav.tsx`, que é client component, e exportá-lo
+          só para compartilhar uma string criaria acoplamento sem benefício — esta
+          barra já inlina os próprios paths de engrenagem e de saída.
+          O `title` é obrigatório: é o único nome acessível que um controle
+          só-de-ícone tem, e a barra já depende disso para os outros dois.
+
+          A DISCRIÇÃO DESTE ÍCONE É DELIBERADA, NÃO ESQUECIMENTO (quick
+          260907-ejn, decisão do operador: manter como está). Reforçar o acesso
+          visualmente foi avaliado e recusado por três regras simultâneas:
+          (1) `07-UI-SPEC.md` §Touch Targets — os pontos de entrada novos "are
+          siblings appended to those rows and must match them", e destacar só o
+          novo produziria uma barra visivelmente quebrada; (2) §Color — a cor do
+          tenant é explicitamente NÃO usada no botão de ícone desta barra, e os 3
+          usos permitidos do accent já estão gastos; (3) o teste "usa o mesmo
+          tratamento visual da engrenagem" afirma, de propósito, que a classe
+          deste link é IDÊNTICA à da engrenagem — ele existe justamente para
+          impedir esta mudança.
+
+          E a urgência já é coberta por outra superfície, mais visível que
+          qualquer badge de barra: um tenant SIMPLES em carência já recebe o
+          `AvisoCarencia` âmbar com botão de pagar acima de `children` em toda
+          tela do admin, porque `(protected)/layout.tsx` renderiza o banner nos
+          dois modos de interface. O que este ícone oferece é o acesso ROTINEIRO,
+          e para isso a paridade com os vizinhos é o comportamento correto. */}
+      <Link
+        href={`/${slug}/admin/assinatura`}
+        title="Assinatura"
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+      >
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+          />
+        </svg>
+      </Link>
+
+      {/* Quarto controle da barra, entre a assinatura e o logout — `Sair`
+          continua sendo o último, que é o único cuja posição os usuários
+          memorizaram. Sem esta entrada um tenant SIMPLES não teria nenhuma rota
+          até /admin/termos, e TERM-RELEITURA seria falso para essa população
+          inteira: `admin-nav.tsx` só renderiza para modoInterface === "COMPLETO".
+
+          A PARIDADE VISUAL COM OS VIZINHOS NÃO É PREFERÊNCIA ESTÉTICA. É a
+          decisão travada do quick 260907-ejn, e ela vale entre TODOS os ícones
+          desta barra, não só entre os dois antigos: `07-UI-SPEC.md` §Touch
+          Targets diz que pontos de entrada novos "are siblings appended to those
+          rows and must match them", e §Color diz que a cor do tenant NÃO é usada
+          nos botões de ícone daqui. Destacar só o novo produziria uma barra
+          visivelmente quebrada.
+
+          O path do ícone é duplicado de `ICONS.termos` DE PROPÓSITO, pelo mesmo
+          motivo já registrado acima para o de assinatura: aquele objeto é
+          privado de `admin-nav.tsx`, que é client component, e exportá-lo só
+          para compartilhar uma string criaria acoplamento sem benefício.
+          O `title` é obrigatório: é o único nome acessível de um controle
+          só-de-ícone. */}
+      <Link
+        href={`/${slug}/admin/termos`}
+        title="Termos de Uso"
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+      >
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      </Link>
+
       <form action={logoutAction}>
         <button
           type="submit"
