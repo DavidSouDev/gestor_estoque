@@ -49,7 +49,26 @@ export function SimplesTopBar({
           só para compartilhar uma string criaria acoplamento sem benefício — esta
           barra já inlina os próprios paths de engrenagem e de saída.
           O `title` é obrigatório: é o único nome acessível que um controle
-          só-de-ícone tem, e a barra já depende disso para os outros dois. */}
+          só-de-ícone tem, e a barra já depende disso para os outros dois.
+
+          A DISCRIÇÃO DESTE ÍCONE É DELIBERADA, NÃO ESQUECIMENTO (quick
+          260907-ejn, decisão do operador: manter como está). Reforçar o acesso
+          visualmente foi avaliado e recusado por três regras simultâneas:
+          (1) `07-UI-SPEC.md` §Touch Targets — os pontos de entrada novos "are
+          siblings appended to those rows and must match them", e destacar só o
+          novo produziria uma barra visivelmente quebrada; (2) §Color — a cor do
+          tenant é explicitamente NÃO usada no botão de ícone desta barra, e os 3
+          usos permitidos do accent já estão gastos; (3) o teste "usa o mesmo
+          tratamento visual da engrenagem" afirma, de propósito, que a classe
+          deste link é IDÊNTICA à da engrenagem — ele existe justamente para
+          impedir esta mudança.
+
+          E a urgência já é coberta por outra superfície, mais visível que
+          qualquer badge de barra: um tenant SIMPLES em carência já recebe o
+          `AvisoCarencia` âmbar com botão de pagar acima de `children` em toda
+          tela do admin, porque `(protected)/layout.tsx` renderiza o banner nos
+          dois modos de interface. O que este ícone oferece é o acesso ROTINEIRO,
+          e para isso a paridade com os vizinhos é o comportamento correto. */}
       <Link
         href={`/${slug}/admin/assinatura`}
         title="Assinatura"

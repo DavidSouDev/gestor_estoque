@@ -352,4 +352,95 @@ describe("AssinaturaCard", () => {
       expect(screen.getByText(E3)).toBeInTheDocument();
     });
   });
+
+  /**
+   * Retoque comercial (quick 260907-ejn). São três deltas de composição —
+   * moldura nos tiles, peso 600 no valor do plano e zona própria para o CTA —
+   * escolhidos dentro do orçamento que o `07-UI-SPEC.md` deixa. Os casos abaixo
+   * provam que os deltas existem E que nenhuma proibição do contrato foi violada
+   * para consegui-los; sem a segunda metade, o próximo retoque "vendedor"
+   * recomeça do zero e atropela a regra do Display único.
+   */
+  describe("hierarquia visual (quick 260907-ejn)", () => {
+    /** A moldura compartilhada pelos três tiles. */
+    const MOLDURA = "rounded-xl border border-slate-100 bg-slate-50 p-4";
+
+    /** A única copy nova do retoque. */
+    const REFORCO = "O acesso é liberado assim que o pagamento for confirmado.";
+
+    it("dá peso 600 ao valor do plano e mantém o da próxima cobrança em 400", () => {
+      render(<AssinaturaCard {...base} />);
+
+      expect(screen.getByText("R$ 29,90 por mês").className).toContain("font-semibold");
+
+      // O valor de `Próxima cobrança` fica em peso 400 DE PROPÓSITO: dar a um
+      // campo que pode faltar (Zona 2, a única que degrada) o mesmo peso de um
+      // que nunca falta faria o estado degradado parecer quebrado em vez de
+      // parcial. O destaque do preço também não pode virar número-herói —
+      // §Typography reserva o tamanho Display para exatamente um valor da tela,
+      // que é a data de `Acesso até`.
+      expect(screen.getByText("2026-10-15").className).not.toContain("font-semibold");
+    });
+
+    it("dá aos três tiles a mesma moldura", () => {
+      render(<AssinaturaCard {...base} />);
+
+      expect(tileDe("Acesso até").className).toContain(MOLDURA);
+      expect(tileDe("Plano").className).toContain(MOLDURA);
+      expect(tileDe("Próxima cobrança").className).toContain(MOLDURA);
+
+      // Os dois tiles da Zona 1 são byte-idênticos entre si — é essa paridade
+      // que mantém verdadeira a asserção do estado degradado. O tile da Zona 2
+      // difere APENAS pelo `mt-4` que o separa do grid: espaçamento, não
+      // moldura.
+      expect(tileDe("Plano").className).toBe(tileDe("Acesso até").className);
+      expect(tileDe("Próxima cobrança").className).toBe(`mt-4 ${MOLDURA}`);
+    });
+
+    it("não usa peso 700 em nenhum dos cinco estados", () => {
+      // §Typography: nenhum markup novo desta superfície pode usar peso 700. O
+      // destaque vem de peso 600, moldura e separação — nunca de bold.
+      for (const estado of Object.keys(PROPS_POR_ESTADO) as AssinaturaCardProps["estado"][]) {
+        const { container, unmount } = render(<AssinaturaCard {...PROPS_POR_ESTADO[estado]} />);
+
+        expect(
+          container.querySelectorAll('[class*="font-bold"], [class*="font-extrabold"]')
+        ).toHaveLength(0);
+        unmount();
+      }
+    });
+
+    it("só mostra a linha de reforço do CTA quando há o que pagar", () => {
+      for (const estado of ["aguardando", "cancelada"] as const) {
+        const { unmount } = render(<AssinaturaCard {...PROPS_POR_ESTADO[estado]} />);
+
+        expect(screen.getByText(REFORCO)).toBeInTheDocument();
+        unmount();
+      }
+
+      // Quem já tem acesso pago não recebe reforço de venda nenhum: a linha vive
+      // dentro do bloco `podePagar` e some com ele.
+      for (const estado of ["ativa", "degradado", "vitalicio"] as const) {
+        const { unmount } = render(<AssinaturaCard {...PROPS_POR_ESTADO[estado]} />);
+
+        expect(screen.queryByText(REFORCO)).not.toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it("põe o CTA numa zona própria, separada por régua", () => {
+      const casos = [
+        ["aguardando", "Assinar agora"],
+        ["cancelada", "Reativar assinatura"],
+      ] as const;
+
+      for (const [estado, rotulo] of casos) {
+        const { unmount } = render(<AssinaturaCard {...PROPS_POR_ESTADO[estado]} />);
+
+        const form = screen.getByRole("button", { name: rotulo }).closest("form") as HTMLElement;
+        expect(form.className).toContain("border-t");
+        unmount();
+      }
+    });
+  });
 });

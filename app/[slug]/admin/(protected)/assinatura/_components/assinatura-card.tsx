@@ -143,6 +143,52 @@ export interface AssinaturaCardProps {
  * segunda autoridade ao lado de `avaliarAcesso` (BILL-01); uma variante SIMPLES
  * da tela; histórico de cobranças; qualquer UI de meio de pagamento; peso de
  * fonte 700; inserção de HTML cru; e qualquer dependência nova.
+ *
+ * ── RETOQUE COMERCIAL (quick 260907-ejn) ─────────────────────────────────────
+ *
+ * A tela é a superfície onde o produto pede dinheiro, e lia como formulário de
+ * configuração. O retoque tem TRÊS deltas de composição, e nenhum deles gasta
+ * cor semântica, accent ou tamanho novo:
+ *
+ *   1. moldura `border border-slate-100` nos TRÊS tiles, idêntica nos três
+ *      (`slate-100` é o token de borda de card da §Color; a paridade é o que
+ *      mantém verdadeira a asserção que compara o tile de `Acesso até` entre os
+ *      estados ativa e degradado);
+ *   2. `font-semibold` no valor do plano — 14px/600 já é o token de rótulo de
+ *      botão, não um quinto token;
+ *   3. zona própria para o CTA: régua `border-t` acima do form e uma linha de
+ *      apoio de 12px/`slate-500` abaixo do botão, dentro do bloco `podePagar`.
+ *
+ * O QUE FOI RECUSADO, e pela regra que recusou — lista deliberada, para que o
+ * próximo pedido de "deixar mais vendedor" não redescubra isto como esquecimento
+ * (comentários são descartados pelos gates, então citar os nomes proibidos aqui é
+ * seguro e é o padrão da fase):
+ *
+ *   - preço como número-herói em 24px → §Typography, "exactly one Display value
+ *     on the screen": o tamanho Display é EXCLUSIVO da data de `Acesso até`;
+ *   - qualquer `font-bold` (peso 700) para dar ênfase → §Typography proíbe peso
+ *     700 em markup novo desta fase;
+ *   - tiles, pill ou borda tingidos com a cor do tenant → §Color: os 3 usos
+ *     permitidos do accent já estão gastos (fundo e anel do botão de pagamento,
+ *     e a linha ativa da navegação);
+ *   - tiles em emerald ou gradiente para "vender" → a rampa emerald é semântica,
+ *     restrita ao pill nos estados ativo e vitalício;
+ *   - fundir a Zona 2 no grid da Zona 1 → a separação de zonas É o mecanismo de
+ *     degradação de D-02b;
+ *   - peso 600 no valor de `Próxima cobrança` → dar a um campo que pode faltar o
+ *     mesmo peso de um que nunca falta faria o estado degradado parecer quebrado
+ *     em vez de parcial;
+ *   - selo de preço, badge de desconto, comparativo de planos → §Non-Goals: a
+ *     escolha de plano/preço está fora do milestone. R$ 29,90 é exibido, nunca
+ *     escolhido;
+ *   - histórico de cobranças, bandeira do cartão, "pagamento seguro via ..." →
+ *     §Non-Goals mais a restrição central do milestone: nenhum dado de pagamento
+ *     toca este sistema e o vocabulário do fornecedor nunca aparece (BILL-01);
+ *   - shell maior ou com sombra de takeover → a shell é o card do dashboard;
+ *   - segundo bloco âmbar chamando atenção para a carência → o layout já renderiza
+ *     o banner acima de `children` em toda tela do admin;
+ *   - biblioteca de ícones, animação ou modal → §Non-Goals e o gate de cadeia de
+ *     suprimentos, que falha em qualquer instalação.
  */
 export function AssinaturaCard({
   estado,
@@ -192,7 +238,7 @@ export function AssinaturaCard({
         {/* ─── ZONA 1 — fatos locais. NUNCA degrada. ─────────────────────────
             Renderiza idêntica nos cinco estados, inclusive no degradado. */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Acesso até
             </p>
@@ -209,9 +255,11 @@ export function AssinaturaCard({
             )}
           </div>
 
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plano</p>
-            <p className="mt-1 text-sm/[1.5] text-slate-800">{precoMensal} por mês</p>
+            <p className="mt-1 text-sm/[1.5] font-semibold text-slate-800">
+              {precoMensal} por mês
+            </p>
           </div>
         </div>
 
@@ -240,7 +288,7 @@ export function AssinaturaCard({
         {/* ─── ZONA 2 — fatos do gateway. A ÚNICA que degrada. ───────────────── */}
         {mostraZona2 &&
           (gateway.disponivel ? (
-            <div className="mt-4 rounded-xl bg-slate-50 p-4">
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Próxima cobrança
               </p>
@@ -253,11 +301,20 @@ export function AssinaturaCard({
         {erroCheckout && <InlineError copy={COPY.erroCheckout} />}
 
         {podePagar && (
-          <form action={pagarAction} className="mt-6">
+          <form action={pagarAction} className="mt-6 border-t border-slate-100 pt-6">
             {/* Variante `bloqueado`: colorida pelo tenant, largura total. A
                 variante `banner` tem `amber-600` fixo e pertence à tira de
                 carência — não pode aparecer nesta tela. */}
             <PagarButton variant="bloqueado" primaryColor={primaryColor} label={rotuloPagar} />
+            {/* Reforço do CTA, tamanho Meta. Afirma só o que o sistema faz — o
+                webhook confirma, o acesso libera. Nada de claim contratual ("sem
+                fidelidade", "sem multa", "pagamento seguro"): os Termos de Uso
+                seguem sob revisão jurídica pendente. Nada de meio de pagamento,
+                nada de repetir o preço. Vive DENTRO do bloco `podePagar`, então
+                nunca aparece para quem já tem acesso pago. */}
+            <p className="mt-3 text-xs text-slate-500">
+              O acesso é liberado assim que o pagamento for confirmado.
+            </p>
           </form>
         )}
 
