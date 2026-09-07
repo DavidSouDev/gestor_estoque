@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 Phase: 07 (gest-o-de-assinatura) — BLOCKED
 Plan: 8 of 8 (07-01..07-07 completo e mergeado; 07-08 aguardando checkpoint humano)
 Status: Código-completo, validação final adiada
-Last activity: 2026-09-02 -- 07-08 checkpoint (cancelamento real no Asaas Sandbox) apresentado e adiado por decisão do operador
+Last activity: 2026-09-07 - Completed quick task 260907-ejn: Melhorar visual comercial da tela de Assinatura (assinatura-card.tsx) respeitando UI-SPEC travado, e garantir acesso visível no modo SIMPLES
 
 **Checkpoint ADIADO (não fechado):** `07-08-PLAN.md` Task 1 — cancelamento real contra o Asaas Sandbox,
 única prova de que cancelar não apaga o período já pago (A3, "Alto se errado" no Assumptions Log). Em
@@ -220,6 +220,7 @@ None yet.
 | 260907-bxr | Trocar accordion dos Termos de Uso no registro por modal de leitura obrigatoria | 2026-09-07 | 4fcab4e | [260907-bxr-trocar-accordion-dos-termos-de-uso-no-re](./quick/260907-bxr-trocar-accordion-dos-termos-de-uso-no-re/) |
 | 260907-cuq | Ajustar fluxo do modal de Termos de Uso: remover botao gatilho e checkbox, abrir modal ao clicar em Criar minha loja antes do submit real | 2026-09-07 | e8bd5f0 | [260907-cuq-ajustar-fluxo-do-modal-de-termos-de-uso-](./quick/260907-cuq-ajustar-fluxo-do-modal-de-termos-de-uso-/) |
 | 260907-dow | Corrigir extracao do campo colidido em erros P2002 do Prisma 7 driver adapter (meta.target nao existe mais) | 2026-09-07 | 3dc53ae | [260907-dow-corrigir-extracao-do-campo-colidido-em-e](./quick/260907-dow-corrigir-extracao-do-campo-colidido-em-e/) |
+| 260907-ejn | Melhorar visual comercial da tela de Assinatura (assinatura-card.tsx) respeitando UI-SPEC travado, e garantir acesso visível no modo SIMPLES | 2026-09-07 | efbba03 | [260907-ejn-melhorar-visual-comercial-da-tela-de-ass](./quick/260907-ejn-melhorar-visual-comercial-da-tela-de-ass/) |
 
 ## Deferred Items
 
