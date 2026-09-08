@@ -348,14 +348,19 @@ describe("comboService.updateItens", () => {
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) =>
       Promise.resolve(callback(prismaMock))
     );
+    prismaMock.produto.findMany.mockResolvedValue([{ id: "produto-1" }] as never);
     prismaMock.comboItem.deleteMany.mockResolvedValue({ count: 2 } as never);
     prismaMock.comboItem.createMany.mockResolvedValue({ count: 1 } as never);
     prismaMock.combo.findUnique.mockResolvedValue(comboBase as never);
 
     const itens = [{ produtoId: "produto-1", quantidade: 2 }];
 
-    const resultado = await comboService.updateItens("combo-1", itens);
+    const resultado = await comboService.updateItens("combo-1", itens, "empresa-1");
 
+    expect(prismaMock.produto.findMany).toHaveBeenCalledWith({
+      where: { empresaId: "empresa-1" },
+      select: { id: true },
+    });
     expect(prismaMock.comboItem.deleteMany).toHaveBeenCalledWith({
       where: { comboId: "combo-1" },
     });
@@ -366,5 +371,30 @@ describe("comboService.updateItens", () => {
       expect.objectContaining({ where: { id: "combo-1" } })
     );
     expect(resultado).toEqual(comboBase);
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Mesma defesa que `promocaoService.updateItens` já tem: sem filtrar contra
+   * a empresa, um combo poderia referenciar produto de OUTRO tenant e expô-lo
+   * (preço, estoque, fotos) na vitrine pública errada.
+   */
+  it("ignora produtoId que não pertence à empresa informada", async () => {
+    prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) =>
+      Promise.resolve(callback(prismaMock))
+    );
+    prismaMock.produto.findMany.mockResolvedValue([{ id: "produto-1" }] as never);
+
+    const itens = [{ produtoId: "produto-de-outra-empresa", quantidade: 1 }];
+
+    await expect(
+      comboService.updateItens("combo-1", itens, "empresa-1")
+    ).rejects.toMatchObject({
+      message: "Nenhum item válido informado para esta empresa.",
+      status: 400,
+    });
+
+    expect(prismaMock.comboItem.deleteMany).not.toHaveBeenCalled();
   });
 });

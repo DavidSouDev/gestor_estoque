@@ -12,15 +12,15 @@ export interface BrandingFormState {
   success?: boolean;
 }
 
-async function resolveLogo(formData: FormData): Promise<string | undefined> {
+async function resolveLogo(formData: FormData, empresaId: string): Promise<string | undefined> {
   const atual = String(formData.get("logo") ?? "").trim() || undefined;
   const file = formData.get("logoFile");
 
   if (file instanceof File && file.size > 0) {
-    const nova = await uploadImage(file, "empresas/logos");
+    const nova = await uploadImage(file, empresaId, "empresas/logos");
 
     if (atual) {
-      await deleteImage(atual);
+      await deleteImage(atual, empresaId);
     }
 
     return nova;
@@ -28,7 +28,7 @@ async function resolveLogo(formData: FormData): Promise<string | undefined> {
 
   if (formData.get("removerLogo") === "on") {
     if (atual) {
-      await deleteImage(atual);
+      await deleteImage(atual, empresaId);
     }
 
     return undefined;
@@ -65,7 +65,7 @@ export async function updateBranding(
   let logo: string | undefined;
 
   try {
-    logo = await resolveLogo(formData);
+    logo = await resolveLogo(formData, auth.empresaId);
   } catch (error) {
     return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
   }

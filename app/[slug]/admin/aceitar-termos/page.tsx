@@ -54,7 +54,7 @@ export default async function AdminAceitarTermosPage({
     redirect(`/${slug}/admin/login`);
   }
 
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
 
   if (!conta) {
     redirect(`/${slug}/admin`);

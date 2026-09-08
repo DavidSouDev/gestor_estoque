@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildRequest } from "../../../tests/helpers/request";
 import { buildAuthToken, testAuthPayload } from "../../../tests/helpers/auth";
+import { prismaMock } from "../../../tests/setup/prisma-mock";
 import { HttpError } from "@/lib/http-error";
 
 vi.mock("../../services/usuario.service", () => ({
@@ -13,6 +14,31 @@ vi.mock("../../services/usuario.service", () => ({
 
 import { usuarioService } from "../../services/usuario.service";
 import { GET, POST } from "./route";
+
+/**
+ * A role que autoriza `POST /api/usuarios` vem do BANCO (`revalidarConta`),
+ * nunca do payload do token — mesmo raciocínio de `app/api/termos/route.ts`.
+ * Sobrescreve o stub default (role ADMIN) preservando o resto dos campos que
+ * `revalidarConta` espera.
+ */
+function mockContaComRole(role: "ADMIN" | "SUPERADMIN") {
+  prismaMock.usuario.findFirst.mockResolvedValue({
+    id: "user-1",
+    email: "admin@teste.com",
+    role,
+    empresaId: "empresa-1",
+    termoAceitoId: "termo-1",
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
+    empresa: {
+      slug: "empresa-teste",
+      acessoAte: null,
+      trialFim: new Date("2099-01-01T03:00:00.000Z"),
+      canceladoEm: null,
+      acessoVitalicio: false,
+      ultimoStatusAuditado: "TRIAL",
+    },
+  } as never);
+}
 
 describe("GET /api/usuarios", () => {
   beforeEach(() => {
@@ -50,12 +76,53 @@ describe("POST /api/usuarios", () => {
     vi.clearAllMocks();
   });
 
-  it("cria o usuário a partir dos dados do body (rota não exige autenticação)", async () => {
+  it("retorna 401 quando não autenticado", async () => {
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        body: { nome: "Usuário", email: "usuario@teste.com", senha: "123456", empresaId: "empresa-1" },
+      })
+    );
+
+    expect(response.status).toBe(401);
+    expect(usuarioService.create).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Sem esta checagem, qualquer usuário autenticado (ADMIN comum de qualquer
+   * empresa) podia provisionar um administrador para outra empresa via este
+   * endpoint. `mockContaComRole` default deste describe (ver beforeEach) já
+   * cobre o ADMIN comum.
+   */
+  it("retorna 403 para ADMIN comum, sem chamar o service", async () => {
+    const token = await buildAuthToken();
+    mockContaComRole("ADMIN");
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { nome: "Usuário", email: "usuario@teste.com", senha: "123456", empresaId: "empresa-alvo" },
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body).toEqual({ message: "Ação não permitida." });
+    expect(usuarioService.create).not.toHaveBeenCalled();
+  });
+
+  it("cria o usuário a partir dos dados do body quando o chamador é SUPERADMIN no banco", async () => {
+    const token = await buildAuthToken({ role: "SUPERADMIN" });
+    mockContaComRole("SUPERADMIN");
     vi.mocked(usuarioService.create).mockResolvedValue({ id: "usuario-novo" } as never);
 
     const response = await POST(
       buildRequest({
         method: "POST",
+        token,
         body: { nome: "Usuário", email: "usuario@teste.com", senha: "123456", empresaId: "empresa-1" },
       })
     );
@@ -72,6 +139,8 @@ describe("POST /api/usuarios", () => {
   });
 
   it("retorna o status do HttpError quando o service rejeita com um erro de negócio", async () => {
+    const token = await buildAuthToken({ role: "SUPERADMIN" });
+    mockContaComRole("SUPERADMIN");
     vi.mocked(usuarioService.create).mockRejectedValue(
       new HttpError("Este email já está em uso.", 409)
     );
@@ -79,6 +148,7 @@ describe("POST /api/usuarios", () => {
     const response = await POST(
       buildRequest({
         method: "POST",
+        token,
         body: { nome: "Usuário", email: "usuario@teste.com", senha: "123456", empresaId: "empresa-1" },
       })
     );
@@ -89,11 +159,14 @@ describe("POST /api/usuarios", () => {
   });
 
   it("retorna 500 quando o service lança um erro inesperado", async () => {
+    const token = await buildAuthToken({ role: "SUPERADMIN" });
+    mockContaComRole("SUPERADMIN");
     vi.mocked(usuarioService.create).mockRejectedValue(new Error("falha no banco"));
 
     const response = await POST(
       buildRequest({
         method: "POST",
+        token,
         body: { nome: "Usuário", email: "usuario@teste.com", senha: "123456", empresaId: "empresa-1" },
       })
     );

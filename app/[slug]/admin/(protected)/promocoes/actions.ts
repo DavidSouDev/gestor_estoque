@@ -126,7 +126,7 @@ export async function updatePromocao(
   }
 
   await promocaoService.update(id, { nome, dataInicio, dataFim });
-  await promocaoService.updateItens(id, itens);
+  await promocaoService.updateItens(id, itens, auth.empresaId);
 
   revalidatePath(`/${slug}/admin/promocoes`);
   revalidatePath(`/${slug}/admin/promocoes/${id}`);

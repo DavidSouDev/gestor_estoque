@@ -92,6 +92,7 @@ function stubComStatus(status: keyof typeof BILLING) {
     // do vigente que o stub global devolve, então `termosPendentes` é `false` e
     // os casos de assinatura continuam medindo só o gate de assinatura.
     termoAceitoId: TERMO_VIGENTE_ID,
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
     empresa: {
       slug: "empresa-teste",
       ...BILLING[status],
@@ -115,6 +116,7 @@ function stubComTermos(
     role,
     empresaId: "empresa-1",
     termoAceitoId,
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
     empresa: {
       slug: "empresa-teste",
       ...BILLING[status],
@@ -128,7 +130,7 @@ describe("requireAuth", () => {
     const token = await signAuthToken(payload);
     const request = buildRequest({ authorization: `Bearer ${token}` });
 
-    await expect(requireAuth(request)).resolves.toEqual(payload);
+    await expect(requireAuth(request)).resolves.toEqual(expect.objectContaining(payload));
   });
 
   it("lança AuthError 401 quando não há header authorization", async () => {
@@ -179,13 +181,42 @@ describe("requireAuth", () => {
     expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
   });
 
+  /**
+   * Fecha a lacuna descrita no JSDoc de `revalidarConta`: um Bearer token
+   * vazado não podia ser invalidado sem desativar a conta inteira. Simula uma
+   * troca de senha (ou qualquer edição da conta) acontecendo DEPOIS que o
+   * token foi emitido — `updatedAt` no futuro relativo ao `iat` do token.
+   */
+  it("401 quando a conta foi alterada DEPOIS de o token ter sido emitido", async () => {
+    const token = await signAuthToken(payload);
+    const request = buildRequest({ authorization: `Bearer ${token}` });
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "admin@teste.com",
+      role: "ADMIN",
+      empresaId: "empresa-1",
+      termoAceitoId: TERMO_VIGENTE_ID,
+      updatedAt: new Date(Date.now() + 60_000),
+      empresa: {
+        slug: "empresa-teste",
+        ...BILLING.EM_DIA,
+        ultimoStatusAuditado: "EM_DIA",
+      },
+    } as never);
+
+    await expect(requireAuth(request)).rejects.toMatchObject({
+      status: 401,
+      message: "Sessão inválida.",
+    });
+  });
+
   it("aplica uma mudança no banco já no request seguinte, com o mesmo token", async () => {
     const token = await signAuthToken(payload);
 
     // Request 1: conta ativa.
-    await expect(requireAuth(buildRequest({ authorization: `Bearer ${token}` }))).resolves.toEqual(
-      payload
-    );
+    await expect(
+      requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
+    ).resolves.toEqual(expect.objectContaining(payload));
 
     // A conta é desativada no banco — o token continua exatamente o mesmo.
     prismaMock.usuario.findFirst.mockResolvedValue(null as never);
@@ -239,7 +270,7 @@ describe("requireAuth — gate de assinatura", () => {
 
       await expect(
         requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
-      ).resolves.toEqual(payload);
+      ).resolves.toEqual(expect.objectContaining(payload));
     }
   );
 
@@ -251,7 +282,7 @@ describe("requireAuth — gate de assinatura", () => {
       requireAuth(buildRequest({ authorization: `Bearer ${token}` }), {
         permitirEmpresaBloqueada: true,
       })
-    ).resolves.toEqual(payload);
+    ).resolves.toEqual(expect.objectContaining(payload));
   });
 
   it("conta revogada continua sendo 401, e não 402 (a ordem dos dois gates)", async () => {
@@ -302,7 +333,7 @@ describe("requireAuth — gate de assinatura", () => {
     // Request 2: já passa.
     await expect(
       requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
-    ).resolves.toEqual(payload);
+    ).resolves.toEqual(expect.objectContaining(payload));
   });
 });
 
@@ -313,7 +344,7 @@ describe("requireAuth — gate de termos (TERM-04)", () => {
 
     await expect(
       requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
-    ).resolves.toEqual(payload);
+    ).resolves.toEqual(expect.objectContaining(payload));
   });
 
   it("termos pendentes: lança AuthError 403 com a mensagem de termos", async () => {
@@ -382,7 +413,7 @@ describe("requireAuth — gate de termos (TERM-04)", () => {
     // acesso, uma role obsoleta no JWT bastaria para pular o gate.
     await expect(
       requireAuth(buildRequest({ authorization: `Bearer ${token}` }))
-    ).resolves.toEqual(payload);
+    ).resolves.toEqual(expect.objectContaining(payload));
   });
 
   it("conta revogada continua 401, e não 403", async () => {

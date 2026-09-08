@@ -122,6 +122,14 @@ beforeEach(() => {
   asaasMock.buscarPagamento.mockReset();
   asaasMock.buscarAssinatura.mockReset();
 
+  // Default: fallback por `asaasCustomerId` (passo 3 de `resolverEmpresaId`)
+  // não acha ninguém, a menos que o teste sobrescreva. Sem isto, todo teste
+  // cujo caminho chega a este passo sem mockar `findMany` explicitamente
+  // quebraria em `Cannot read properties of undefined` — o `mockReset` do
+  // `prismaMock` (tests/setup/prisma-mock.ts) não dá nenhum valor default a
+  // `findMany`.
+  prismaMock.empresa.findMany.mockResolvedValue([]);
+
   erroLogado = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -451,10 +459,9 @@ describe("webhookAsaasService.resolverEmpresaId", () => {
   });
 
   it("passo 3 — cai para o asaasCustomerId só depois que assinatura e checkout falharam", async () => {
-    prismaMock.empresa.findFirst
-      .mockResolvedValueOnce(null as never)
-      .mockResolvedValueOnce({ id: "empresa-3" } as never);
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
     prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+    prismaMock.empresa.findMany.mockResolvedValue([{ id: "empresa-3" }] as never);
 
     await expect(
       webhookAsaasService.resolverEmpresaId({
@@ -464,10 +471,41 @@ describe("webhookAsaasService.resolverEmpresaId", () => {
       })
     ).resolves.toBe("empresa-3");
 
-    expect(prismaMock.empresa.findFirst).toHaveBeenLastCalledWith({
+    expect(prismaMock.empresa.findMany).toHaveBeenCalledWith({
       where: { asaasCustomerId: "cus_1", deletedAt: null },
       select: { id: true },
+      take: 2,
     });
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * `asaasCustomerId` não é `@unique` no schema. Se duas empresas um dia
+   * compartilharem o mesmo valor, resolver por "a primeira que aparecer"
+   * estenderia acesso para o tenant ERRADO. A resolução tem que se recusar a
+   * escolher e devolver `null` (fail-closed), nunca adivinhar.
+   */
+  it("passo 3 — recusa resolver quando o asaasCustomerId é ambíguo entre duas empresas", async () => {
+    prismaMock.empresa.findFirst.mockResolvedValue(null as never);
+    prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+    prismaMock.empresa.findMany.mockResolvedValue([
+      { id: "empresa-3" },
+      { id: "empresa-4" },
+    ] as never);
+
+    await expect(
+      webhookAsaasService.resolverEmpresaId({
+        subscription: "sub_x",
+        checkoutId: "chk_x",
+        customer: "cus_ambiguo",
+      })
+    ).resolves.toBeNull();
+
+    expect(erroLogado).toHaveBeenCalledWith(
+      expect.stringContaining("[webhook-asaas]"),
+      expect.objectContaining({ customer: "cus_ambiguo" })
+    );
   });
 
   it("C-08: externalReference sozinho NUNCA resolve — nenhuma consulta sequer acontece", async () => {
@@ -516,6 +554,7 @@ describe("webhookAsaasService.resolverEmpresaId", () => {
   it("nada resolve: devolve null e NÃO cria empresa nem adivinha", async () => {
     prismaMock.empresa.findFirst.mockResolvedValue(null as never);
     prismaMock.checkoutAsaas.findUnique.mockResolvedValue(null as never);
+    prismaMock.empresa.findMany.mockResolvedValue([] as never);
 
     await expect(
       webhookAsaasService.resolverEmpresaId({

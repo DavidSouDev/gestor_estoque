@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildRequest } from "../../../../tests/helpers/request";
+import { HttpError } from "@/lib/http-error";
 
 vi.mock("../../../services/usuario.service", () => ({
   usuarioService: {
@@ -97,6 +98,20 @@ describe("POST /api/auth/login", () => {
       role: "ADMIN",
       empresaId: "empresa-1",
     });
+  });
+
+  it("retorna 429 quando o freio de força bruta rejeita a tentativa", async () => {
+    vi.mocked(usuarioService.validatePassword).mockRejectedValue(
+      new HttpError("Muitas tentativas de login. Tente novamente em alguns minutos.", 429)
+    );
+
+    const response = await POST(
+      buildRequest({ method: "POST", body: { email: "admin@teste.com", senha: "123456" } })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.message).toBe("Muitas tentativas de login. Tente novamente em alguns minutos.");
   });
 
   it("retorna 500 quando o service lança um erro inesperado", async () => {

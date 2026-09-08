@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildRequest } from "../../../tests/helpers/request";
 import { buildAuthToken, testAuthPayload } from "../../../tests/helpers/auth";
+import { prismaMock } from "../../../tests/setup/prisma-mock";
 
 vi.mock("../../services/empresa.service", () => ({
   empresaService: {
@@ -12,6 +13,29 @@ vi.mock("../../services/empresa.service", () => ({
 
 import { empresaService } from "../../services/empresa.service";
 import { GET, POST } from "./route";
+
+/**
+ * A role que autoriza `POST /api/empresas` vem do BANCO (`revalidarConta`),
+ * nunca do payload do token — mesmo raciocínio de `app/api/termos/route.ts`.
+ */
+function mockContaComRole(role: "ADMIN" | "SUPERADMIN") {
+  prismaMock.usuario.findFirst.mockResolvedValue({
+    id: "user-1",
+    email: "admin@teste.com",
+    role,
+    empresaId: "empresa-1",
+    termoAceitoId: "termo-1",
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
+    empresa: {
+      slug: "empresa-teste",
+      acessoAte: null,
+      trialFim: new Date("2099-01-01T03:00:00.000Z"),
+      canceladoEm: null,
+      acessoVitalicio: false,
+      ultimoStatusAuditado: "TRIAL",
+    },
+  } as never);
+}
 
 describe("GET /api/empresas", () => {
   beforeEach(() => {
@@ -65,8 +89,30 @@ describe("POST /api/empresas", () => {
     expect(response.status).toBe(401);
   });
 
-  it("cria a empresa a partir dos dados do body quando autenticado", async () => {
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Sem esta checagem, qualquer usuário autenticado (ADMIN comum de qualquer
+   * empresa) podia criar empresas arbitrárias sem administrador — e, combinado
+   * com `POST /api/usuarios`, virar administrador delas.
+   */
+  it("retorna 403 para ADMIN comum, sem chamar o service", async () => {
     const token = await buildAuthToken();
+    mockContaComRole("ADMIN");
+
+    const response = await POST(
+      buildRequest({ method: "POST", token, body: { nome: "Empresa Nova", slug: "empresa-nova" } })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body).toEqual({ message: "Ação não permitida." });
+    expect(empresaService.create).not.toHaveBeenCalled();
+  });
+
+  it("cria a empresa a partir dos dados do body quando o chamador é SUPERADMIN no banco", async () => {
+    const token = await buildAuthToken({ role: "SUPERADMIN" });
+    mockContaComRole("SUPERADMIN");
     vi.mocked(empresaService.create).mockResolvedValue({ id: "empresa-nova" } as never);
 
     const response = await POST(
@@ -80,7 +126,8 @@ describe("POST /api/empresas", () => {
   });
 
   it("retorna 500 quando o service lança um erro inesperado", async () => {
-    const token = await buildAuthToken();
+    const token = await buildAuthToken({ role: "SUPERADMIN" });
+    mockContaComRole("SUPERADMIN");
     vi.mocked(empresaService.create).mockRejectedValue(new Error("falha no banco"));
 
     const response = await POST(

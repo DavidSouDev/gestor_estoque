@@ -19,7 +19,12 @@ describe("jwt", () => {
     const token = await signAuthToken(payload);
     const decoded = await verifyAuthToken(token);
 
-    expect(decoded).toEqual(payload);
+    // `objectContaining`, não `toEqual`: o token verificado também carrega
+    // `iat` (usado por `revalidarConta` para invalidar sessões antigas —
+    // `lib/auth-guard.ts`), que não faz parte do payload de ENTRADA da
+    // assinatura.
+    expect(decoded).toEqual(expect.objectContaining(payload));
+    expect(typeof decoded.iat).toBe("number");
   });
 
   it("lança erro ao verificar um token inválido", async () => {

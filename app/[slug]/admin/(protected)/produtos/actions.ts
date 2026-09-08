@@ -12,15 +12,15 @@ export interface ProdutoFormState {
   error?: string;
 }
 
-async function resolveFotoCapa(formData: FormData): Promise<string | undefined> {
+async function resolveFotoCapa(formData: FormData, empresaId: string): Promise<string | undefined> {
   const atual = String(formData.get("fotoCapa") ?? "").trim() || undefined;
   const file = formData.get("fotoCapaFile");
 
   if (file instanceof File && file.size > 0) {
-    const nova = await uploadImage(file, "produtos");
+    const nova = await uploadImage(file, empresaId, "produtos");
 
     if (atual) {
-      await deleteImage(atual);
+      await deleteImage(atual, empresaId);
     }
 
     return nova;
@@ -28,7 +28,7 @@ async function resolveFotoCapa(formData: FormData): Promise<string | undefined> 
 
   if (formData.get("removerFotoCapa") === "on") {
     if (atual) {
-      await deleteImage(atual);
+      await deleteImage(atual, empresaId);
     }
 
     return undefined;
@@ -60,12 +60,23 @@ function validarProduto(dados: ReturnType<typeof parseProdutoForm>): string | nu
     return "Informe o nome do produto.";
   }
 
-  if (Number.isNaN(dados.precoVarejo)) {
+  // `!Number.isFinite` cobre NaN E os dois infinitos de uma vez; `<= 0` fecha
+  // o buraco que só barrava NaN e deixava preço zero/negativo passar direto
+  // pro Prisma — visível na vitrine pública via `PRODUTO_CATALOGO_SELECT`.
+  // Mesmo piso que `criarProdutoSimples` já aplica em `simples-actions.ts`.
+  if (!Number.isFinite(dados.precoVarejo) || dados.precoVarejo <= 0) {
     return "Informe um preço de varejo válido.";
   }
 
-  if (dados.precoAtacado !== undefined && Number.isNaN(dados.precoAtacado)) {
+  if (
+    dados.precoAtacado !== undefined &&
+    (!Number.isFinite(dados.precoAtacado) || dados.precoAtacado <= 0)
+  ) {
     return "Informe um preço de atacado válido.";
+  }
+
+  if (!Number.isFinite(dados.estoque) || dados.estoque < 0) {
+    return "Informe um estoque válido.";
   }
 
   return null;
@@ -87,7 +98,7 @@ export async function createProduto(
   let fotoCapa: string | undefined;
 
   try {
-    fotoCapa = await resolveFotoCapa(formData);
+    fotoCapa = await resolveFotoCapa(formData, auth.empresaId);
   } catch (error) {
     return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
   }
@@ -135,7 +146,7 @@ export async function updateProduto(
   let fotoCapa: string | undefined;
 
   try {
-    fotoCapa = await resolveFotoCapa(formData);
+    fotoCapa = await resolveFotoCapa(formData, auth.empresaId);
   } catch (error) {
     return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
   }
@@ -168,7 +179,7 @@ export async function deleteProduto(slug: string, id: string) {
   await produtoService.delete(id);
 
   if (produto?.fotoCapa) {
-    await deleteImage(produto.fotoCapa);
+    await deleteImage(produto.fotoCapa, auth.empresaId);
   }
 
   revalidatePath(`/${slug}/admin/produtos`);

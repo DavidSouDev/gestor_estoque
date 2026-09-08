@@ -194,12 +194,26 @@ class WebhookAsaasService {
     }
 
     if (!empresaId && dados.customer) {
-      const empresa = await prisma.empresa.findFirst({
+      // `asaasCustomerId` NÃO é `@unique` no schema (ver JSDoc acima). Um
+      // `findFirst` aqui escolheria uma linha arbitrária se duas empresas um
+      // dia compartilharem o mesmo valor — silenciosamente estendendo acesso
+      // para o tenant ERRADO. `take: 2` detecta a ambiguidade sem precisar
+      // contar todas as linhas: ao achar a segunda, já sabemos que não dá
+      // para resolver com segurança, e o fail-closed do resto da função cuida
+      // do resto (nulo vira erro no ledger, nunca acesso por adivinhação).
+      const empresas = await prisma.empresa.findMany({
         where: { asaasCustomerId: dados.customer, deletedAt: null },
         select: { id: true },
+        take: 2,
       });
 
-      empresaId = empresa?.id ?? null;
+      if (empresas.length > 1) {
+        console.error(`${PREFIXO} asaasCustomerId ambíguo entre múltiplas empresas`, {
+          customer: dados.customer,
+        });
+      } else {
+        empresaId = empresas[0]?.id ?? null;
+      }
     }
 
     // Cross-check, nunca fonte. Note que ele só roda quando o mapa local JÁ

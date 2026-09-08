@@ -1,8 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { usuarioService } from "@/app/services/usuario.service";
 import { createAdminSession, destroySession } from "@/lib/session";
+import { HttpError } from "@/lib/http-error";
+import { extrairIpDoChamador } from "@/lib/client-ip";
 
 export interface LoginState {
   error?: string;
@@ -20,7 +23,19 @@ export async function login(
     return { error: "Informe email e senha." };
   }
 
-  const usuario = await usuarioService.validatePassword(email, senha);
+  const ip = extrairIpDoChamador(await headers());
+
+  let usuario;
+
+  try {
+    usuario = await usuarioService.validatePassword(email, senha, ip);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return { error: error.message };
+    }
+
+    throw error;
+  }
 
   // Mesma condição que o DAL aplica na revalidação: quem for rejeitado lá no
   // request seguinte já é rejeitado aqui na entrada, sem criar sessão. Checagem

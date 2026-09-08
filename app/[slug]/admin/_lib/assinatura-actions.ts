@@ -95,7 +95,7 @@ export async function consultarStatusAcesso(slug: string): Promise<{ liberado: b
     return { liberado: false };
   }
 
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
 
   // `revalidarConta` é fail-closed por construção: devolve `null` tanto para
   // conta revogada quanto para erro de banco. Traduzir isso em `false` é o que

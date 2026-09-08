@@ -11,6 +11,21 @@ export interface AuthTokenPayload {
   role: UserRole;
 }
 
+/**
+ * `AuthTokenPayload` mais o `iat` que o `jose` grava na assinatura — só existe
+ * depois de VERIFICAR um token, nunca antes (por isso não faz parte do tipo de
+ * entrada de `signAuthToken`, que ainda não tem esse valor para oferecer).
+ *
+ * Usado por `revalidarConta` (`lib/auth-guard.ts`) para invalidar sessões cujo
+ * token foi emitido ANTES da última alteração na própria conta — fecha a
+ * janela de até 7 dias em que um cookie/Bearer token vazado continuava válido
+ * mesmo depois de "trocar a senha".
+ */
+export interface VerifiedAuthTokenPayload extends AuthTokenPayload {
+  /** Unix timestamp em SEGUNDOS (arredondado para baixo pelo `jose`). */
+  iat: number;
+}
+
 function getSecretKey() {
   const secret = process.env.JWT_SECRET;
 
@@ -29,8 +44,8 @@ export async function signAuthToken(payload: AuthTokenPayload) {
     .sign(getSecretKey());
 }
 
-export async function verifyAuthToken(token: string): Promise<AuthTokenPayload> {
-  const { payload } = await jwtVerify(token, getSecretKey());
+export async function verifyAuthToken(token: string): Promise<VerifiedAuthTokenPayload> {
+  const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ["HS256"] });
 
   return {
     sub: payload.sub as string,
@@ -38,5 +53,6 @@ export async function verifyAuthToken(token: string): Promise<AuthTokenPayload> 
     empresaSlug: payload.empresaSlug as string,
     email: payload.email as string,
     role: payload.role as UserRole,
+    iat: payload.iat as number,
   };
 }

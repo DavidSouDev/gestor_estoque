@@ -62,7 +62,7 @@ describe("POST /api/combos", () => {
       buildRequest({
         method: "POST",
         token,
-        body: { nome: "Combo", empresaId: "empresa-maliciosa" },
+        body: { nome: "Combo", preco: 19.9, empresaId: "empresa-maliciosa" },
       })
     );
     const body = await response.json();
@@ -74,11 +74,24 @@ describe("POST /api/combos", () => {
     );
   });
 
+  it("retorna 400 quando preco é negativo, sem chamar o service", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({ method: "POST", token, body: { nome: "Combo", preco: -1 } })
+    );
+
+    expect(response.status).toBe(400);
+    expect(comboService.create).not.toHaveBeenCalled();
+  });
+
   it("retorna 500 quando o service lança um erro inesperado", async () => {
     const token = await buildAuthToken();
     vi.mocked(comboService.create).mockRejectedValue(new Error("falha no banco"));
 
-    const response = await POST(buildRequest({ method: "POST", token, body: { nome: "Combo" } }));
+    const response = await POST(
+      buildRequest({ method: "POST", token, body: { nome: "Combo", preco: 19.9 } })
+    );
     expect(response.status).toBe(500);
   });
 });

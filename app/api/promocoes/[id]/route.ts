@@ -1,6 +1,21 @@
 import { promocaoService } from "../../../services/promocao.service";
 import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+/**
+ * `UpdatePromocaoDTO` não tem `itens` — a troca de itens é exclusiva da Server
+ * Action (`updateItens`), nunca exposta por este PATCH. O schema reflete
+ * exatamente isso: aceitar `itens` aqui seria reabrir uma superfície que o
+ * DTO já fecha deliberadamente.
+ */
+const CorpoAtualizacaoPromocao = z
+  .object({
+    nome: z.string().trim().min(1).max(200),
+    dataInicio: z.coerce.date(),
+    dataFim: z.coerce.date(),
+  })
+  .partial();
 
 interface Params {
   params: Promise<{
@@ -36,7 +51,7 @@ export async function GET(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
@@ -71,9 +86,9 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    const dados = CorpoAtualizacaoPromocao.parse(await request.json());
 
-    const promocao = await promocaoService.update(id, body);
+    const promocao = await promocaoService.update(id, dados);
 
     return NextResponse.json(promocao);
   } catch (error) {
@@ -81,7 +96,11 @@ export async function PATCH(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: "Corpo inválido." }, { status: 400 });
+    }
+
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
@@ -126,7 +145,7 @@ export async function DELETE(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {

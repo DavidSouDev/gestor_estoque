@@ -1,5 +1,6 @@
 import { movimentacaoEstoqueService } from "../../../services/movimentacao-estoque.service";
 import { requireAuth, AuthError } from "@/lib/api-auth";
+import { HttpError } from "@/lib/http-error";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -36,7 +37,7 @@ export async function GET(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
@@ -77,11 +78,11 @@ export async function DELETE(
       message: "Movimentação removida com sucesso.",
     });
   } catch (error) {
-    if (error instanceof AuthError) {
+    if (error instanceof AuthError || error instanceof HttpError) {
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {

@@ -101,4 +101,40 @@ describe("POST /api/movimentacoes", () => {
     );
     expect(response.status).toBe(500);
   });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Sem esta validação, `{tipo:"SAIDA", quantidade:-500}` invertia a
+   * subtração em soma no service, fabricando estoque.
+   */
+  it("retorna 400 quando quantidade é negativa, sem chamar o service", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { produtoId: "produto-1", tipo: "SAIDA", quantidade: -500 },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(movimentacaoEstoqueService.create).not.toHaveBeenCalled();
+  });
+
+  it("retorna 400 quando tipo não é um valor válido do enum", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { produtoId: "produto-1", tipo: "TIPO_INVENTADO", quantidade: 10 },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(movimentacaoEstoqueService.create).not.toHaveBeenCalled();
+  });
 });

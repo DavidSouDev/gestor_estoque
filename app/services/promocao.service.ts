@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { HttpError } from "@/lib/http-error";
 import { PRODUTO_CATALOGO_SELECT } from "./produto.service";
 import { COMBO_CATALOGO_SELECT } from "./combo.service";
 
@@ -24,6 +25,33 @@ export interface UpdatePromocaoDTO {
 
   dataInicio?: Date;
   dataFim?: Date;
+}
+
+/**
+ * Nunca confiar em `produtoId`/`comboId` vindo do chamador sem confirmar que
+ * pertence à MESMA empresa da promoção: sem este filtro, a empresa A cria uma
+ * promoção referenciando um produto da empresa B e passa a expô-lo (preço,
+ * estoque, fotos) tanto por `GET /api/promocoes/[id]` quanto na própria
+ * vitrine pública de A. Mesma defesa que `itensValidosDaEmpresa` já aplica na
+ * Server Action de combos/promoções — replicada aqui, no service, para que
+ * TODO chamador (REST e Server Action) fique protegido, e não só quem lembrar
+ * de filtrar antes de chamar.
+ */
+async function itensValidosDaEmpresa(
+  itens: PromocaoItemDTO[],
+  empresaId: string
+): Promise<PromocaoItemDTO[]> {
+  const [produtos, combos] = await Promise.all([
+    prisma.produto.findMany({ where: { empresaId }, select: { id: true } }),
+    prisma.combo.findMany({ where: { empresaId }, select: { id: true } }),
+  ]);
+
+  const produtoIds = new Set(produtos.map((produto) => produto.id));
+  const comboIds = new Set(combos.map((combo) => combo.id));
+
+  return itens.filter((item) =>
+    item.produtoId ? produtoIds.has(item.produtoId) : item.comboId ? comboIds.has(item.comboId) : false
+  );
 }
 
 class PromocaoService {
@@ -92,6 +120,12 @@ class PromocaoService {
   }
 
   async create(data: CreatePromocaoDTO) {
+    const itens = await itensValidosDaEmpresa(data.itens, data.empresaId);
+
+    if (itens.length === 0) {
+      throw new HttpError("Nenhum item válido informado para esta empresa.", 400);
+    }
+
     return prisma.promocao.create({
       data: {
         empresaId: data.empresaId,
@@ -102,7 +136,7 @@ class PromocaoService {
         dataFim: data.dataFim,
 
         itens: {
-          create: data.itens.map((item) => ({
+          create: itens.map((item) => ({
             produtoId: item.produtoId,
             comboId: item.comboId,
             preco: item.preco,
@@ -137,10 +171,25 @@ class PromocaoService {
     });
   }
 
+  /**
+   * `empresaId` é OBRIGATÓRIO pelo mesmo motivo de `create`: sem filtrar
+   * `itens` contra ela aqui, este método reabriria a MESMA falha de
+   * `create` — mesmo com os dois chamadores atuais (`promocoes/actions.ts` e
+   * `_lib/simples-actions.ts`) já validando antes de chamar, um terceiro
+   * chamador futuro (ex: um PATCH REST com `itens`, hoje inexistente de
+   * propósito) herdaria a proteção de graça em vez de precisar reimplementar.
+   */
   async updateItens(
     promocaoId: string,
-    itens: PromocaoItemDTO[]
+    itensBrutos: PromocaoItemDTO[],
+    empresaId: string
   ) {
+    const itens = await itensValidosDaEmpresa(itensBrutos, empresaId);
+
+    if (itens.length === 0) {
+      throw new HttpError("Nenhum item válido informado para esta empresa.", 400);
+    }
+
     return prisma.$transaction(async (tx) => {
       await tx.promocaoItem.deleteMany({
         where: {

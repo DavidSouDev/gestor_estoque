@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: Params) {
 
     return NextResponse.json(empresa);
   } catch (error) {
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
