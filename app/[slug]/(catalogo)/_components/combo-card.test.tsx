@@ -87,4 +87,21 @@ describe("ComboCard", () => {
 
     expect(screen.queryByText("Carnes e acompanhamentos")).not.toBeInTheDocument();
   });
+
+  it('exibe o botão "Comprar pelo WhatsApp" com o link informado', () => {
+    render(<ComboCard combo={makeCombo()} linkWhatsapp="https://wa.me/5511999999999" />);
+
+    expect(screen.getByRole("link", { name: "Comprar pelo WhatsApp" })).toHaveAttribute(
+      "href",
+      "https://wa.me/5511999999999"
+    );
+  });
+
+  it('não exibe o botão "Comprar pelo WhatsApp" quando não há link', () => {
+    render(<ComboCard combo={makeCombo()} />);
+
+    expect(
+      screen.queryByRole("link", { name: "Comprar pelo WhatsApp" })
+    ).not.toBeInTheDocument();
+  });
 });

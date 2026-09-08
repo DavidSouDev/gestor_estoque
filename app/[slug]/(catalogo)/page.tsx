@@ -45,10 +45,13 @@ export default async function CatalogoPage({
 
   return (
     <CatalogoClient
+      slug={slug}
       produtos={produtos}
       combos={combos}
       categorias={categorias}
       primaryColor={empresa.primaryColor}
+      nomeEmpresa={empresa.nome}
+      telefoneEmpresa={empresa.telefone}
     />
   );
 }
