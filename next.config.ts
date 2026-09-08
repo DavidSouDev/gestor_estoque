@@ -66,6 +66,11 @@ function cspHeader(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Build standalone (`.next/standalone`) para a imagem Docker: copia só o
+  // subconjunto de `node_modules` rastreado pelas rotas, sem exigir
+  // `npm install` na imagem final de runtime (ver `Dockerfile`).
+  output: "standalone",
+
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",

@@ -1,0 +1,77 @@
+# Variáveis de aplicação (JWT_SECRET, ASAAS_*, R2_*, CRON_SECRET,
+# APP_BASE_URL, COOKIE_INSECURE, ...) continuam vindo do `.env` da raiz — ver
+# `.env.example` para a lista completa. DATABASE_URL e REDIS_URL são
+# sobrescritos abaixo para apontar para os serviços `db`/`redis` da rede do
+# compose, independentemente do que estiver no `.env` (que normalmente aponta
+# para localhost, usado quando se roda `npm run dev` fora do Docker).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gestor_estoque}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gestor_estoque}
+      POSTGRES_DB: ${POSTGRES_DB:-gestor_estoque}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gestor_estoque} -d ${POSTGRES_DB:-gestor_estoque}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Roda `prisma migrate deploy` uma vez, antes do `app` subir, e sai. Não faz
+  # parte do runtime da aplicação (por isso não usa a imagem `runner`, enxuta
+  # via `output: standalone`, que não carrega o CLI do Prisma nem prisma/).
+  migrate:
+    build:
+      context: .
+      target: migrator
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestor_estoque}:${POSTGRES_PASSWORD:-gestor_estoque}@db:5432/${POSTGRES_DB:-gestor_estoque}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestor_estoque}:${POSTGRES_PASSWORD:-gestor_estoque}@db:5432/${POSTGRES_DB:-gestor_estoque}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_data:
+  redis_data:
