@@ -3,21 +3,29 @@
 import { useMemo, useState } from "react";
 import { ProdutoCard } from "./produto-card";
 import { ComboCard } from "./combo-card";
+import { whatsappLink } from "@/lib/contato";
+import { formatCurrency } from "@/lib/format";
 import type { ComboCatalogoSerializado, ProdutoCatalogoSerializado } from "../../_lib/types";
 
 export type ProdutoComPromocao = ProdutoCatalogoSerializado & { precoPromocional?: number };
 export type ComboComPromocao = ComboCatalogoSerializado & { precoPromocional?: number };
 
 export function CatalogoClient({
+  slug,
   produtos,
   combos,
   categorias,
   primaryColor,
+  nomeEmpresa,
+  telefoneEmpresa,
 }: {
+  slug: string;
   produtos: ProdutoComPromocao[];
   combos: ComboComPromocao[];
   categorias: string[];
   primaryColor: string;
+  nomeEmpresa: string;
+  telefoneEmpresa?: string | null;
 }) {
   const [busca, setBusca] = useState("");
   const [categoriaSelecionada, setCategoriaSelecionada] = useState("Todos");
@@ -42,6 +50,40 @@ export function CatalogoClient({
   }, [produtos, busca, categoriaSelecionada, somenteDisponiveis, somentePromocao]);
 
   const todasCategorias = ["Todos", ...categorias];
+
+  function linkWhatsappProduto(produto: ProdutoComPromocao) {
+    if (!telefoneEmpresa) {
+      return null;
+    }
+
+    const emPromocao =
+      produto.precoPromocional !== undefined && produto.precoPromocional < produto.precoVarejo;
+    const precoFinal = emPromocao ? produto.precoPromocional! : produto.precoVarejo;
+
+    return whatsappLink(
+      telefoneEmpresa,
+      `Olá! Quero comprar o produto "${produto.nome}" (${formatCurrency(
+        precoFinal
+      )}) da loja ${nomeEmpresa}.`
+    );
+  }
+
+  function linkWhatsappCombo(combo: ComboComPromocao) {
+    if (!telefoneEmpresa) {
+      return null;
+    }
+
+    const emPromocao =
+      combo.precoPromocional !== undefined && combo.precoPromocional < combo.preco;
+    const precoFinal = emPromocao ? combo.precoPromocional! : combo.preco;
+
+    return whatsappLink(
+      telefoneEmpresa,
+      `Olá! Quero comprar o combo "${combo.nome}" (${formatCurrency(
+        precoFinal
+      )}) da loja ${nomeEmpresa}.`
+    );
+  }
 
   return (
     <div>
@@ -146,8 +188,10 @@ export function CatalogoClient({
               {filtrados.map((produto) => (
                 <ProdutoCard
                   key={produto.id}
+                  slug={slug}
                   produto={produto}
                   precoPromocional={produto.precoPromocional}
+                  linkWhatsapp={linkWhatsappProduto(produto)}
                 />
               ))}
             </div>
@@ -172,6 +216,7 @@ export function CatalogoClient({
                   key={combo.id}
                   combo={combo}
                   precoPromocional={combo.precoPromocional}
+                  linkWhatsapp={linkWhatsappCombo(combo)}
                 />
               ))}
             </div>

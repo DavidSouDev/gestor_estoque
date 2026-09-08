@@ -52,6 +52,8 @@ describe("CatalogoClient", () => {
   it("exibe todos os produtos por padrão com a contagem correta", () => {
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -68,6 +70,8 @@ describe("CatalogoClient", () => {
   it("filtra produtos pelo termo de busca no nome", () => {
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -87,6 +91,8 @@ describe("CatalogoClient", () => {
     const user = userEvent.setup();
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -105,6 +111,8 @@ describe("CatalogoClient", () => {
     const user = userEvent.setup();
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -122,6 +130,8 @@ describe("CatalogoClient", () => {
     const user = userEvent.setup();
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -138,6 +148,8 @@ describe("CatalogoClient", () => {
   it("mostra estado vazio quando nenhum produto corresponde aos filtros", () => {
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -155,6 +167,8 @@ describe("CatalogoClient", () => {
     const user = userEvent.setup();
     render(
       <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
         produtos={produtos}
         combos={combos}
         categorias={categorias}
@@ -167,5 +181,45 @@ describe("CatalogoClient", () => {
     await user.click(screen.getByRole("button", { name: /combos/i }));
 
     expect(screen.getByText("Combo Almoço")).toBeInTheDocument();
+  });
+
+  it('exibe botões "Comprar pelo WhatsApp" nos produtos e combos quando a empresa tem telefone', async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
+        telefoneEmpresa="11999999999"
+        produtos={produtos}
+        combos={combos}
+        categorias={categorias}
+        primaryColor="#2563eb"
+      />
+    );
+
+    const botoesProdutos = screen.getAllByRole("link", { name: "Comprar pelo WhatsApp" });
+    expect(botoesProdutos).toHaveLength(produtos.length);
+    expect(botoesProdutos[0]).toHaveAttribute("href", expect.stringContaining("https://wa.me/5511999999999"));
+
+    await user.click(screen.getByRole("button", { name: /combos/i }));
+
+    expect(screen.getAllByRole("link", { name: "Comprar pelo WhatsApp" })).toHaveLength(1);
+  });
+
+  it('não exibe botões "Comprar pelo WhatsApp" quando a empresa não tem telefone', () => {
+    render(
+      <CatalogoClient
+        slug="loja-teste"
+        nomeEmpresa="Loja Teste"
+        produtos={produtos}
+        combos={combos}
+        categorias={categorias}
+        primaryColor="#2563eb"
+      />
+    );
+
+    expect(
+      screen.queryByRole("link", { name: "Comprar pelo WhatsApp" })
+    ).not.toBeInTheDocument();
   });
 });

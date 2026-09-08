@@ -31,22 +31,35 @@ function makeProduto(
 
 describe("ProdutoCard", () => {
   it("exibe o preço original formatado em BRL quando não há promoção", () => {
-    render(<ProdutoCard produto={makeProduto({ precoVarejo: 25 })} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ precoVarejo: 25 })} />);
 
     expect(screen.getByText("R$ 25,00")).toBeInTheDocument();
   });
 
   it("exibe o nome, categoria e descrição do produto", () => {
-    render(<ProdutoCard produto={makeProduto()} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto()} />);
 
     expect(screen.getByText("Arroz Branco 5kg")).toBeInTheDocument();
     expect(screen.getByText("Mercearia")).toBeInTheDocument();
     expect(screen.getByText("Arroz tipo 1")).toBeInTheDocument();
   });
 
+  it("linka para a página de detalhe do produto na loja correta", () => {
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ id: "produto-42" })} />);
+
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/loja-teste/produtos/produto-42"
+    );
+  });
+
   it("calcula e exibe o percentual de desconto e o preço original riscado quando há precoPromocional menor que o preço original", () => {
     render(
-      <ProdutoCard produto={makeProduto({ precoVarejo: 100 })} precoPromocional={80} />
+      <ProdutoCard
+        slug="loja-teste"
+        produto={makeProduto({ precoVarejo: 100 })}
+        precoPromocional={80}
+      />
     );
 
     expect(screen.getByText("20% OFF")).toBeInTheDocument();
@@ -55,14 +68,18 @@ describe("ProdutoCard", () => {
   });
 
   it("não exibe badge de promoção quando não há preço promocional", () => {
-    render(<ProdutoCard produto={makeProduto({ precoVarejo: 100 })} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ precoVarejo: 100 })} />);
 
     expect(screen.queryByText(/% OFF/)).not.toBeInTheDocument();
   });
 
   it("não considera promoção quando o preço promocional não é menor que o original", () => {
     render(
-      <ProdutoCard produto={makeProduto({ precoVarejo: 100 })} precoPromocional={100} />
+      <ProdutoCard
+        slug="loja-teste"
+        produto={makeProduto({ precoVarejo: 100 })}
+        precoPromocional={100}
+      />
     );
 
     expect(screen.queryByText(/% OFF/)).not.toBeInTheDocument();
@@ -70,20 +87,20 @@ describe("ProdutoCard", () => {
   });
 
   it('exibe o badge "Fora de estoque" quando o estoque é zero', () => {
-    render(<ProdutoCard produto={makeProduto({ estoque: 0 })} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ estoque: 0 })} />);
 
     expect(screen.getByText("Fora de estoque")).toBeInTheDocument();
     expect(screen.getByText("Indisponível")).toBeInTheDocument();
   });
 
   it('exibe o badge "Fora de estoque" quando o estoque é negativo', () => {
-    render(<ProdutoCard produto={makeProduto({ estoque: -3 })} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ estoque: -3 })} />);
 
     expect(screen.getByText("Fora de estoque")).toBeInTheDocument();
   });
 
   it("exibe a quantidade em estoque quando disponível", () => {
-    render(<ProdutoCard produto={makeProduto({ estoque: 7 })} />);
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto({ estoque: 7 })} />);
 
     expect(screen.getByText("7 em estoque")).toBeInTheDocument();
     expect(screen.queryByText("Fora de estoque")).not.toBeInTheDocument();
@@ -91,9 +108,32 @@ describe("ProdutoCard", () => {
 
   it("não renderiza parágrafo de descrição quando descricao é null", () => {
     const { container } = render(
-      <ProdutoCard produto={makeProduto({ descricao: null })} />
+      <ProdutoCard slug="loja-teste" produto={makeProduto({ descricao: null })} />
     );
 
     expect(container.querySelector("p.line-clamp-2")).toBeNull();
+  });
+
+  it('exibe o botão "Comprar pelo WhatsApp" com o link informado', () => {
+    render(
+      <ProdutoCard
+        slug="loja-teste"
+        produto={makeProduto()}
+        linkWhatsapp="https://wa.me/5511999999999"
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "Comprar pelo WhatsApp" })).toHaveAttribute(
+      "href",
+      "https://wa.me/5511999999999"
+    );
+  });
+
+  it('não exibe o botão "Comprar pelo WhatsApp" quando não há link', () => {
+    render(<ProdutoCard slug="loja-teste" produto={makeProduto()} />);
+
+    expect(
+      screen.queryByRole("link", { name: "Comprar pelo WhatsApp" })
+    ).not.toBeInTheDocument();
   });
 });

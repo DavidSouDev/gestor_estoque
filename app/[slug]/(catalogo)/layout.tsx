@@ -1,4 +1,5 @@
 import { getEmpresaCatalogo } from "../_lib/empresa";
+import { instagramLink, whatsappLink } from "@/lib/contato";
 
 export default async function CatalogoLayout({
   children,
@@ -9,6 +10,11 @@ export default async function CatalogoLayout({
 }) {
   const { slug } = await params;
   const empresa = await getEmpresaCatalogo(slug);
+
+  const linkWhatsapp = empresa.telefone
+    ? whatsappLink(empresa.telefone, `Olá! Vi a loja ${empresa.nome} e tenho uma dúvida.`)
+    : null;
+  const linkInstagram = empresa.instagram ? instagramLink(empresa.instagram) : null;
 
   return (
     <div className="flex flex-1 flex-col bg-slate-50">
@@ -51,7 +57,31 @@ export default async function CatalogoLayout({
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
 
-      <footer className="border-t border-slate-200 px-6 py-6 text-center text-sm text-slate-500">
+      <footer className="flex flex-col items-center gap-3 border-t border-slate-200 px-6 py-6 text-center text-sm text-slate-500">
+        {(linkWhatsapp || linkInstagram) && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {linkWhatsapp && (
+              <a
+                href={linkWhatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"
+              >
+                Falar no WhatsApp
+              </a>
+            )}
+            {linkInstagram && (
+              <a
+                href={linkInstagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300"
+              >
+                Ver no Instagram
+              </a>
+            )}
+          </div>
+        )}
         {empresa.telefone && <p>{empresa.telefone}</p>}
         {empresa.instagram && <p>@{empresa.instagram}</p>}
       </footer>

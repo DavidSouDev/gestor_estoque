@@ -4,9 +4,11 @@ import type { ComboCatalogoSerializado } from "../../_lib/types";
 export function ComboCard({
   combo,
   precoPromocional,
+  linkWhatsapp,
 }: {
   combo: ComboCatalogoSerializado;
   precoPromocional?: number;
+  linkWhatsapp?: string | null;
 }) {
   const precoOriginal = combo.preco;
   const emPromocao = precoPromocional !== undefined && precoPromocional < precoOriginal;
@@ -57,6 +59,16 @@ export function ComboCard({
             {formatCurrency(precoFinal)}
           </span>
         </div>
+        {linkWhatsapp && (
+          <a
+            href={linkWhatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 block w-full rounded-full bg-emerald-500 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-emerald-600"
+          >
+            Comprar pelo WhatsApp
+          </a>
+        )}
       </div>
     </div>
   );
