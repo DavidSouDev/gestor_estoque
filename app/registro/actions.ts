@@ -1,9 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { empresaService } from "@/app/services/empresa.service";
 import { createAdminSession } from "@/lib/session";
 import { HttpError } from "@/lib/http-error";
+import { registroBloqueado, registrarCriacaoDeEmpresa } from "@/lib/registro-rate-limit";
+import { extrairIpDoChamador } from "@/lib/client-ip";
 import type { ModoInterface } from "@prisma/client";
 
 export interface RegisterState {
@@ -12,10 +15,25 @@ export interface RegisterState {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Numa Server Action o Next não expõe `request.ip` — `extrairIpDoChamador`
+ * (`lib/client-ip.ts`) é o único sinal disponível, lido dos headers da
+ * requisição atual.
+ */
+async function ipDoChamador(): Promise<string> {
+  return extrairIpDoChamador(await headers());
+}
+
 export async function register(
   _prevState: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
+  const ip = await ipDoChamador();
+
+  if (await registroBloqueado(ip)) {
+    return { error: "Muitas tentativas de cadastro. Tente novamente em alguns minutos." };
+  }
+
   const nomeEmpresa = String(formData.get("nomeEmpresa") ?? "").trim();
   const nomeResponsavel = String(formData.get("nomeResponsavel") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -89,6 +107,8 @@ export async function register(
       // grava sempre o dele — este valor nunca chega ao banco por si só.
       termoAceitoId: termoId,
     });
+
+    await registrarCriacaoDeEmpresa(ip);
 
     await createAdminSession({
       sub: usuario.id,

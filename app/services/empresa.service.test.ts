@@ -1240,6 +1240,38 @@ describe("empresaService.update", () => {
       },
     });
   });
+
+  it("normaliza o slug informado pelo mesmo tratamento do cadastro", async () => {
+    prismaMock.empresa.update.mockResolvedValue(empresaBase as never);
+
+    await empresaService.update("empresa-1", { slug: "Minha Loja  Nova!! 2" });
+
+    expect(prismaMock.empresa.update).toHaveBeenCalledWith({
+      where: { id: "empresa-1" },
+      data: { slug: "minha-loja-nova-2" },
+    });
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * `api`, `docs` e `registro` são rotas ESTÁTICAS de `app/` — Next.js sempre
+   * as prioriza sobre `app/[slug]`. Uma empresa com um destes slugs fica
+   * inacessível pelo próprio path para sempre.
+   */
+  it.each(["api", "docs", "registro", "REGISTRO"])(
+    "rejeita o slug reservado %s, sem chamar o prisma",
+    async (slugReservado) => {
+      await expect(
+        empresaService.update("empresa-1", { slug: slugReservado })
+      ).rejects.toMatchObject({
+        message: "Este slug é reservado e não pode ser usado.",
+        status: 409,
+      });
+
+      expect(prismaMock.empresa.update).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe("empresaService.delete", () => {

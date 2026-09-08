@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {

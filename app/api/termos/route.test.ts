@@ -54,6 +54,7 @@ function mockContaComRole(role: UserRole) {
     role,
     empresaId: "empresa-1",
     termoAceitoId: "termo-1",
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
     empresa: {
       slug: "empresa-teste",
       acessoAte: null,

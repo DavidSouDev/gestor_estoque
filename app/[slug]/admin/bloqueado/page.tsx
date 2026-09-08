@@ -41,7 +41,7 @@ export default async function AdminBloqueadoPage({
     redirect(`/${slug}/admin/login`);
   }
 
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
 
   // Quem está em dia não tem o que fazer aqui: esta tela só existe para quem
   // perdeu o acesso. Uma condição só, e ela é o predicado único da fase — sem

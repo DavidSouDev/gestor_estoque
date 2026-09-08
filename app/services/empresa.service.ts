@@ -3,6 +3,7 @@ import { produtoService } from "./produto.service";
 import { comboService } from "./combo.service";
 import { promocaoService } from "./promocao.service";
 import { generateUniqueSlug } from "@/lib/slug";
+import { slugify } from "@/lib/slugify";
 import { HttpError } from "@/lib/http-error";
 import { CausaTransicaoAcesso, ModoInterface, Prisma, StatusAcesso } from "@prisma/client";
 import { meiaNoiteEmSaoPaulo } from "@/lib/fuso-sao-paulo";
@@ -62,6 +63,15 @@ export interface UpdateEmpresaDTO {
 
   modoInterface?: ModoInterface;
 }
+
+/**
+ * Segmentos de topo já ocupados por rotas ESTÁTICAS de `app/` (`app/api`,
+ * `app/docs`, `app/registro`). Next.js sempre prioriza a rota estática sobre
+ * `app/[slug]`, então uma empresa com um destes slugs fica permanentemente
+ * inacessível pelo próprio path — ela existe no banco, mas `/api`, `/docs` e
+ * `/registro` nunca chegam ao `[slug]` dinâmico para resolvê-la.
+ */
+const SLUGS_RESERVADOS = new Set(["api", "docs", "registro"]);
 
 /**
  * Branding público + os 4 fatos de billing na MESMA projeção, de propósito: é o
@@ -539,7 +549,22 @@ class EmpresaService {
     const permitido: Prisma.EmpresaUpdateInput = {};
 
     if (data.nome !== undefined) permitido.nome = data.nome;
-    if (data.slug !== undefined) permitido.slug = data.slug;
+
+    // `slugify` faz o MESMO tratamento do cadastro (minúsculas, sem acento,
+    // só `[a-z0-9-]`, nunca string vazia) — sem isto, `PATCH /api/empresas/[id]`
+    // aceitava `slug` cru do body: string vazia, unicode, ou colidindo com uma
+    // rota estática de `app/` (ver `SLUGS_RESERVADOS`), quebrando o próprio
+    // roteamento da empresa. A unicidade contra OUTRO tenant já é garantida
+    // pela constraint `@unique` do banco — este bloco cobre o que ela não cobre.
+    if (data.slug !== undefined) {
+      const slug = slugify(data.slug);
+
+      if (SLUGS_RESERVADOS.has(slug)) {
+        throw new HttpError("Este slug é reservado e não pode ser usado.", 409);
+      }
+
+      permitido.slug = slug;
+    }
 
     if (data.logo !== undefined) permitido.logo = data.logo;
     if (data.banner !== undefined) permitido.banner = data.banner;

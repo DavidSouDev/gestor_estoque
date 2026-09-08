@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { buildRequest, buildParams } from "../../../../tests/helpers/request";
 import { buildAuthToken, testAuthPayload } from "../../../../tests/helpers/auth";
+import { HttpError } from "@/lib/http-error";
 
 vi.mock("../../../services/movimentacao-estoque.service", () => ({
   movimentacaoEstoqueService: {
@@ -99,5 +100,21 @@ describe("DELETE /api/movimentacoes/[id]", () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({ message: "Movimentação removida com sucesso." });
     expect(movimentacaoEstoqueService.delete).toHaveBeenCalledWith("mov-1");
+  });
+
+  it("repassa status e mensagem quando o service recusa a remoção com HttpError", async () => {
+    const token = await buildAuthToken();
+    vi.mocked(movimentacaoEstoqueService.findById).mockResolvedValue(movimentacaoDaEmpresa as never);
+    vi.mocked(movimentacaoEstoqueService.delete).mockRejectedValue(
+      new HttpError("Não é possível remover: o estoque já foi consumido abaixo da quantidade desta entrada.", 409)
+    );
+
+    const response = await DELETE(buildRequest({ method: "DELETE", token }), buildParams({ id: "mov-1" }));
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toEqual({
+      message: "Não é possível remover: o estoque já foi consumido abaixo da quantidade desta entrada.",
+    });
   });
 });

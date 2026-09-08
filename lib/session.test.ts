@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 const { cookieStore, redirectMock } = vi.hoisted(() => {
   const cookieStore = {
@@ -49,6 +49,7 @@ const contaAtiva = {
   // assinatura continuam medindo só ele.
   termoAceitoId: TERMO_VIGENTE_ID,
   empresaId: "empresa-1",
+  updatedAt: new Date("2020-01-01T00:00:00.000Z"),
   empresa: { slug: "empresa-teste" },
 };
 
@@ -161,6 +162,10 @@ describe("session", () => {
   });
 
   describe("createAdminSession", () => {
+    afterEach(() => {
+      delete process.env.COOKIE_INSECURE;
+    });
+
     it("grava um cookie httpOnly assinado com o payload", async () => {
       await createAdminSession(payload);
 
@@ -172,6 +177,44 @@ describe("session", () => {
           sameSite: "lax",
           path: "/",
         })
+      );
+    });
+
+    /**
+     * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+     *
+     * `secure` não pode depender de `NODE_ENV`: um `.env` de produção que
+     * herde `NODE_ENV=development` de um template não pode derrubar este
+     * flag silenciosamente. O default é sempre `true`.
+     */
+    it("secure é true por padrão, independente de NODE_ENV", async () => {
+      const nodeEnvOriginal = process.env.NODE_ENV;
+      // @ts-expect-error NODE_ENV normalmente é readonly no tipo do processo.
+      process.env.NODE_ENV = "development";
+
+      try {
+        await createAdminSession(payload);
+
+        expect(cookieStore.set).toHaveBeenCalledWith(
+          "admin_session",
+          expect.any(String),
+          expect.objectContaining({ secure: true })
+        );
+      } finally {
+        // @ts-expect-error mesmo motivo do set acima.
+        process.env.NODE_ENV = nodeEnvOriginal;
+      }
+    });
+
+    it("secure é false apenas com o opt-out explícito COOKIE_INSECURE=true", async () => {
+      process.env.COOKIE_INSECURE = "true";
+
+      await createAdminSession(payload);
+
+      expect(cookieStore.set).toHaveBeenCalledWith(
+        "admin_session",
+        expect.any(String),
+        expect.objectContaining({ secure: false })
       );
     });
   });
@@ -198,7 +241,7 @@ describe("session", () => {
       const token = await signAuthToken(payload);
       cookieStore.get.mockReturnValue({ value: token });
 
-      await expect(getSession()).resolves.toEqual(payload);
+      await expect(getSession()).resolves.toEqual(expect.objectContaining(payload));
     });
   });
 
@@ -207,7 +250,7 @@ describe("session", () => {
       const token = await signAuthToken(payload);
       cookieStore.get.mockReturnValue({ value: token });
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
     });
 
     it("redireciona para o login quando não há sessão", async () => {
@@ -278,12 +321,31 @@ describe("session", () => {
       expect(prismaMock.usuario.findFirst).not.toHaveBeenCalled();
     });
 
+    /**
+     * Fecha a lacuna descrita no JSDoc de `revalidarConta`: um cookie vazado não
+     * podia ser invalidado sem desativar a conta inteira. Simula uma troca de
+     * senha (ou qualquer edição da conta) acontecendo DEPOIS que o cookie foi
+     * emitido — `updatedAt` no futuro relativo ao `iat` do token.
+     */
+    it("redireciona quando a conta foi alterada DEPOIS de o cookie ter sido emitido", async () => {
+      const token = await signAuthToken(payload);
+      cookieStore.get.mockReturnValue({ value: token });
+      prismaMock.usuario.findFirst.mockResolvedValue({
+        ...contaAtiva,
+        updatedAt: new Date(Date.now() + 60_000),
+      } as never);
+
+      await expect(requireAdminSession("empresa-teste")).rejects.toThrow(
+        "REDIRECT:/empresa-teste/admin/login"
+      );
+    });
+
     it("aplica uma mudança no banco já no request seguinte, sem novo login", async () => {
       const token = await signAuthToken(payload);
       cookieStore.get.mockReturnValue({ value: token });
 
       // Request 1: conta ativa.
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
 
       // A conta é desativada no banco — o cookie/JWT continua exatamente o mesmo.
       prismaMock.usuario.findFirst.mockResolvedValue(null as never);
@@ -321,7 +383,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComStatus("TRIAL");
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -330,7 +392,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComStatus("EM_DIA");
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -339,7 +401,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComStatus("CARENCIA");
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -348,7 +410,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComStatus("VITALICIO");
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -420,7 +482,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComTermos("EM_DIA", TERMO_VIGENTE_ID);
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -429,7 +491,7 @@ describe("session", () => {
       cookieStore.get.mockReturnValue({ value: token });
       stubComTermos("VITALICIO", null, "SUPERADMIN");
 
-      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(payload);
+      await expect(requireAdminSession("empresa-teste")).resolves.toEqual(expect.objectContaining(payload));
       expect(redirectMock).not.toHaveBeenCalled();
     });
 
@@ -456,7 +518,7 @@ describe("session", () => {
       const token = await signAuthToken(payload);
       cookieStore.get.mockReturnValue({ value: token });
 
-      await expect(getVerifiedSession()).resolves.toEqual(payload);
+      await expect(getVerifiedSession()).resolves.toEqual(expect.objectContaining(payload));
     });
 
     it("retorna null quando o JWT é válido mas a conta foi revogada", async () => {

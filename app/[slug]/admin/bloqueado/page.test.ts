@@ -39,6 +39,7 @@ const sessao = {
   empresaSlug: SLUG,
   email: "admin@teste.com",
   role: "ADMIN" as const,
+  iat: 1_700_000_000,
 };
 
 const conta = (statusAcesso: string) => ({
@@ -121,7 +122,7 @@ describe("AdminBloqueadoPage", () => {
     const el = await renderizar();
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(revalidarContaMock).toHaveBeenCalledWith("user-1", "empresa-1");
+    expect(revalidarContaMock).toHaveBeenCalledWith("user-1", "empresa-1", 1_700_000_000);
     expect(propsVisuais(el)).toEqual({
       primaryColor: "#2563eb",
       accentColor: "#7c3aed",

@@ -1,4 +1,4 @@
-import { AuthTokenPayload, verifyAuthToken } from "@/lib/jwt";
+import { VerifiedAuthTokenPayload, verifyAuthToken } from "@/lib/jwt";
 import { revalidarConta } from "@/lib/auth-guard";
 import { acessoBloqueado } from "@/lib/avaliar-acesso";
 
@@ -94,7 +94,7 @@ export interface OpcoesDeAuth {
 export async function requireAuth(
   request: Request,
   opcoes: OpcoesDeAuth = {}
-): Promise<AuthTokenPayload> {
+): Promise<VerifiedAuthTokenPayload> {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -102,7 +102,7 @@ export async function requireAuth(
     throw new AuthError("Não autenticado.");
   }
 
-  let payload: AuthTokenPayload;
+  let payload: VerifiedAuthTokenPayload;
 
   try {
     payload = await verifyAuthToken(token);
@@ -110,7 +110,7 @@ export async function requireAuth(
     throw new AuthError("Token inválido ou expirado.");
   }
 
-  const conta = await revalidarConta(payload.sub, payload.empresaId);
+  const conta = await revalidarConta(payload.sub, payload.empresaId, payload.iat);
 
   if (!conta) {
     // Mensagem única e genérica: cobre conta inativa, empresa removida E erro

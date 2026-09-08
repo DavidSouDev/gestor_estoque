@@ -21,13 +21,15 @@
     "asaas:webhook": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/registrar-webhook-asaas.ts",
     "seed:billing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-fatos-billing.ts",
     "seed:superadmin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/seed-superadmin.ts",
-    "termos:publicar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/publicar-termos.ts"
+    "termos:publicar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/publicar-termos.ts",
+    "r2:migrar-chaves": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/resolvedor-ts.mjs scripts/migrar-chaves-r2.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "bcryptjs": "^3.0.3",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.10",
     "next": "16.3.0",
     "pg": "^8.22.0",

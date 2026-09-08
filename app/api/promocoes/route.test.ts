@@ -54,6 +54,13 @@ describe("POST /api/promocoes", () => {
     expect(response.status).toBe(401);
   });
 
+  const corpoValido = {
+    nome: "Promoção",
+    dataInicio: "2026-01-01T00:00:00.000Z",
+    dataFim: "2026-12-31T00:00:00.000Z",
+    itens: [{ produtoId: "produto-1", preco: 9.9 }],
+  };
+
   it("cria a promoção vinculando a empresa do token autenticado, ignorando empresaId do body", async () => {
     const token = await buildAuthToken();
     vi.mocked(promocaoService.create).mockResolvedValue({ id: "promocao-nova" } as never);
@@ -62,7 +69,7 @@ describe("POST /api/promocoes", () => {
       buildRequest({
         method: "POST",
         token,
-        body: { nome: "Promoção", empresaId: "empresa-maliciosa" },
+        body: { ...corpoValido, empresaId: "empresa-maliciosa" },
       })
     );
     const body = await response.json();
@@ -74,11 +81,37 @@ describe("POST /api/promocoes", () => {
     );
   });
 
+  it("retorna 400 quando não há nenhum item, sem chamar o service", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({ method: "POST", token, body: { ...corpoValido, itens: [] } })
+    );
+
+    expect(response.status).toBe(400);
+    expect(promocaoService.create).not.toHaveBeenCalled();
+  });
+
+  it("retorna 400 quando dataFim não é depois de dataInicio", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { ...corpoValido, dataInicio: "2026-06-01T00:00:00.000Z", dataFim: "2026-01-01T00:00:00.000Z" },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(promocaoService.create).not.toHaveBeenCalled();
+  });
+
   it("retorna 500 quando o service lança um erro inesperado", async () => {
     const token = await buildAuthToken();
     vi.mocked(promocaoService.create).mockRejectedValue(new Error("falha no banco"));
 
-    const response = await POST(buildRequest({ method: "POST", token, body: { nome: "Promoção" } }));
+    const response = await POST(buildRequest({ method: "POST", token, body: corpoValido }));
     expect(response.status).toBe(500);
   });
 });

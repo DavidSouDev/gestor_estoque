@@ -219,6 +219,23 @@ describe("endpoints", () => {
     expect(chamada().url).toBe(`${API_URL}/subscriptions/sub_x`);
     expect(chamada().init.method ?? "GET").toBe("GET");
   });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * `id` vem de fora (webhook do Asaas, sem formato garantido — ver
+   * `lib/billing/asaas/eventos.ts`). Sem `encodeURIComponent`, um id como
+   * `../subscriptions/sub_x` sobrevive à normalização de `..` da URL e faz
+   * este método bater num endpoint DIFERENTE do que ele pensa que está
+   * chamando, usando a própria API key da plataforma.
+   */
+  it("buscarPagamento codifica um id hostil em vez de deixá-lo mudar o path", async () => {
+    fetchMock.mockResolvedValue(respostaOk({ id: "pay_x", status: "RECEIVED" }));
+
+    await asaasClient.buscarPagamento("../subscriptions/sub_alvo");
+
+    expect(chamada().url).toBe(`${API_URL}/payments/..%2Fsubscriptions%2Fsub_alvo`);
+  });
 });
 
 describe("removerAssinatura (D-04, SUB-02)", () => {

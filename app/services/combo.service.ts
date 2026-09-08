@@ -1,6 +1,35 @@
 import { prisma } from "@/lib/prisma";
 import { PRODUTO_CATALOGO_SELECT } from "./produto.service";
 import { EMPRESA_PUBLICAVEL_SELECT, empresaPodePublicar } from "@/lib/empresa-publicavel";
+import { HttpError } from "@/lib/http-error";
+
+interface ComboItemDTO {
+  produtoId: string;
+  quantidade: number;
+}
+
+/**
+ * Nunca confiar em `produtoId` vindo do chamador sem confirmar que pertence à
+ * MESMA empresa do combo — mesma defesa que `itensValidosDaEmpresa` já aplica
+ * em `promocao.service.ts` (combos não referenciam outros combos, só
+ * produtos, então o filtro aqui é mais simples). Sem este filtro, a empresa A
+ * monta um combo referenciando um produto da empresa B e passa a expô-lo
+ * (preço, estoque, fotos) na própria vitrine pública de A. Aplicada no
+ * SERVICE, não só no chamador, para que TODO chamador (REST e Server Action)
+ * fique protegido, e não só quem lembrar de filtrar antes de chamar.
+ */
+async function produtosValidosDaEmpresa(
+  itens: ComboItemDTO[],
+  empresaId: string
+): Promise<ComboItemDTO[]> {
+  const produtos = await prisma.produto.findMany({
+    where: { empresaId },
+    select: { id: true },
+  });
+  const produtoIds = new Set(produtos.map((produto) => produto.id));
+
+  return itens.filter((item) => produtoIds.has(item.produtoId));
+}
 
 export interface CreateComboDTO {
   empresaId: string;
@@ -273,13 +302,19 @@ class ComboService {
     });
   }
 
-  async updateItens(
-    comboId: string,
-    itens: {
-      produtoId: string;
-      quantidade: number;
-    }[]
-  ) {
+  /**
+   * `empresaId` é OBRIGATÓRIO pelo mesmo motivo de `promocaoService.updateItens`:
+   * sem filtrar `itens` contra ela aqui, este método aceitaria referenciar
+   * produto de outra empresa — mesmo com os chamadores atuais já filtrando
+   * antes de chamar, um terceiro chamador futuro herda a proteção de graça.
+   */
+  async updateItens(comboId: string, itensBrutos: ComboItemDTO[], empresaId: string) {
+    const itens = await produtosValidosDaEmpresa(itensBrutos, empresaId);
+
+    if (itens.length === 0) {
+      throw new HttpError("Nenhum item válido informado para esta empresa.", 400);
+    }
+
     return prisma.$transaction(async (tx) => {
       await tx.comboItem.deleteMany({
         where: {

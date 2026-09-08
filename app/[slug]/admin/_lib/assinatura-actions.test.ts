@@ -51,6 +51,7 @@ const sessao = {
   empresaSlug: SLUG,
   email: "admin@teste.com",
   role: "ADMIN" as const,
+  iat: 1_700_000_000,
 };
 
 describe("iniciarPagamento", () => {
@@ -164,7 +165,7 @@ describe("consultarStatusAcesso", () => {
     revalidarContaMock.mockResolvedValue(contaCom(StatusAcesso.EM_DIA));
 
     await expect(consultarStatusAcesso(SLUG)).resolves.toEqual({ liberado: true });
-    expect(revalidarContaMock).toHaveBeenCalledWith("user-1", "empresa-1");
+    expect(revalidarContaMock).toHaveBeenCalledWith("user-1", "empresa-1", 1_700_000_000);
   });
 
   it("com sessão válida e empresa BLOQUEADO, devolve { liberado: false }", async () => {

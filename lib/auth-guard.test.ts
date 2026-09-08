@@ -41,6 +41,7 @@ const contaAtiva = {
   // casos que não são sobre termos continuam medindo só o que mediam antes.
   termoAceitoId: TERMO_VIGENTE.id,
   empresaId: "empresa-1",
+  updatedAt: new Date("2020-01-01T00:00:00.000Z"),
   empresa: {
     slug: "empresa-teste",
     acessoAte: null,
@@ -207,6 +208,57 @@ describe("revalidarConta", () => {
     expect(consoleError.mock.calls[0][0]).toMatch(/^\[acesso\]/);
 
     consoleError.mockRestore();
+  });
+});
+
+describe("revalidarConta — invalidação de sessão por troca de conta", () => {
+  const AGORA_SEGUNDOS = Math.floor(Date.now() / 1000);
+
+  it("aceita quando o token foi emitido DEPOIS da última alteração na conta", async () => {
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      ...contaAtiva,
+      updatedAt: new Date((AGORA_SEGUNDOS - 3600) * 1000),
+    } as never);
+
+    const conta = await revalidarConta("user-1", "empresa-1", AGORA_SEGUNDOS);
+
+    expect(conta).not.toBeNull();
+  });
+
+  it("recusa (fail-closed) quando o token foi emitido ANTES da última alteração na conta", async () => {
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      ...contaAtiva,
+      updatedAt: new Date((AGORA_SEGUNDOS + 3600) * 1000),
+    } as never);
+
+    const conta = await revalidarConta("user-1", "empresa-1", AGORA_SEGUNDOS);
+
+    expect(conta).toBeNull();
+  });
+
+  it("tolera o descompasso de granularidade entre iat (segundos) e updatedAt (ms) no mesmo instante", async () => {
+    // Simula login/registro: updatedAt gravado alguns ms depois do início do
+    // MESMO segundo em que o iat (arredondado para baixo) foi capturado — sem
+    // tolerância, isso invalidaria todo login/registro recém-criado.
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      ...contaAtiva,
+      updatedAt: new Date(AGORA_SEGUNDOS * 1000 + 900),
+    } as never);
+
+    const conta = await revalidarConta("user-1", "empresa-1", AGORA_SEGUNDOS);
+
+    expect(conta).not.toBeNull();
+  });
+
+  it("sem tokenEmitidoEm (parâmetro omitido), nunca invalida por conta de updatedAt", async () => {
+    prismaMock.usuario.findFirst.mockResolvedValue({
+      ...contaAtiva,
+      updatedAt: new Date((AGORA_SEGUNDOS + 999_999) * 1000),
+    } as never);
+
+    const conta = await revalidarConta("user-1", "empresa-1");
+
+    expect(conta).not.toBeNull();
   });
 });
 

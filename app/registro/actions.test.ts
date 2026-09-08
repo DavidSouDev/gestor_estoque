@@ -21,6 +21,10 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers()),
+}));
+
 vi.mock("@/lib/session", () => ({
   createAdminSession: createAdminSessionMock,
 }));
@@ -29,6 +33,7 @@ vi.mock("@/app/services/empresa.service", () => ({
   empresaService: { registerComUsuario: registerComUsuarioMock },
 }));
 
+import { headers } from "next/headers";
 import { register } from "./actions";
 
 const TERMO_VIGENTE_ID = "termo-1";
@@ -209,5 +214,34 @@ describe("register — erros do service e sucesso", () => {
       email: usuarioCriado.email,
       role: usuarioCriado.role,
     });
+  });
+});
+
+/**
+ * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+ *
+ * IP dedicado ("203.0.113.9", faixa de documentação TEST-NET-3) e não
+ * reutilizado por nenhum outro teste deste arquivo: o freio de
+ * `lib/registro-rate-limit.ts` é um Map module-level, chaveado por IP — os
+ * demais testes deste arquivo não enviam `x-forwarded-for` e caem todos no
+ * balde `"desconhecido"`, que fica bem abaixo do limiar (só 2 sucessos no
+ * arquivo inteiro). Reaproveitar aquele balde aqui contaminaria a contagem.
+ */
+describe("register — freio contra criação em massa (item 5)", () => {
+  it("bloqueia novas criações do mesmo IP após exceder o limite, sem chamar o service", async () => {
+    vi.mocked(headers).mockResolvedValue(new Headers({ "x-forwarded-for": "203.0.113.9" }));
+
+    for (let i = 0; i < 30; i += 1) {
+      await expect(register({}, formValido())).rejects.toThrow("REDIRECT:/minha-loja/admin");
+    }
+
+    registerComUsuarioMock.mockClear();
+
+    const resultado = await register({}, formValido());
+
+    expect(resultado).toEqual({
+      error: "Muitas tentativas de cadastro. Tente novamente em alguns minutos.",
+    });
+    expect(registerComUsuarioMock).not.toHaveBeenCalled();
   });
 });

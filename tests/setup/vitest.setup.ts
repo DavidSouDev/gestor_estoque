@@ -48,6 +48,11 @@ if (typeof HTMLDialogElement !== "undefined" && !HTMLDialogElement.prototype.sho
 beforeAll(() => {
   process.env.JWT_SECRET ??= "test-jwt-secret";
   process.env.DATABASE_URL ??= "postgresql://test:test@localhost:5432/test";
+  // Nunca discado de verdade: `tests/setup/redis-mock.ts` substitui
+  // `lib/redis.ts` inteiro por um fake em memória. Só existe para que um
+  // eventual código que leia `process.env.REDIS_URL` diretamente (fora do
+  // client) não quebre por ausência da variável.
+  process.env.REDIS_URL ??= "redis://localhost:6379";
 });
 
 afterEach(() => {
@@ -55,3 +60,4 @@ afterEach(() => {
 });
 
 import "./prisma-mock";
+import "./redis-mock";

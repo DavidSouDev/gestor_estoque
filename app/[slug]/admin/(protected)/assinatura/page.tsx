@@ -46,7 +46,7 @@ export default async function AdminAssinaturaPage({
   // que `requireAdminSession` acabou de fazer no mesmo request. É daqui que sai
   // `conta.statusAcesso`, a única autoridade de status da fase (BILL-01) — o
   // rótulo do pill NUNCA vem do gateway.
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
 
   // FORA de qualquer `try`: `redirect()` sinaliza lançando e um `catch` o
   // engoliria.

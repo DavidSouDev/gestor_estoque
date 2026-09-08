@@ -1,6 +1,32 @@
 import { produtoService } from "../../../services/produto.service";
 import { requireAuth, AuthError } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+/**
+ * Mesma validação de `app/api/produtos/route.ts`, com todos os campos
+ * opcionais (PATCH parcial). Nenhum campo aqui inclui `empresaId`: o modo
+ * default (não `.strict()`) do Zod descarta qualquer chave desconhecida do
+ * corpo, então um PATCH tentando mover o produto para outra empresa via
+ * `{ empresaId: "..." }` é silenciosamente ignorado — antes desta validação,
+ * `body` seguia inteiro (`any`) direto para `prisma.produto.update`.
+ */
+const CorpoAtualizacaoProduto = z
+  .object({
+    codigo: z.string().trim().min(1).max(100),
+    nome: z.string().trim().min(1).max(200),
+    descricao: z.string().trim().max(5000),
+    categoria: z.string().trim().min(1).max(100),
+    precoVarejo: z.number().nonnegative(),
+    precoAtacado: z.number().nonnegative(),
+    estoque: z.number().int().nonnegative(),
+    fotoCapa: z.string().trim().max(2048),
+    ordemCatalogo: z.number().int(),
+    destaque: z.boolean(),
+    ativo: z.boolean(),
+    visivelCatalogo: z.boolean(),
+  })
+  .partial();
 
 interface Params {
   params: Promise<{
@@ -36,7 +62,7 @@ export async function GET(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
@@ -71,9 +97,9 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    const dados = CorpoAtualizacaoProduto.parse(await request.json());
 
-    const produto = await produtoService.update(id, body);
+    const produto = await produtoService.update(id, dados);
 
     return NextResponse.json(produto);
   } catch (error) {
@@ -81,7 +107,11 @@ export async function PATCH(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: "Corpo inválido." }, { status: 400 });
+    }
+
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {
@@ -126,7 +156,7 @@ export async function DELETE(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {

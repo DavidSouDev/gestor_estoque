@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     const auth = await requireAuth(request);
 
     // D-06 / TERM-02: a role vem do BANCO (ver decisão (a) no cabeçalho).
-    const conta = await revalidarConta(auth.sub, auth.empresaId);
+    const conta = await revalidarConta(auth.sub, auth.empresaId, auth.iat);
 
     if (conta?.role !== UserRole.SUPERADMIN) {
       throw new AuthError("Ação não permitida.", 403);
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
     // Detalhe real só no servidor; ao cliente, mensagem genérica (CLAUDE.md,
     // seção Error Handling).
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json({ message: "Erro ao publicar termos." }, { status: 500 });
   }

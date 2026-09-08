@@ -34,6 +34,11 @@ beforeEach(() => {
     role: "ADMIN",
     empresaId: "empresa-1",
     termoAceitoId: "termo-1",
+    // Literal fixo e antigo de propósito, mesmo motivo de `trialFim` abaixo:
+    // sempre mais velho que o `iat` de qualquer token assinado durante os
+    // testes, então o freio de invalidação de sessão (revalidarConta) nunca
+    // dispara por acidente no caminho default.
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
     empresa: {
       slug: "empresa-teste",
       acessoAte: null,

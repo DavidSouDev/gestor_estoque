@@ -65,9 +65,32 @@ export interface ContaAtiva {
  * tabela de termos cai no MESMO `catch` fail-closed abaixo e portanto derruba a
  * sessão inteira, não só o gate de termos — o prefixo `[auth-guard]` nos logs é
  * a ferramenta de distinguir "termos quebrados" de "conta revogada".
+ *
+ * `tokenEmitidoEm` (opcional, `iat` em segundos de um JWT já verificado) fecha
+ * uma lacuna que existia até aqui: nada invalidava um cookie/Bearer token
+ * vazado depois de uma troca de senha — a única forma de matar uma sessão
+ * comprometida era desativar a conta inteira, o que também derruba o dono
+ * legítimo. Com o parâmetro presente, uma conta cujo `updatedAt` é mais recente
+ * que a emissão do token é tratada como revogada (mesmo fail-closed de D-01),
+ * forçando novo login. É deliberadamente GROSSEIRO — qualquer escrita em
+ * `Usuario` (nome, email, senha, ativo/inativo) invalida a sessão corrente, não
+ * só troca de senha — porque não existe hoje uma coluna dedicada tipo
+ * `senhaAlteradaEm`, e usar `updatedAt` (que já existe, `@updatedAt`) evita uma
+ * migration para fechar esta lacuna. É opcional porque nem toda chamada desta
+ * função parte de um JWT recém-verificado: `app/api/empresas/route.ts`,
+ * `app/api/termos/route.ts` e `app/api/usuarios/route.ts` reconsultam a role
+ * fresca dentro do MESMO request que `requireAuth` já autenticou — devem
+ * passar o `iat` daquele mesmo token (preserva o reaproveitamento via
+ * `React.cache`, documentado acima), nunca omiti-lo.
  */
+const TOLERANCIA_INVALIDACAO_MS = 5_000;
+
 export const revalidarConta = cache(
-  async (usuarioId: string, empresaId: string): Promise<ContaAtiva | null> => {
+  async (
+    usuarioId: string,
+    empresaId: string,
+    tokenEmitidoEm?: number
+  ): Promise<ContaAtiva | null> => {
     try {
       const usuario = await prisma.usuario.findFirst({
         where: {
@@ -85,6 +108,7 @@ export const revalidarConta = cache(
           email: true,
           role: true,
           empresaId: true,
+          updatedAt: true,
           // TERM-04: coluna ESCALAR, então entra no `select` que já existe de
           // graça — nenhuma query nova por causa dela. É por isso que a opção
           // da relação aninhada foi descartada: o Prisma carrega relações com
@@ -104,6 +128,19 @@ export const revalidarConta = cache(
       });
 
       if (!usuario) {
+        return null;
+      }
+
+      // Sessão emitida ANTES da última mudança na conta: trata como revogada.
+      // A TOLERANCIA absorve o descompasso de granularidade entre `updatedAt`
+      // (ms, escrito pelo Postgres) e `iat` (arredondado para baixo em
+      // segundos pelo `jose`) — sem ela, um login/registro legítimo seguido de
+      // QUALQUER escrita na mesma conta dentro do mesmo segundo se
+      // autoinvalidaria no request seguinte.
+      if (
+        tokenEmitidoEm !== undefined &&
+        usuario.updatedAt.getTime() > tokenEmitidoEm * 1000 + TOLERANCIA_INVALIDACAO_MS
+      ) {
         return null;
       }
 

@@ -36,7 +36,7 @@ export default async function AdminProtectedLayout({
   // `conta` nunca é `null` neste ponto — `requireAdminSession` já teria
   // redirecionado —, mas o acesso é feito com optional chaining por segurança
   // de tipos, e não porque o caso seja alcançável.
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
   const empresa = await empresaService.findHeaderData(session.empresaId);
 
   // O relógio é lido AQUI, no chamador impuro, e injetado na função pura — mesmo

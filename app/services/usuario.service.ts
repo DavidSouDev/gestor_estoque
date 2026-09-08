@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/http-error";
 import { camposDaColisaoUnica } from "@/lib/prisma-error";
+import {
+  loginBloqueado,
+  registrarFalhaDeLogin,
+  limparTentativasDeLogin,
+  loginBloqueadoPorIp,
+  registrarFalhaDeLoginPorIp,
+  limparTentativasDeLoginPorIp,
+} from "@/lib/login-rate-limit";
 import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -15,8 +23,24 @@ export interface UpdateUsuarioDTO {
   nome?: string;
   email?: string;
   senha?: string;
+  /**
+   * Exigida quando `senha` está presente — confirma que quem está trocando a
+   * senha É quem já a conhece, não só quem carrega um Bearer token/cookie de
+   * sessão válido no momento. Sem isto, um token vazado (XSS, log, endpoint de
+   * integração comprometido) bastava para sequestrar a conta silenciosamente:
+   * trocar a senha sem nunca precisar da senha antiga.
+   */
+  senhaAtual?: string;
   ativo?: boolean;
 }
+
+/**
+ * Hash de custo idêntico ao de um usuário real (`bcrypt.hash(..., 10)`),
+ * computado UMA vez na carga do módulo — nunca comparado de verdade contra
+ * nenhuma senha real. Existe só para `validatePassword` pagar o mesmo custo
+ * de `bcrypt.compare` quando o email não existe (ver JSDoc do método).
+ */
+const HASH_FANTASMA = bcrypt.hashSync("nao-existe-comparacao-real", 10);
 
 const SAFE_SELECT = {
   id: true,
@@ -111,6 +135,25 @@ class UsuarioService {
     };
 
     if (data.senha) {
+      const atual = await prisma.usuario.findUnique({
+        where: { id },
+        select: { senhaHash: true },
+      });
+
+      if (!atual) {
+        throw new HttpError("Usuário não encontrado.", 404);
+      }
+
+      // Mesmo `bcrypt.compare` de `validatePassword`, sem hash fantasma aqui:
+      // não há oráculo de enumeração a proteger — quem chama já sabe que a
+      // conta existe (é a própria, autenticada). `senhaAtual ?? ""` garante que
+      // uma troca de senha sem o campo (ou com string vazia) nunca confere.
+      const senhaAtualConfere = await bcrypt.compare(data.senhaAtual ?? "", atual.senhaHash);
+
+      if (!senhaAtualConfere) {
+        throw new HttpError("Senha atual incorreta.", 403);
+      }
+
       updateData.senhaHash = await bcrypt.hash(data.senha, 10);
     }
 
@@ -131,7 +174,29 @@ class UsuarioService {
     });
   }
 
-  async validatePassword(email: string, senha: string) {
+  /**
+   * `ip` é opcional (chamadores fora de um request HTTP, como scripts,
+   * legitimamente não têm um) e alimenta um SEGUNDO freio, independente do de
+   * email — ver JSDoc de `lib/login-rate-limit.ts` para o motivo dos dois
+   * existirem (o de email sozinho não pega "password spraying": 1 tentativa
+   * por email, milhares de emails, nunca bate o limite por conta).
+   */
+  async validatePassword(email: string, senha: string, ip?: string) {
+    // Freios de força bruta ANTES de tocar o banco: um email OU IP bloqueado
+    // nem paga a query. A chave do freio por email é o email informado, exista
+    // ele ou não (ver JSDoc de `lib/login-rate-limit.ts`) — nunca dá pra saber
+    // "existe" antes desta checagem. Os dois freios são consultados em
+    // paralelo (`Promise.all`, não sequencial) — não há dependência entre
+    // eles, e cada um já é uma chamada de rede ao Redis.
+    const [bloqueadoPorEmail, bloqueadoPorIp] = await Promise.all([
+      loginBloqueado(email),
+      ip !== undefined ? loginBloqueadoPorIp(ip) : Promise.resolve(false),
+    ]);
+
+    if (bloqueadoPorEmail || bloqueadoPorIp) {
+      throw new HttpError("Muitas tentativas de login. Tente novamente em alguns minutos.", 429);
+    }
+
     const usuario = await prisma.usuario.findUnique({
       where: { email },
       include: {
@@ -139,15 +204,27 @@ class UsuarioService {
       },
     });
 
-    if (!usuario) {
+    // `bcrypt.compare` roda SEMPRE, exista ou não o usuário — contra o hash
+    // real quando existe, contra `HASH_FANTASMA` quando não. Um `return null`
+    // antecipado no caminho "não existe" pouparia o custo do bcrypt (~dezenas
+    // de ms) e o tempo de resposta viraria um oráculo: um atacante mediria
+    // esse atraso para descobrir quais emails estão cadastrados, mesmo com a
+    // mensagem de erro sendo idêntica nos dois casos.
+    const senhaValida = await bcrypt.compare(senha, usuario?.senhaHash ?? HASH_FANTASMA);
+
+    if (!usuario || !senhaValida) {
+      await Promise.all([
+        registrarFalhaDeLogin(email),
+        ip !== undefined ? registrarFalhaDeLoginPorIp(ip) : Promise.resolve(),
+      ]);
+
       return null;
     }
 
-    const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
-
-    if (!senhaValida) {
-      return null;
-    }
+    await Promise.all([
+      limparTentativasDeLogin(email),
+      ip !== undefined ? limparTentativasDeLoginPorIp(ip) : Promise.resolve(),
+    ]);
 
     return usuario;
   }

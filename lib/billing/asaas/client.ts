@@ -156,12 +156,23 @@ class AsaasClient {
     });
   }
 
+  /**
+   * `id` vem do webhook (`pagamentoSchema.id` em `lib/billing/asaas/eventos.ts`
+   * é um `z.string()` sem formato) e este re-fetch é o CONTROLE COMPENSATÓRIO
+   * contra um evento forjado — ver o JSDoc de `webhookAsaasService`. Sem
+   * `encodeURIComponent`, um `id` como `../subscriptions/sub_x` sobrevive à
+   * normalização de `..` que todo parser de URL faz e faz este método bater
+   * num endpoint DIFERENTE do que ele pensa que está chamando — usando a
+   * própria API key da plataforma. `encodeURIComponent` transforma `/` em
+   * `%2F`, então o id vira sempre um único segmento literal, nunca uma
+   * mudança de path.
+   */
   async buscarPagamento(id: string): Promise<AsaasPayment> {
-    return chamar<AsaasPayment>(`/payments/${id}`);
+    return chamar<AsaasPayment>(`/payments/${encodeURIComponent(id)}`);
   }
 
   async buscarAssinatura(id: string): Promise<AsaasSubscription> {
-    return chamar<AsaasSubscription>(`/subscriptions/${id}`);
+    return chamar<AsaasSubscription>(`/subscriptions/${encodeURIComponent(id)}`);
   }
 
   /**
@@ -184,7 +195,9 @@ class AsaasClient {
    * sandbox é o checkpoint do plano 07-08.)
    */
   async removerAssinatura(id: string): Promise<AsaasAssinaturaRemovida> {
-    return chamar<AsaasAssinaturaRemovida>(`/subscriptions/${id}`, { method: "DELETE" });
+    return chamar<AsaasAssinaturaRemovida>(`/subscriptions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   }
 
   /** Webhooks já registrados na conta. Usado para tornar o registro idempotente. */
@@ -205,7 +218,7 @@ class AsaasClient {
    * consecutivas que a pausam (Pitfall 2) — não existe endpoint separado.
    */
   async atualizarWebhook(id: string, input: RegistrarWebhookInput): Promise<AsaasWebhook> {
-    return chamar<AsaasWebhook>(`/webhooks/${id}`, {
+    return chamar<AsaasWebhook>(`/webhooks/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify(corpoDeWebhook(input)),
     });

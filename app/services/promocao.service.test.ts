@@ -66,7 +66,9 @@ describe("promocaoService.findById", () => {
 });
 
 describe("promocaoService.create", () => {
-  it("cria a promoção com os itens aninhados", async () => {
+  it("cria a promoção com os itens aninhados, quando o item pertence à empresa", async () => {
+    prismaMock.produto.findMany.mockResolvedValue([{ id: "produto-1" }] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
     prismaMock.promocao.create.mockResolvedValue(promocaoBase as never);
 
     await promocaoService.create({
@@ -77,6 +79,10 @@ describe("promocaoService.create", () => {
       itens: [{ produtoId: "produto-1", preco: 9.9 }],
     });
 
+    expect(prismaMock.produto.findMany).toHaveBeenCalledWith({
+      where: { empresaId: "empresa-1" },
+      select: { id: true },
+    });
     expect(prismaMock.promocao.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -90,6 +96,30 @@ describe("promocaoService.create", () => {
         }),
       })
     );
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Sem este filtro, a empresa A cria uma promoção referenciando um produto da
+   * empresa B e passa a expor os dados dele (preço, estoque, fotos) via
+   * `GET /api/promocoes/[id]` e na própria vitrine pública de A.
+   */
+  it("rejeita produtoId/comboId que não pertence à empresa informada", async () => {
+    prismaMock.produto.findMany.mockResolvedValue([] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
+
+    await expect(
+      promocaoService.create({
+        empresaId: "empresa-1",
+        nome: "Promoção Teste",
+        dataInicio: promocaoBase.dataInicio,
+        dataFim: promocaoBase.dataFim,
+        itens: [{ produtoId: "produto-de-outra-empresa", preco: 9.9 }],
+      })
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(prismaMock.promocao.create).not.toHaveBeenCalled();
   });
 });
 
@@ -119,7 +149,9 @@ describe("promocaoService.delete", () => {
 });
 
 describe("promocaoService.updateItens", () => {
-  it("substitui os itens da promoção dentro de uma transação", async () => {
+  it("substitui os itens da promoção dentro de uma transação, quando o item pertence à empresa", async () => {
+    prismaMock.produto.findMany.mockResolvedValue([{ id: "produto-1" }] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
     prismaMock.$transaction.mockImplementation((callback: (tx: typeof prismaMock) => unknown) =>
       Promise.resolve(callback(prismaMock))
     );
@@ -129,7 +161,7 @@ describe("promocaoService.updateItens", () => {
 
     const itens = [{ produtoId: "produto-1", preco: 9.9 }];
 
-    const resultado = await promocaoService.updateItens("promocao-1", itens);
+    const resultado = await promocaoService.updateItens("promocao-1", itens, "empresa-1");
 
     expect(prismaMock.promocaoItem.deleteMany).toHaveBeenCalledWith({
       where: { promocaoId: "promocao-1" },
@@ -141,6 +173,27 @@ describe("promocaoService.updateItens", () => {
       expect.objectContaining({ where: { id: "promocao-1" } })
     );
     expect(resultado).toEqual(promocaoBase);
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Mesma defesa de `create`: um `produtoId` que não pertence à empresa não
+   * pode substituir os itens de uma promoção.
+   */
+  it("rejeita produtoId/comboId que não pertence à empresa informada", async () => {
+    prismaMock.produto.findMany.mockResolvedValue([] as never);
+    prismaMock.combo.findMany.mockResolvedValue([] as never);
+
+    await expect(
+      promocaoService.updateItens(
+        "promocao-1",
+        [{ produtoId: "produto-de-outra-empresa", preco: 9.9 }],
+        "empresa-1"
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(prismaMock.promocaoItem.deleteMany).not.toHaveBeenCalled();
   });
 });
 

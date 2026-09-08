@@ -63,7 +63,13 @@ describe("POST /api/produtos", () => {
       buildRequest({
         method: "POST",
         token,
-        body: { nome: "Produto", empresaId: "empresa-maliciosa" },
+        body: {
+          codigo: "PROD-1",
+          nome: "Produto",
+          precoVarejo: 10,
+          precoAtacado: 8,
+          empresaId: "empresa-maliciosa",
+        },
       })
     );
     const body = await response.json();
@@ -73,6 +79,42 @@ describe("POST /api/produtos", () => {
     expect(produtoService.create).toHaveBeenCalledWith(
       expect.objectContaining({ nome: "Produto", empresaId: testAuthPayload.empresaId })
     );
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * Antes da validação, `precoVarejo` negativo seguia direto para o Prisma sem
+   * checagem nenhuma.
+   */
+  it("retorna 400 quando precoVarejo é negativo, sem chamar o service", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { codigo: "PROD-1", nome: "Produto", precoVarejo: -10, precoAtacado: 8 },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(produtoService.create).not.toHaveBeenCalled();
+  });
+
+  it("retorna 400 quando falta um campo obrigatório (precoAtacado)", async () => {
+    const token = await buildAuthToken();
+
+    const response = await POST(
+      buildRequest({
+        method: "POST",
+        token,
+        body: { codigo: "PROD-1", nome: "Produto", precoVarejo: 10 },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(produtoService.create).not.toHaveBeenCalled();
   });
 });
 
@@ -93,6 +135,7 @@ describe("/api/produtos — gate de assinatura herdado da guarda de auth", () =>
       email: "admin@teste.com",
       role: "ADMIN",
       empresaId: "empresa-1",
+      updatedAt: new Date("2020-01-01T00:00:00.000Z"),
       // Termos em dia (mesmo `id` do vigente que o stub global devolve): estes
       // casos medem o gate de ASSINATURA, e o 402 tem que vir de lá. Sem isto o
       // gate de termos da Fase 6 também estaria armado e o 402 continuaria

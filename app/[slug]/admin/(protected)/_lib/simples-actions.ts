@@ -18,7 +18,7 @@ export async function uploadImagemProduto(
   slug: string,
   formData: FormData
 ): Promise<{ url?: string; error?: string }> {
-  await requireAdminSession(slug);
+  const auth = await requireAdminSession(slug);
 
   const file = formData.get("file");
 
@@ -27,7 +27,7 @@ export async function uploadImagemProduto(
   }
 
   try {
-    const url = await uploadImage(file, "produtos");
+    const url = await uploadImage(file, auth.empresaId, "produtos");
     return { url };
   } catch (error) {
     return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
@@ -35,8 +35,8 @@ export async function uploadImagemProduto(
 }
 
 export async function removerImagemProduto(slug: string, url: string): Promise<void> {
-  await requireAdminSession(slug);
-  await deleteImage(url);
+  const auth = await requireAdminSession(slug);
+  await deleteImage(url, auth.empresaId);
 }
 
 export async function criarProdutoSimples(
@@ -197,7 +197,7 @@ export async function criarComboSimples(
   }
 
   const combo = await comboService.create({ empresaId: auth.empresaId, nome, preco: data.preco });
-  await comboService.updateItens(combo.id, itens);
+  await comboService.updateItens(combo.id, itens, auth.empresaId);
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);
@@ -254,7 +254,7 @@ export async function removerProdutoSimples(slug: string, id: string): Promise<S
   await produtoService.delete(id);
 
   if (produto.fotoCapa) {
-    await deleteImage(produto.fotoCapa);
+    await deleteImage(produto.fotoCapa, auth.empresaId);
   }
 
   revalidatePath(`/${slug}/admin`);
@@ -300,7 +300,7 @@ export async function atualizarComboSimples(
   }
 
   await comboService.update(id, { nome, preco: data.preco });
-  await comboService.updateItens(id, itens);
+  await comboService.updateItens(id, itens, auth.empresaId);
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);
@@ -319,7 +319,7 @@ export async function removerComboSimples(slug: string, id: string): Promise<Sim
   await comboService.delete(id);
 
   if (combo.fotoCapa) {
-    await deleteImage(combo.fotoCapa);
+    await deleteImage(combo.fotoCapa, auth.empresaId);
   }
 
   revalidatePath(`/${slug}/admin`);
@@ -370,7 +370,11 @@ export async function atualizarPromocaoSimples(
     dataInicio: inicio,
     dataFim: fim,
   });
-  await promocaoService.updateItens(id, [{ produtoId: data.produtoId, preco: data.preco }]);
+  await promocaoService.updateItens(
+    id,
+    [{ produtoId: data.produtoId, preco: data.preco }],
+    auth.empresaId
+  );
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);

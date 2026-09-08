@@ -1,5 +1,7 @@
 import { usuarioService } from "../../../services/usuario.service";
 import { signAuthToken } from "@/lib/jwt";
+import { HttpError } from "@/lib/http-error";
+import { extrairIpDoChamador } from "@/lib/client-ip";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -18,7 +20,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const usuario = await usuarioService.validatePassword(email, senha);
+    const ip = extrairIpDoChamador(request.headers);
+    const usuario = await usuarioService.validatePassword(email, senha, ip);
 
     // Mesma condição que o DAL aplica na revalidação: quem for rejeitado lá no
     // request seguinte já é rejeitado aqui na entrada, sem emitir token de 7
@@ -54,7 +57,11 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error(error);
+    if (error instanceof HttpError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
+    console.error(error instanceof Error ? error.message : error);
 
     return NextResponse.json(
       {

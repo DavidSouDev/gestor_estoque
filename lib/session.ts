@@ -1,11 +1,33 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AuthTokenPayload, signAuthToken, verifyAuthToken } from "@/lib/jwt";
+import { AuthTokenPayload, VerifiedAuthTokenPayload, signAuthToken, verifyAuthToken } from "@/lib/jwt";
 import { revalidarConta } from "@/lib/auth-guard";
 import { acessoBloqueado } from "@/lib/avaliar-acesso";
 
 const SESSION_COOKIE = "admin_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7d, mesma janela do JWT
+
+/**
+ * `secure` NUNCA deriva de `NODE_ENV`. Esse era o bug: `next start` só usa
+ * `production` como default quando a variável está ausente — se um `.env`
+ * copiado de um template (ou um systemd unit reaproveitado de dev) já define
+ * `NODE_ENV=development`, o `next start` real em produção herda esse valor
+ * calado, `secure` vira `false`, e o cookie de sessão passa a trafegar em HTTP
+ * puro sem ninguém notar (confirmado lendo `node_modules/next/dist/bin/next`
+ * desta versão: a atribuição é `process.env.NODE_ENV ||= 'production'`, não
+ * incondicional).
+ *
+ * Por isso `secure` fica LIGADO por padrão, fail-safe, e independente de
+ * `NODE_ENV`. Isso não quebra `next dev`: navegadores tratam `http://localhost`
+ * (e `127.0.0.1`) como origem "potencialmente confiável" e aceitam cookie
+ * `Secure` mesmo sem TLS — é assim que o login local continua funcionando sem
+ * nenhuma variável extra. `COOKIE_INSECURE=true` é a única forma de desligar,
+ * reservada para acessar o dev server por um IP/host de rede local que não
+ * seja localhost.
+ */
+function cookieSecure(): boolean {
+  return process.env.COOKIE_INSECURE !== "true";
+}
 
 export async function createAdminSession(payload: AuthTokenPayload) {
   const token = await signAuthToken(payload);
@@ -13,7 +35,7 @@ export async function createAdminSession(payload: AuthTokenPayload) {
 
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
@@ -29,7 +51,7 @@ export async function destroySession() {
  * Checagem "segura": lê e decodifica o cookie, sem redirecionar.
  * Retorna null se não houver sessão válida.
  */
-export async function getSession(): Promise<AuthTokenPayload | null> {
+export async function getSession(): Promise<VerifiedAuthTokenPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
 
@@ -56,14 +78,14 @@ export async function getSession(): Promise<AuthTokenPayload | null> {
  *
  * Não redireciona: o chamador decide o que fazer com o `null`.
  */
-export async function getVerifiedSession(): Promise<AuthTokenPayload | null> {
+export async function getVerifiedSession(): Promise<VerifiedAuthTokenPayload | null> {
   const session = await getSession();
 
   if (!session) {
     return null;
   }
 
-  const conta = await revalidarConta(session.sub, session.empresaId);
+  const conta = await revalidarConta(session.sub, session.empresaId, session.iat);
 
   return conta ? session : null;
 }
@@ -121,12 +143,12 @@ export async function getVerifiedSession(): Promise<AuthTokenPayload | null> {
  * otimista de cookie e nada mais. Somar I/O de banco lá abriria conexão a cada
  * request, inclusive de asset estático (T-04-18).
  */
-export async function requireAdminSession(slug: string): Promise<AuthTokenPayload> {
+export async function requireAdminSession(slug: string): Promise<VerifiedAuthTokenPayload> {
   const session = await getSession();
 
   const conta =
     session && session.empresaSlug === slug
-      ? await revalidarConta(session.sub, session.empresaId)
+      ? await revalidarConta(session.sub, session.empresaId, session.iat)
       : null;
 
   // redirect() lança NEXT_REDIRECT — mantenha-o FORA de qualquer try/catch.
