@@ -68,8 +68,11 @@ function cspHeader(): string {
 const nextConfig: NextConfig = {
   // Build standalone (`.next/standalone`) para a imagem Docker: copia só o
   // subconjunto de `node_modules` rastreado pelas rotas, sem exigir
-  // `npm install` na imagem final de runtime (ver `Dockerfile`).
-  output: "standalone",
+  // `npm install` na imagem final de runtime (ver `Dockerfile`). Só faz
+  // sentido no self-host: na Vercel (`process.env.VERCEL` setado por ela)
+  // esse modo quebra o build deles, que espera o próprio formato serverless
+  // (gera `ENOENT .../.next/next-server.js.nft.json`).
+  output: process.env.VERCEL ? undefined : "standalone",
 
   experimental: {
     serverActions: {
