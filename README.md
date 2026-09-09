@@ -14,6 +14,8 @@ Cada empresa tem seu próprio espaço isolado, acessado por um slug único (`/<s
 - [Tecnologias](#tecnologias)
 - [Pré-requisitos](#pré-requisitos)
 - [Rodando o projeto localmente](#rodando-o-projeto-localmente)
+  - [Opção A — Docker Compose](#opção-a--docker-compose-recomendado)
+  - [Opção B — Node local (com hot reload)](#opção-b--node-local-com-hot-reload)
 - [Contribuindo (fork + PR)](#contribuindo-fork--pr)
 - [Testes](#testes)
 - [Documentação da API](#documentação-da-api)
@@ -58,11 +60,45 @@ A interface do admin tem dois **modos**, escolhidos no cadastro da empresa (`Mod
 
 ## Pré-requisitos
 
-- Node.js 22+ (mesma versão usada no CI)
-- npm
-- PostgreSQL rodando localmente (ou acessível via `DATABASE_URL`)
+Há dois jeitos de rodar o projeto localmente — escolha um:
+
+- **Com Docker** (mais rápido para só ver o sistema no ar, sem hot reload): [Docker](https://docs.docker.com/get-docker/) com Docker Compose v2 (já incluído no Docker Desktop). Não precisa instalar Node, PostgreSQL nem Redis — o `docker compose` sobe tudo.
+- **Sem Docker** (para desenvolver com hot reload):
+  - Node.js 22+ (mesma versão usada no CI)
+  - npm
+  - PostgreSQL rodando localmente (ou acessível via `DATABASE_URL`)
+  - Redis rodando localmente — opcional, mas recomendado: sem ele o freio de força bruta de login/registro (`lib/redis-rate-limiter.ts`) fica desativado (fail-open) e só loga um aviso, o resto da aplicação funciona normalmente.
 
 ## Rodando o projeto localmente
+
+### Opção A — Docker Compose (recomendado)
+
+Builda a aplicação (build de produção do Next, `output: standalone`) e sobe Postgres, Redis e as migrations do Prisma junto, tudo isolado do seu ambiente. É o caminho mais rápido para ter o sistema completo no ar, mas **não tem hot reload** — para editar código e ver o resultado sem rebuildar a imagem, use a [Opção B](#opção-b--node-local-com-hot-reload).
+
+1. **Clone o repositório** (veja [Contribuindo](#contribuindo-fork--pr) se for contribuir via fork):
+
+   ```bash
+   git clone https://github.com/<seu-usuario>/gestor_estoque.git
+   cd gestor_estoque/gestor_estoque
+   ```
+
+2. **Configure as variáveis de ambiente** — crie um `.env` na raiz do projeto com pelo menos `JWT_SECRET` (veja [`.env.example`](./.env.example) para a lista completa — credenciais do Asaas, do R2, `CRON_SECRET` etc. só são necessárias para exercitar essas integrações). `DATABASE_URL` e `REDIS_URL` não precisam ser preenchidos: o `docker-compose.yml` os sobrescreve para apontar para os serviços `db`/`redis` da própria rede do compose.
+
+3. **Suba tudo:**
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+   Isso builda a imagem, sobe `db` (Postgres 16) e `redis` (Redis 7), roda `prisma migrate deploy` num container `migrate` de execução única e só então inicia o `app`, exposto em [http://localhost:3000](http://localhost:3000) (porta configurável via `APP_PORT`).
+
+   > `migrate` não fica rodando — ele aplica as migrations e sai. `docker compose ps` (sem `-a`) nem lista containers já finalizados; `docker compose ps -a` mostra `Exited (0)` para ele, que é o resultado esperado (confira com `docker compose logs migrate`). O `app` só inicia depois que o `migrate` termina com sucesso. Para reaplicar as migrations manualmente a qualquer momento: `docker compose run --rm migrate`.
+
+4. **Acompanhe os logs** com `docker compose logs -f app` e **derrube tudo** com `docker compose down` (os dados do Postgres/Redis persistem em volumes nomeados entre execuções; use `docker compose down -v` para descartá-los também).
+
+5. **Crie sua primeira empresa** em [`/registro`](http://localhost:3000/registro) — veja o passo 6 da Opção B.
+
+### Opção B — Node local (com hot reload)
 
 1. **Clone o repositório** (veja [Contribuindo](#contribuindo-fork--pr) se for contribuir via fork):
 
@@ -77,11 +113,13 @@ A interface do admin tem dois **modos**, escolhidos no cadastro da empresa (`Mod
    npm install
    ```
 
-3. **Configure as variáveis de ambiente** — crie um `.env` na raiz do projeto:
+3. **Configure as variáveis de ambiente** — crie um `.env` na raiz do projeto apontando para o seu PostgreSQL (e, opcionalmente, Redis) locais:
 
    ```bash
    DATABASE_URL="postgresql://usuario:senha@localhost:5432/gestor_estoque"
    JWT_SECRET="uma-string-secreta-qualquer-para-desenvolvimento"
+   # opcional — sem isto o freio de força bruta de login/registro fica desativado
+   REDIS_URL="redis://localhost:6379"
    ```
 
 4. **Gere o client do Prisma e aplique as migrations:**
@@ -162,3 +200,5 @@ A API REST (`app/api/**`) é documentada em OpenAPI (`public/openapi.json`) e po
 ## Deploy
 
 Por ser um app Next.js padrão, pode ser publicado em qualquer plataforma que suporte Next.js (ex: [Vercel](https://vercel.com)), desde que as variáveis `DATABASE_URL` e `JWT_SECRET` estejam configuradas e as migrations do Prisma (`npx prisma migrate deploy`) sejam aplicadas no banco de produção.
+
+Para um deploy self-hosted, o mesmo `docker compose up --build -d` descrito na [Opção A de "Rodando o projeto localmente"](#opção-a--docker-compose-recomendado) serve de base: aponte o `.env` do host para os segredos e o `APP_BASE_URL` de produção (em vez dos valores de desenvolvimento) e rode o mesmo comando lá.
