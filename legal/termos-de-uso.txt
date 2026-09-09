@@ -1,0 +1,443 @@
+# TERMOS DE USO — GESTOR DE ESTOQUE
+
+**Última atualização: 08 de setembro de 2026**
+
+Estes Termos de Uso ("Termos") regem o acesso e o uso da plataforma **Gestor de Estoque** ("Plataforma"), oferecida por **David Rafael de Lima Sousa**, inscrito no CPF sob o nº 137.917.384-10, também atuando por meio da pessoa jurídica inscrita no CNPJ sob o nº 59.111.718/0001-06, com sede em Santa Cruz do Capibaribe/PE.
+
+Ao criar uma conta ou utilizar a Plataforma, você declara que leu e concorda com estes Termos. Se não concordar com qualquer de suas disposições, não utilize a Plataforma.
+
+Quando publicarmos uma nova versão destes Termos, ela será apresentada no painel administrativo para leitura e aceite. Caso você não concorde com a nova versão, poderá deixar de utilizar a Plataforma e cancelar sua assinatura, observadas as condições aplicáveis ao período já contratado.
+
+---
+
+## 1. O QUE É O GESTOR DE ESTOQUE
+
+### 1.1.
+
+O Gestor de Estoque é uma plataforma multi-tenant que oferece a cada empresa cadastrada ("Empresa", "você" ou "lojista"):
+
+**a)** um catálogo público, acessível por um endereço próprio (`/<slug-da-empresa>`), onde os clientes finais da Empresa podem visualizar produtos e combos, preços de varejo e atacado, destaques e promoções vigentes, sem necessidade de login;
+
+**b)** um painel administrativo, acessível pela Empresa autenticada (`/<slug-da-empresa>/admin`), para cadastro de produtos, imagens, preços, categorias, combos, promoções, controle de movimentações de estoque (entrada, saída e ajuste) e configuração da marca da loja (nome, logo, banner, cores, telefone e Instagram).
+
+### 1.2.
+
+Cada Empresa possui seus dados isolados dos dados das demais Empresas cadastradas na Plataforma.
+
+### 1.3.
+
+O Gestor de Estoque é uma ferramenta de gestão e vitrine. **Não somos parte das vendas realizadas entre a Empresa e seus clientes.**
+
+O catálogo pode disponibilizar um botão de contato via WhatsApp para o número informado pela Empresa. Qualquer negociação, cobrança, pagamento, entrega, troca, devolução, garantia ou pós-venda ocorre diretamente entre a Empresa e seu cliente, fora da Plataforma.
+
+### 1.4.
+
+A Empresa é responsável por verificar a exatidão das informações exibidas em seu catálogo, incluindo preços, disponibilidade, promoções, descrições e demais informações dos produtos.
+
+---
+
+## 2. CADASTRO E CONTA
+
+### 2.1.
+
+Para utilizar o painel administrativo, é necessário criar uma conta em `/registro`, informando nome, e-mail e senha, e escolhendo um nome para a Empresa, a partir do qual será gerado o endereço único (`/<slug>`).
+
+### 2.2.
+
+Você é responsável por manter a confidencialidade da sua senha e por toda atividade realizada em sua conta.
+
+Caso suspeite de acesso ou uso não autorizado, deverá comunicar o Gestor de Estoque imediatamente pelo contato indicado na seção 18.
+
+### 2.3.
+
+As informações fornecidas no cadastro e no painel administrativo, incluindo dados da Empresa, produtos, preços, imagens e demais informações, devem ser verdadeiras, completas e atualizadas.
+
+Você é responsável pelo conteúdo e pela exatidão das informações que cadastra.
+
+### 2.4.
+
+Cada Empresa opera, atualmente, com uma única conta de acesso administrativo. Não compartilhe suas credenciais com pessoas não autorizadas.
+
+### 2.5.
+
+Você não poderá utilizar a conta de outra Empresa, tentar acessar dados de terceiros ou praticar qualquer ato destinado a contornar mecanismos de segurança ou controle de acesso da Plataforma.
+
+---
+
+## 3. USO PERMITIDO DA PLATAFORMA
+
+### 3.1.
+
+A Plataforma deverá ser utilizada exclusivamente para finalidades lícitas e de acordo com estes Termos.
+
+### 3.2.
+
+É proibido utilizar a Plataforma para:
+
+**a)** acessar, tentar acessar ou modificar dados de outra Empresa;
+
+**b)** explorar vulnerabilidades, interferir no funcionamento ou comprometer a segurança da Plataforma;
+
+**c)** praticar fraude ou atividades ilícitas;
+
+**d)** inserir conteúdo ilegal, enganoso ou que viole direitos de terceiros;
+
+**e)** utilizar mecanismos automatizados de maneira abusiva ou que prejudiquem a operação da Plataforma;
+
+**f)** realizar engenharia reversa, desmontagem, descompilação ou tentativa de obtenção do código-fonte da Plataforma, salvo quando expressamente permitido pela legislação aplicável.
+
+### 3.3.
+
+O descumprimento desta seção poderá resultar em suspensão ou encerramento da conta, conforme a seção 13.
+
+---
+
+## 4. PERÍODO DE TESTE GRATUITO
+
+### 4.1.
+
+Toda conta nova começa com **14 (quatorze) dias corridos de acesso gratuito e completo** ao painel administrativo, sem necessidade de informar forma de pagamento no cadastro.
+
+### 4.2.
+
+Você pode assinar o plano pago a qualquer momento durante o período de teste. O pagamento antecipado não reduz os 14 dias de teste já garantidos.
+
+O plano pago e a cobrança recorrente somente passam a valer após o término do período de teste.
+
+### 4.3.
+
+Se o período de teste terminar sem uma assinatura ativa, sua conta entra no regime de carência descrito na seção 7.
+
+---
+
+## 5. PLANO, PREÇO E COBRANÇA
+
+### 5.1.
+
+O Gestor de Estoque é oferecido atualmente em um único plano, no valor de **R$ 29,90 (vinte e nove reais e noventa centavos) por mês**, cobrado de forma recorrente.
+
+### 5.2.
+
+O processamento dos pagamentos é realizado por um parceiro de pagamentos, atualmente a **Asaas**, que coleta e processa diretamente os dados de pagamento necessários para a cobrança.
+
+O Gestor de Estoque não tem acesso ao número completo do cartão ou a outros dados de pagamento que não sejam necessários para acompanhar o status e o histórico das cobranças.
+
+### 5.3.
+
+A cobrança é renovada automaticamente a cada ciclo mensal, contado a partir da data da primeira cobrança, até que você cancele a assinatura ou até que o pagamento deixe de ser aprovado.
+
+### 5.4.
+
+Podemos alterar o preço do plano ou criar novos planos no futuro.
+
+Alterações de preço não serão aplicadas retroativamente e serão comunicadas com antecedência razoável antes de afetarem uma cobrança futura.
+
+---
+
+## 6. CANCELAMENTO
+
+### 6.1.
+
+Você pode cancelar sua assinatura a qualquer momento diretamente pelo painel administrativo, na área de Assinatura.
+
+### 6.2.
+
+O cancelamento interrompe as cobranças futuras.
+
+O período já pago continuará disponível até o término do ciclo correspondente. O cancelamento no meio do ciclo não bloqueia imediatamente o acesso nem antecipa o término do período contratado.
+
+### 6.3.
+
+Após o término do período já pago, caso não exista uma nova assinatura ativa, sua conta seguirá o regime de carência e bloqueio previsto na seção 7.
+
+---
+
+## 7. ATRASO NO PAGAMENTO, CARÊNCIA E BLOQUEIO
+
+### 7.1.
+
+Se uma cobrança não for aprovada ou se o período de teste terminar sem assinatura ativa, sua conta entrará em um período de carência de **10 (dez) dias corridos**.
+
+### 7.2.
+
+Durante a carência, o catálogo público continuará disponível normalmente e o painel administrativo permanecerá acessível, acompanhado de um aviso sobre o prazo restante para regularização.
+
+### 7.3.
+
+Se a pendência não for resolvida até o final da carência, o acesso ao painel administrativo e a publicação do catálogo público poderão ser bloqueados até que o pagamento seja regularizado.
+
+### 7.4.
+
+O bloqueio por inadimplência não implica, por si só, exclusão imediata dos dados da Empresa.
+
+---
+
+## 8. REEMBOLSOS
+
+### 8.1.
+
+O período de teste gratuito de 14 dias existe para que você possa avaliar a Plataforma antes de realizar qualquer pagamento.
+
+Por esse motivo, em regra, não realizamos reembolso de valores regularmente cobrados por simples desistência, arrependimento ou não utilização da Plataforma durante o período já contratado, ressalvados os direitos que sejam assegurados obrigatoriamente pela legislação aplicável.
+
+### 8.2.
+
+Nada nesta seção pretende excluir, limitar ou afastar direito de reembolso que seja garantido por lei.
+
+---
+
+## 9. CONTEÚDO DA SUA LOJA
+
+### 9.1.
+
+Você é responsável pelo conteúdo publicado no catálogo da sua Empresa, incluindo descrições, preços, categorias, promoções, imagens, produtos, combos, logo e banner.
+
+### 9.2.
+
+Ao enviar uma imagem, texto ou qualquer outro conteúdo, você declara possuir os direitos, autorizações ou licenças necessários para utilizá-lo na Plataforma.
+
+### 9.3.
+
+Você não poderá publicar conteúdo:
+
+**a)** que viole direitos autorais, direitos de imagem, marcas ou outros direitos de propriedade intelectual de terceiros;
+
+**b)** ilegal, fraudulento, enganoso ou relacionado à oferta de produtos ou serviços proibidos por lei;
+
+**c)** discriminatório, ofensivo ou que viole direitos de terceiros de qualquer outra forma.
+
+### 9.4.
+
+Podemos remover ou limitar a disponibilidade de conteúdo que viole estes Termos ou a legislação aplicável e, quando necessário, suspender ou encerrar a conta responsável.
+
+### 9.5.
+
+A remoção de conteúdo não significa que assumimos responsabilidade pelo conteúdo publicado pela Empresa.
+
+---
+
+## 10. PROPRIEDADE INTELECTUAL
+
+### 10.1.
+
+O software, código, marca, identidade visual, layout, textos próprios, componentes, funcionalidades e demais elementos desenvolvidos pelo Gestor de Estoque são de nossa titularidade ou utilizados sob licença.
+
+Estes Termos não transferem à Empresa qualquer direito de propriedade sobre esses elementos.
+
+### 10.2.
+
+Enquanto sua conta estiver ativa e em conformidade com estes Termos, concedemos à Empresa uma licença limitada, não exclusiva, não transferível e revogável para utilizar a Plataforma conforme sua finalidade.
+
+### 10.3.
+
+Os produtos, imagens, textos e demais conteúdos cadastrados pela Empresa continuam pertencendo à Empresa ou aos respectivos titulares.
+
+### 10.4.
+
+A Empresa nos concede uma licença limitada, não exclusiva e gratuita para armazenar, processar e exibir esse conteúdo exclusivamente para operar a Plataforma, disponibilizar o catálogo público e fornecer as funcionalidades contratadas.
+
+---
+
+## 11. PRIVACIDADE E PROTEÇÃO DE DADOS
+
+### 11.1.
+
+O tratamento de dados pessoais realizado no âmbito da Plataforma observa a legislação aplicável, incluindo a **Lei nº 13.709/2018 — Lei Geral de Proteção de Dados Pessoais (LGPD)**.
+
+As informações detalhadas sobre coleta, utilização, armazenamento, compartilhamento, retenção e direitos dos titulares estão descritas na nossa **Política de Privacidade**.
+
+### 11.2.
+
+Entre os dados que podem ser tratados estão informações necessárias para criação e administração da conta, como nome, e-mail e credenciais de acesso, além de informações da Empresa, como nome, telefone e Instagram, quando fornecidas.
+
+Senhas são armazenadas utilizando mecanismos de proteção adequados e não são armazenadas em texto puro.
+
+### 11.3.
+
+Também podemos tratar informações relacionadas ao uso da Plataforma, incluindo registros necessários para segurança, funcionamento, auditoria e histórico das operações realizadas no painel administrativo.
+
+### 11.4.
+
+Os dados podem ser tratados, conforme o caso, para:
+
+**a)** criar e autenticar contas;
+
+**b)** operar e disponibilizar o catálogo público e o painel administrativo;
+
+**c)** processar e acompanhar cobranças;
+
+**d)** manter a segurança e prevenir fraudes e usos indevidos;
+
+**e)** cumprir obrigações legais e regulatórias;
+
+**f)** comunicar informações relacionadas à conta, cobrança, segurança ou alterações destes Termos;
+
+**g)** exercer ou defender direitos em processos administrativos, judiciais ou extrajudiciais.
+
+### 11.5.
+
+Podemos utilizar prestadores de serviços necessários à operação da Plataforma, incluindo serviços de processamento de pagamentos e armazenamento de arquivos e imagens.
+
+Atualmente, entre esses prestadores estão **Asaas**, para pagamentos, e **Cloudflare R2**, para armazenamento de imagens.
+
+### 11.6.
+
+Não vendemos dados pessoais dos usuários a terceiros.
+
+### 11.7.
+
+Os dados pessoais serão mantidos pelo período necessário para cumprir as finalidades para as quais foram coletados, atender obrigações legais ou regulatórias e permitir o exercício regular de direitos.
+
+### 11.8.
+
+O catálogo público poderá exibir informações que a Empresa tenha escolhido disponibilizar publicamente, como produtos, combos, preços, marca, promoções e telefone de contato.
+
+### 11.9.
+
+A Empresa é responsável por avaliar a legalidade dos dados pessoais e demais informações de terceiros que eventualmente inserir na Plataforma e por observar, quando aplicável, as obrigações previstas na legislação de proteção de dados.
+
+### 11.10.
+
+Os direitos dos titulares e os canais para solicitações relacionadas a dados pessoais estão descritos na Política de Privacidade e também podem ser solicitados pelo contato indicado na seção 18.
+
+---
+
+## 12. DISPONIBILIDADE, SUPORTE E LIMITAÇÕES DA PLATAFORMA
+
+### 12.1.
+
+Fazemos esforços razoáveis para manter a Plataforma disponível e funcionando adequadamente, mas não garantimos operação ininterrupta ou completamente livre de falhas.
+
+### 12.2.
+
+Podemos realizar manutenções programadas ou emergenciais, buscando reduzir o impacto para os usuários.
+
+### 12.3.
+
+A Plataforma depende de serviços e infraestrutura de terceiros, como hospedagem, armazenamento, conectividade e processamento de pagamentos. Falhas nesses serviços podem afetar a disponibilidade ou determinadas funcionalidades da Plataforma.
+
+### 12.4.
+
+Não somos responsáveis por perdas decorrentes de:
+
+**a)** uso indevido ou contrário a estes Termos;
+
+**b)** informações ou conteúdos cadastrados pela Empresa;
+
+**c)** negociações, vendas, pagamentos, entregas, trocas, devoluções ou demais relações entre a Empresa e seus clientes;
+
+**d)** indisponibilidade ou falhas de serviços de terceiros, quando não decorrentes de ação ou omissão que nos seja legalmente imputável;
+
+**e)** fatos fora do nosso controle razoável.
+
+### 12.5.
+
+Nada nesta seção exclui ou limita responsabilidade que não possa ser excluída ou limitada pela legislação aplicável.
+
+---
+
+## 13. SUSPENSÃO E ENCERRAMENTO PELO GESTOR DE ESTOQUE
+
+### 13.1.
+
+Além do bloqueio por inadimplência previsto na seção 7, podemos suspender ou encerrar uma conta quando houver:
+
+**a)** violação destes Termos;
+
+**b)** uso fraudulento da Plataforma;
+
+**c)** tentativa de acesso indevido a dados ou contas de terceiros;
+
+**d)** utilização que coloque em risco a segurança, estabilidade ou funcionamento da Plataforma;
+
+**e)** publicação de conteúdo ilegal ou que gere risco jurídico relevante;
+
+**f)** determinação judicial, administrativa ou de outra autoridade competente.
+
+### 13.2.
+
+Quando a situação permitir, poderemos comunicar a Empresa antes da suspensão ou encerramento e, quando apropriado, conceder prazo razoável para correção da irregularidade.
+
+### 13.3.
+
+Não somos obrigados a conceder aviso prévio quando isso puder aumentar o risco de fraude, comprometer a segurança da Plataforma, causar danos a terceiros ou quando houver determinação legal para agir imediatamente.
+
+### 13.4.
+
+O encerramento da conta não elimina obrigações que, por sua natureza, devam continuar existindo após o encerramento, incluindo obrigações relacionadas a pagamentos, propriedade intelectual, proteção de dados, confidencialidade e responsabilidades já constituídas.
+
+---
+
+## 14. DADOS APÓS CANCELAMENTO OU ENCERRAMENTO
+
+### 14.1.
+
+Após o cancelamento ou encerramento da conta, os dados da Empresa poderão permanecer armazenados durante o período necessário para permitir eventual reativação, exportação, cumprimento de obrigações legais ou exercício regular de direitos.
+
+### 14.2.
+
+Quando houver uma funcionalidade de exportação disponível, a Empresa poderá solicitar ou realizar a exportação dos dados disponibilizados pela Plataforma antes da exclusão definitiva.
+
+### 14.3.
+
+Após o término do período de retenção aplicável, os dados serão excluídos ou anonimizados, ressalvadas informações que precisem ser mantidas por obrigação legal, regulatória ou para o exercício regular de direitos.
+
+### 14.4.
+
+A exclusão de dados poderá ocorrer de forma definitiva e não poderá ser desfeita após sua conclusão.
+
+---
+
+## 15. LIMITAÇÃO DE RESPONSABILIDADE
+
+### 15.1.
+
+Na máxima extensão permitida pela legislação aplicável, nossa responsabilidade total perante a Empresa por danos diretamente relacionados à Plataforma ou a estes Termos ficará limitada ao valor efetivamente pago pela Empresa ao Gestor de Estoque nos **12 (doze) meses anteriores ao evento que originou a responsabilidade**.
+
+### 15.2.
+
+Na máxima extensão permitida pela legislação aplicável, não responderemos por danos indiretos, lucros cessantes, perda de oportunidade, perda de receita ou outros prejuízos consequenciais decorrentes do uso da Plataforma.
+
+### 15.3.
+
+As limitações desta seção não se aplicam quando sua aplicação for proibida ou limitada pela legislação aplicável.
+
+---
+
+## 16. ALTERAÇÕES DESTES TERMOS
+
+### 16.1.
+
+Podemos atualizar estes Termos quando necessário, inclusive para refletir alterações na Plataforma, novos recursos, mudanças comerciais, requisitos legais ou melhorias de segurança.
+
+### 16.2.
+
+Cada versão dos Termos poderá ser identificada por sua respectiva data ou número de versão. As versões anteriores poderão ser mantidas para registro das condições aceitas em cada período.
+
+### 16.3.
+
+Quando uma alteração exigir novo aceite, a nova versão será apresentada no painel administrativo antes da continuidade do uso das funcionalidades que dependam desse aceite.
+
+### 16.4.
+
+Caso a Empresa não concorde com uma nova versão, poderá deixar de utilizar a Plataforma e cancelar sua assinatura, observadas as condições do período já contratado e os direitos assegurados pela legislação aplicável.
+
+---
+
+## 17. LEI APLICÁVEL E FORO
+
+### 17.1.
+
+Estes Termos são regidos pelas leis da República Federativa do Brasil.
+
+### 17.2.
+
+Fica eleito o foro da comarca de Santa Cruz do Capibaribe, Estado de Pernambuco, para dirimir controvérsias decorrentes destes Termos, **quando juridicamente permitido**, sem prejuízo de eventual foro que seja assegurado à parte pela legislação aplicável.
+
+---
+
+## 18. CONTATO
+
+Dúvidas, solicitações relacionadas à conta, aos Termos ou à proteção de dados pessoais podem ser encaminhadas para:
+
+**E-mail:** [davidsoudev@gmail.com](mailto:davidsoudev@gmail.com)
