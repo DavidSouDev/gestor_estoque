@@ -304,4 +304,50 @@ describe("RegisterForm", () => {
       expect(screen.getByRole("button", { name: SUBMIT })).toBeInTheDocument();
     });
   });
+
+  describe("celular, instagram e logo (opcionais)", () => {
+    it("renderiza o cabeçalho com o avatar clicável de logo", () => {
+      render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+      expect(screen.getByRole("heading", { name: "Crie sua loja" })).toBeInTheDocument();
+      expect(screen.getByText("+")).toBeInTheDocument();
+    });
+
+    it("aplica a máscara de telefone ao digitar", async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+      const campo = screen.getByLabelText("Celular (WhatsApp)");
+      await user.type(campo, "11999999999");
+
+      expect(campo).toHaveValue("(11) 99999-9999");
+    });
+
+    it("remove @ e normaliza URL colada no campo de instagram", async () => {
+      const user = userEvent.setup();
+      render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+      const campo = screen.getByLabelText("Instagram");
+      await user.type(campo, "@minhaloja");
+
+      expect(campo).toHaveValue("minhaloja");
+    });
+
+    it("envia telefone e instagram no payload junto dos demais campos", async () => {
+      const action = vi.fn().mockResolvedValue({});
+      const user = userEvent.setup();
+      render(<RegisterForm action={action} termo={TERMO} />);
+
+      await preencherObrigatorios(user);
+      await user.type(screen.getByLabelText("Celular (WhatsApp)"), "11988887777");
+      await user.type(screen.getByLabelText("Instagram"), "minhaloja");
+
+      await user.click(screen.getByRole("button", { name: SUBMIT }));
+      await user.click(screen.getByRole("button", { name: ACEITAR }));
+
+      const payload = action.mock.calls[0][1] as FormData;
+      expect(payload.get("telefone")).toBe("(11) 98888-7777");
+      expect(payload.get("instagram")).toBe("minhaloja");
+    });
+  });
 });

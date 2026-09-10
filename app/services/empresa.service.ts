@@ -20,6 +20,14 @@ export interface RegisterComUsuarioDTO {
   senha: string;
   modoInterface: ModoInterface;
 
+  // Coletados no próprio formulário de cadastro, opcionais (mesma regra de
+  // "Minha Loja"): quem não preenche agora continua podendo preencher depois
+  // em `marca/actions.ts`. `logo` NÃO entra aqui de propósito — o upload
+  // precisa do `empresaId`, que só existe depois deste `create`; ver o
+  // follow-up em `app/registro/actions.ts`.
+  telefone?: string;
+  instagram?: string;
+
   /**
    * TERM-01. O id da versão dos termos que o usuário VIU no formulário — não o
    * que o servidor descobriria sozinho.
@@ -51,7 +59,7 @@ export interface UpdateEmpresaDTO {
   nome?: string;
   slug?: string;
 
-  logo?: string;
+  logo?: string | null;
   banner?: string;
   descricao?: string;
 
@@ -178,6 +186,10 @@ class EmpresaService {
             nome: data.nomeEmpresa,
             slug,
             modoInterface: data.modoInterface,
+
+            telefone: data.telefone,
+            instagram: data.instagram,
+
             trialFim,
             ultimoStatusAuditado: StatusAcesso.TRIAL,
           },

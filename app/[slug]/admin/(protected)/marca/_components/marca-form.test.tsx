@@ -26,7 +26,7 @@ describe("MarcaForm", () => {
     expect(porNome("nomeUsuario")).toHaveValue("David");
     expect(porNome("nome")).toHaveValue("Mercearia Teste");
     expect(porNome("descricao")).toHaveValue("Produtos frescos");
-    expect(porNome("telefone")).toHaveValue("11999999999");
+    expect(porNome("telefone")).toHaveValue("(11) 99999-9999");
     expect(porNome("instagram")).toHaveValue("mercearia");
   });
 

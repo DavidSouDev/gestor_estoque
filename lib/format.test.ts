@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatDate, formatDateTime } from "./format";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatInstagramHandle,
+  formatPhoneInput,
+} from "./format";
 
 describe("formatCurrency", () => {
   it("formata número em BRL", () => {
@@ -32,5 +38,62 @@ describe("formatDateTime", () => {
     const resultado = formatDateTime(new Date(Date.UTC(2026, 0, 5, 12, 30)));
     expect(resultado).toContain("05/01/2026");
     expect(resultado).toMatch(/\d{2}:\d{2}/);
+  });
+});
+
+describe("formatPhoneInput", () => {
+  it("devolve string vazia sem dígitos", () => {
+    expect(formatPhoneInput("")).toBe("");
+    expect(formatPhoneInput("abc")).toBe("");
+  });
+
+  it("monta o DDD progressivamente", () => {
+    expect(formatPhoneInput("1")).toBe("(1");
+    expect(formatPhoneInput("11")).toBe("(11");
+  });
+
+  it("adiciona o início do número após o DDD", () => {
+    expect(formatPhoneInput("119999")).toBe("(11) 9999");
+  });
+
+  it("formata fixo (10 dígitos) com bloco de 4", () => {
+    expect(formatPhoneInput("1133334444")).toBe("(11) 3333-4444");
+  });
+
+  it("formata celular (11 dígitos) com bloco de 5", () => {
+    expect(formatPhoneInput("11999999999")).toBe("(11) 99999-9999");
+  });
+
+  it("ignora caracteres não numéricos já digitados (parênteses, traço)", () => {
+    expect(formatPhoneInput("(11) 99999-9999")).toBe("(11) 99999-9999");
+  });
+
+  it("trunca em 11 dígitos", () => {
+    expect(formatPhoneInput("119999999999999")).toBe("(11) 99999-9999");
+  });
+});
+
+describe("formatInstagramHandle", () => {
+  it("mantém o handle puro como está", () => {
+    expect(formatInstagramHandle("mercearia")).toBe("mercearia");
+  });
+
+  it("remove um ou mais @ do início", () => {
+    expect(formatInstagramHandle("@mercearia")).toBe("mercearia");
+    expect(formatInstagramHandle("@@mercearia")).toBe("mercearia");
+  });
+
+  it("extrai o handle de uma URL completa colada", () => {
+    expect(formatInstagramHandle("https://www.instagram.com/mercearia")).toBe("mercearia");
+    expect(formatInstagramHandle("https://instagram.com/mercearia/")).toBe("mercearia");
+  });
+
+  it("descarta query string e barra final", () => {
+    expect(formatInstagramHandle("mercearia?hl=pt")).toBe("mercearia");
+    expect(formatInstagramHandle("mercearia/")).toBe("mercearia");
+  });
+
+  it("remove espaços internos", () => {
+    expect(formatInstagramHandle("mer cearia")).toBe("mercearia");
   });
 });

@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import type { BrandingFormState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
+import { ImageUploadField } from "@/app/_components/image-upload-field";
+import { formatInstagramHandle, formatPhoneInput } from "@/lib/format";
 
 const INPUT_CLASS =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -43,14 +45,10 @@ export function MarcaSimplesForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [modo, setModo] = useState(empresa.modoInterface);
+  const [telefone, setTelefone] = useState(formatPhoneInput(empresa.telefone ?? ""));
+  const [instagram, setInstagram] = useState(formatInstagramHandle(empresa.instagram ?? ""));
   const [primaryColor, setPrimaryColor] = useState(empresa.primaryColor);
   const [accentColor, setAccentColor] = useState(empresa.accentColor);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setLogoPreview(file ? URL.createObjectURL(file) : null);
-  }
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-8">
@@ -104,21 +102,14 @@ export function MarcaSimplesForm({
             Foto/logo da loja
           </label>
           <input type="hidden" name="logo" defaultValue={empresa.logo ?? ""} />
-          {(logoPreview ?? empresa.logo) && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoPreview ?? empresa.logo ?? undefined}
-              alt="Prévia da logo da loja"
-              className="h-20 w-20 rounded-2xl object-cover"
-            />
-          )}
-          <input
+          <ImageUploadField
             id="logoFile"
             name="logoFile"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleLogoChange}
-            className={INPUT_CLASS}
+            defaultPreviewUrl={empresa.logo}
+            aspectRatio={1}
+            inputClassName={INPUT_CLASS}
+            previewClassName="h-20 w-20 rounded-2xl object-cover"
+            alt="Prévia da logo da loja"
           />
           <p className="text-sm text-slate-400">Deixe vazio pra usar a inicial do nome da loja.</p>
           <label className="flex items-center gap-2 text-sm text-slate-500">
@@ -129,22 +120,37 @@ export function MarcaSimplesForm({
 
         <div className="flex flex-col gap-2">
           <label htmlFor="telefone" className="text-sm font-semibold text-slate-600">
-            Telefone
+            Telefone (WhatsApp)
           </label>
-          <input id="telefone" name="telefone" defaultValue={empresa.telefone ?? ""} className={INPUT_CLASS} />
+          <input
+            id="telefone"
+            name="telefone"
+            type="tel"
+            inputMode="numeric"
+            value={telefone}
+            onChange={(event) => setTelefone(formatPhoneInput(event.target.value))}
+            placeholder="(11) 91234-5678"
+            className={INPUT_CLASS}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
           <label htmlFor="instagram" className="text-sm font-semibold text-slate-600">
             Instagram
           </label>
-          <input
-            id="instagram"
-            name="instagram"
-            placeholder="usuario"
-            defaultValue={empresa.instagram ?? ""}
-            className={INPUT_CLASS}
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-lg text-slate-400">
+              @
+            </span>
+            <input
+              id="instagram"
+              name="instagram"
+              placeholder="usuario"
+              value={instagram}
+              onChange={(event) => setInstagram(formatInstagramHandle(event.target.value))}
+              className={`${INPUT_CLASS} pl-9`}
+            />
+          </div>
         </div>
 
         <div>

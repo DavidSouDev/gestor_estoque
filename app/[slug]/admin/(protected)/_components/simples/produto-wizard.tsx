@@ -12,6 +12,7 @@ import {
 } from "../../_lib/simples-actions";
 import { WizardShell } from "./wizard-shell";
 import { NumberStepper } from "./number-stepper";
+import { ImageCropModal } from "@/app/_components/image-crop-modal";
 
 const INPUT_CLASS =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center text-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -39,21 +40,23 @@ export function ProdutoWizard({
   const [error, setError] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [rawFoto, setRawFoto] = useState<File | null>(null);
 
   const precoNumero = Number(preco.replace(",", "."));
 
-  async function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) setRawFoto(file);
+  }
 
-    if (!file) {
-      return;
-    }
-
+  async function handleFotoCropConfirm(croppedFile: File) {
+    setRawFoto(null);
     setError(null);
     setIsUploading(true);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", croppedFile);
 
     const resultado = await uploadImagemProduto(slug, formData);
 
@@ -230,6 +233,14 @@ export function ProdutoWizard({
         )}
         {isUploading && <p className="mt-3 text-sm text-slate-500">Enviando...</p>}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {rawFoto && (
+          <ImageCropModal
+            file={rawFoto}
+            aspectRatio={1}
+            onCancel={() => setRawFoto(null)}
+            onConfirm={handleFotoCropConfirm}
+          />
+        )}
       </WizardShell>
     );
   }

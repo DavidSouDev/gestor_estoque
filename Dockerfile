@@ -36,6 +36,14 @@ COPY . .
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# `next.config.ts` lê R2_PUBLIC_URL em tempo de BUILD (a função `headers()` do
+# next.config roda durante `next build`, e o resultado vira `img-src` estático
+# em `routes-manifest.json`) — não em runtime. Sem este ARG, o CSP do output
+# standalone nasce sem a origem do bucket público, e toda `<img>` de produto,
+# combo e logo é bloqueada pelo navegador mesmo com o upload funcionando e a
+# variável presente no `.env` do container (essa cobre só o runtime).
+ARG R2_PUBLIC_URL
 RUN npm run build
 
 # --- migrator: imagem enxuta usada só para rodar `prisma migrate deploy` ---

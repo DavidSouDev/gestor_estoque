@@ -50,6 +50,13 @@ services:
     build:
       context: .
       target: runner
+      # Precisa em tempo de BUILD (`next build`, ver `Dockerfile`), não só em
+      # runtime — é o que faz o CSP nascer com a origem do bucket público no
+      # `img-src`. `${R2_PUBLIC_URL}` vem do `.env` da raiz, que o próprio
+      # `docker compose` já lê para interpolação (mesmo mecanismo usado acima
+      # em POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB).
+      args:
+        R2_PUBLIC_URL: ${R2_PUBLIC_URL}
     restart: unless-stopped
     env_file:
       - .env

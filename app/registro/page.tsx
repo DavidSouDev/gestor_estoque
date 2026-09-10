@@ -49,41 +49,45 @@ export default async function RegistroPage() {
           />
 
           <div className="p-8">
-            <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800 text-2xl font-bold text-white shadow-lg">
-                +
-              </div>
-              <h1 className="text-xl font-bold text-slate-800">Crie sua loja</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Cadastre sua empresa e comece a usar em poucos minutos
-              </p>
-            </div>
-
             {termo ? (
+              // O cabeçalho (avatar clicável de logo + título) vive DENTRO de
+              // `RegisterForm` — precisa ser client component para o avatar
+              // abrir o recorte de imagem, e por isso não pode nascer aqui.
               <RegisterForm action={register} termo={termo} />
             ) : (
-              // Mesmo bloco de erro do login, do registro e do bloqueado — o
-              // único padrão de mensagem de erro do projeto (copy E4).
-              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
-                <svg
-                  className="h-4 w-4 shrink-0 text-red-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <span className="text-xs text-red-600">
-                  Não foi possível abrir o cadastro agora. Tente novamente em alguns instantes.
-                </span>
-              </div>
-            )}
+              <>
+                <div className="mb-8 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800 text-2xl font-bold text-white shadow-lg">
+                    +
+                  </div>
+                  <h1 className="text-xl font-bold text-slate-800">Crie sua loja</h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Cadastre sua empresa e comece a usar em poucos minutos
+                  </p>
+                </div>
 
+                {/* Mesmo bloco de erro do login, do registro e do bloqueado — o
+                    único padrão de mensagem de erro do projeto (copy E4). */}
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
+                  <svg
+                    className="h-4 w-4 shrink-0 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span className="text-xs text-red-600">
+                    Não foi possível abrir o cadastro agora. Tente novamente em alguns instantes.
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

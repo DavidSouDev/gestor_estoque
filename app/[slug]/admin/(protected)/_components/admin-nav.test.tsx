@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminNav } from "./admin-nav";
 
@@ -33,6 +33,23 @@ describe("AdminNav", () => {
     expect(screen.getByText("admin@teste.com")).toBeInTheDocument();
   });
 
+  it("renderiza a inicial da empresa quando não há logo", () => {
+    render(<AdminNav {...baseProps} />);
+
+    expect(screen.getByText("M")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("renderiza a logo da empresa em vez da inicial quando informada", () => {
+    render(
+      <AdminNav {...baseProps} logo="https://bucket.r2.dev/empresa-1/empresas/logos/x.png" />
+    );
+
+    const img = screen.getByRole("img", { name: "Mercearia Teste" });
+    expect(img).toHaveAttribute("src", "https://bucket.r2.dev/empresa-1/empresas/logos/x.png");
+    expect(screen.queryByText("M")).not.toBeInTheDocument();
+  });
+
   it("gera os links de navegação com o slug informado", () => {
     render(<AdminNav {...baseProps} />);
 
@@ -55,6 +72,44 @@ describe("AdminNav", () => {
     expect(baseProps.logoutAction).toHaveBeenCalled();
   });
 
+  // Menu hamburguer mobile: a lista de 7 itens em linha horizontal (antigo
+  // `flex-row overflow-x-auto`) criava uma scrollbar que quebrava a navegação
+  // no mobile. O painel agora abre/fecha por este botão, dedicado ao mobile
+  // (`md:hidden`) e independente do toggle de colapsar da sidebar desktop.
+  describe("menu hamburguer (mobile)", () => {
+    it("alterna o rótulo acessível do botão entre abrir e fechar menu", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /abrir menu/i }));
+
+      expect(screen.getByRole("button", { name: /fechar menu/i })).toBeInTheDocument();
+    });
+
+    it("fecha o menu ao clicar num item de navegação", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      await user.click(screen.getByRole("button", { name: /abrir menu/i }));
+      expect(screen.getByRole("button", { name: /fechar menu/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("link", { name: /combos/i }));
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+    });
+
+    it("é independente do toggle de colapsar da sidebar desktop", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      await user.click(screen.getByRole("button", { name: /recolher menu/i }));
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+    });
+  });
+
   // SUB-02 ("o usuário pode cancelar a assinatura") depende de existir um caminho
   // visível até /assinatura. Sem este item, a tela só seria alcançável digitando a URL.
   describe("entrada de Assinatura", () => {
@@ -67,22 +122,27 @@ describe("AdminNav", () => {
       );
     });
 
-    it("é o último item da lista, depois de Minha Loja", () => {
-      render(<AdminNav {...baseProps} />);
+    it("é o último item da lista de navegação, depois de Estoque", () => {
+      // Escopado ao `<nav>`: o cabeçalho tem seu próprio link (Configurações,
+      // sem rótulo de texto) que `getAllByRole("link")` sem escopo também
+      // pegaria, quebrando esta comparação exata por posição.
+      const { container } = render(<AdminNav {...baseProps} />);
+      const nav = container.querySelector("nav") as HTMLElement;
+      const rotulos = within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent);
 
-      const rotulos = screen.getAllByRole("link").map((link) => link.textContent);
-
-      // Os seis existentes estão ordenados por frequência diária de uso; assinatura
-      // é o destino menos visitado do produto e fecha esse gradiente. Termos de Uso
-      // pertence ao mesmo agrupamento de nível de conta e é ainda menos visitado,
-      // então fecha a lista.
+      // "Minha Loja" saiu da lista (virou o ícone de Configurações no
+      // cabeçalho). Os cinco que restam estão ordenados por frequência diária
+      // de uso; assinatura é o destino menos visitado do produto e fecha esse
+      // gradiente. Termos de Uso pertence ao mesmo agrupamento de nível de
+      // conta e é ainda menos visitado, então fecha a lista.
       expect(rotulos).toEqual([
         "Início",
         "Meus Produtos",
         "Combos",
         "Promoções",
         "Estoque",
-        "Minha Loja",
         "Assinatura",
         "Termos de Uso",
       ]);
@@ -94,6 +154,36 @@ describe("AdminNav", () => {
       expect(screen.getByRole("link", { name: /assinatura/i })).not.toHaveStyle({
         backgroundColor: "#2563eb",
       });
+    });
+  });
+
+  // "Minha Loja" deixou de ser um item de lista com rótulo — pouco intuitivo —
+  // e virou só um ícone de engrenagem no cabeçalho, mesmo tratamento que
+  // `simples-top-bar.tsx` já dá à mesma página. A página em `marca/` continua
+  // igual; só o ponto de entrada muda.
+  describe("ícone de Configurações no cabeçalho (substitui a entrada de Minha Loja)", () => {
+    it("aponta para a página de marca do slug", () => {
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.getByTitle("Configurações")).toHaveAttribute(
+        "href",
+        "/loja-teste/admin/marca"
+      );
+    });
+
+    it("não existe mais um item de navegação chamado Minha Loja", () => {
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.queryByRole("link", { name: /minha loja/i })).not.toBeInTheDocument();
+    });
+
+    it("continua visível quando a barra lateral é colapsada — sem ele o modo colapsado ficaria sem caminho até /admin/marca", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      await user.click(screen.getByRole("button", { name: /recolher menu/i }));
+
+      expect(screen.getByTitle("Configurações")).toBeInTheDocument();
     });
   });
 
@@ -168,7 +258,7 @@ describe("AdminNav em /assinatura", () => {
     vi.resetModules();
   });
 
-  it("marca o item de Assinatura como ativo e não ativa Minha Loja", async () => {
+  it("marca o item de Assinatura como ativo e não ativa Estoque", async () => {
     vi.resetModules();
     vi.doMock("next/navigation", () => ({
       usePathname: () => "/loja-teste/admin/assinatura",
@@ -182,7 +272,7 @@ describe("AdminNav em /assinatura", () => {
     });
     // `pathname.startsWith(item.href)` casa com /assinatura e com nenhuma outra
     // rota, porque nenhum href existente é prefixo dele.
-    expect(screen.getByRole("link", { name: /minha loja/i })).not.toHaveStyle({
+    expect(screen.getByRole("link", { name: /estoque/i })).not.toHaveStyle({
       backgroundColor: "#2563eb",
     });
     expect(screen.getByRole("link", { name: /início/i })).not.toHaveStyle({
