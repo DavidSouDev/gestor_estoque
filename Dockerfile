@@ -13,8 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 
 # --- deps: só instala dependências, cacheia entre builds enquanto o código muda ---
+# `prisma/` e `prisma.config.ts` entram aqui, apesar do estágio ser só de
+# dependências: `npm ci` roda o `postinstall` (`prisma generate`), que precisa
+# do schema presente NESTE estágio — sem isto, `prisma generate` falha com
+# "Could not find Prisma Schema" sempre que o cache de `RUN npm ci` não puder
+# ser reaproveitado (build limpo, cache podado, imagem base atualizada). Cópia
+# ANTES de `package.json`/`package-lock.json` seria pior: invalidaria este
+# cache a cada mudança em `prisma/schema.prisma` mesmo sem nenhuma dependência
+# nova — por isso vem depois, na mesma ordem que já funciona no estágio
+# `migrator` abaixo.
 FROM base AS deps
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 RUN npm ci
 
 # --- builder: gera o client do Prisma e o build de produção do Next ---

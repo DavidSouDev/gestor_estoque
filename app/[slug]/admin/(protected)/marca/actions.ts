@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminSession } from "@/lib/session";
+import { requireAdminSession, updateSelfAndRenewSession } from "@/lib/session";
 import { empresaService } from "@/app/services/empresa.service";
 import { usuarioService } from "@/app/services/usuario.service";
 import type { ModoInterface } from "@prisma/client";
@@ -43,6 +43,7 @@ export async function updateBranding(
   formData: FormData
 ): Promise<BrandingFormState> {
   const auth = await requireAdminSession(slug);
+  const usuarioAtual = await usuarioService.findById(auth.sub);
 
   const nome = String(formData.get("nome") ?? "").trim();
 
@@ -81,7 +82,14 @@ export async function updateBranding(
     modoInterface: modoInterfaceRaw as ModoInterface,
   });
 
-  await usuarioService.update(auth.sub, { nome: nomeUsuario });
+  // Só grava em `Usuario` quando o nome realmente mudou (evita um write
+  // gratuito a cada submissão, já que o formulário sempre reenvia o nome
+  // atual). Quando muda, `updateSelfAndRenewSession` (lib/session.ts) reemite
+  // o cookie na mesma escrita — sem isso, a escrita autoinvalidaria a própria
+  // sessão de quem salvou (ver o JSDoc da função para o mecanismo completo).
+  if (nomeUsuario !== usuarioAtual?.nome) {
+    await updateSelfAndRenewSession(auth, { nome: nomeUsuario });
+  }
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}/admin/marca`);
