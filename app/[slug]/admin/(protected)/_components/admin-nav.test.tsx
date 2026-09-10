@@ -72,6 +72,44 @@ describe("AdminNav", () => {
     expect(baseProps.logoutAction).toHaveBeenCalled();
   });
 
+  // Menu hamburguer mobile: a lista de 7 itens em linha horizontal (antigo
+  // `flex-row overflow-x-auto`) criava uma scrollbar que quebrava a navegação
+  // no mobile. O painel agora abre/fecha por este botão, dedicado ao mobile
+  // (`md:hidden`) e independente do toggle de colapsar da sidebar desktop.
+  describe("menu hamburguer (mobile)", () => {
+    it("alterna o rótulo acessível do botão entre abrir e fechar menu", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /abrir menu/i }));
+
+      expect(screen.getByRole("button", { name: /fechar menu/i })).toBeInTheDocument();
+    });
+
+    it("fecha o menu ao clicar num item de navegação", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      await user.click(screen.getByRole("button", { name: /abrir menu/i }));
+      expect(screen.getByRole("button", { name: /fechar menu/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("link", { name: /combos/i }));
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+    });
+
+    it("é independente do toggle de colapsar da sidebar desktop", async () => {
+      const user = userEvent.setup();
+      render(<AdminNav {...baseProps} />);
+
+      await user.click(screen.getByRole("button", { name: /recolher menu/i }));
+
+      expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument();
+    });
+  });
+
   // SUB-02 ("o usuário pode cancelar a assinatura") depende de existir um caminho
   // visível até /assinatura. Sem este item, a tela só seria alcançável digitando a URL.
   describe("entrada de Assinatura", () => {
@@ -141,14 +179,9 @@ describe("AdminNav", () => {
 
     it("continua visível quando a barra lateral é colapsada — sem ele o modo colapsado ficaria sem caminho até /admin/marca", async () => {
       const user = userEvent.setup();
-      const { container } = render(<AdminNav {...baseProps} />);
+      render(<AdminNav {...baseProps} />);
 
-      // Único `<button>` do cabeçalho (o de Sair vive num `<form>` no rodapé) —
-      // é o toggle de colapsar/expandir.
-      const colapsar = container.querySelector(
-        "div.border-b.border-slate-100.p-4 button"
-      ) as HTMLButtonElement;
-      await user.click(colapsar);
+      await user.click(screen.getByRole("button", { name: /recolher menu/i }));
 
       expect(screen.getByTitle("Configurações")).toBeInTheDocument();
     });

@@ -28,6 +28,12 @@ const ICONS = {
   sair: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
   collapse: "M11 19l-7-7 7-7m8 14l-7-7 7-7",
   expand: "M13 5l7 7-7 7M5 5l7 7-7 7",
+  // Hamburguer/fechar do menu mobile — a sidebar completa (7 itens) não cabe
+  // em linha horizontal numa tela pequena sem criar scrollbar (era o que
+  // `flex-row overflow-x-auto` fazia antes); no mobile ela vira um painel
+  // recolhido por padrão, aberto por este botão, abaixo do cabeçalho.
+  hamburguer: "M4 6h16M4 12h16M4 18h16",
+  fecharMenu: "M6 18L18 6M6 6l12 12",
 };
 
 function buildNavItems(slug: string) {
@@ -69,6 +75,10 @@ export function AdminNav({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
+  // Independente de `open` (que só existe pro modo desktop, ícone-only vs.
+  // expandido): no mobile a sidebar inteira parte fechada, como um menu
+  // hamburguer comum, e só os controles do cabeçalho ficam sempre visíveis.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const items = buildNavItems(slug);
   const dashboardHref = `/${slug}/admin`;
 
@@ -141,6 +151,7 @@ export function AdminNav({
 
           <button
             onClick={() => setOpen(!open)}
+            aria-label={open ? "Recolher menu" : "Expandir menu"}
             className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:flex"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,10 +163,41 @@ export function AdminNav({
               />
             </svg>
           </button>
+
+          {/* Só existe no mobile (`md:hidden`) — no desktop a navegação já
+              fica sempre visível na sidebar, então o toggle de colapsar acima
+              é o único controle que faz sentido ali. */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={mobileMenuOpen}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:hidden"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={mobileMenuOpen ? ICONS.fecharMenu : ICONS.hamburguer}
+              />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-row gap-1 overflow-x-auto p-3 md:flex-col">
+      {/*
+        No mobile, `nav` e o formulário de logout formam o painel do menu
+        hamburguer: ficam colapsados (`hidden`) até `mobileMenuOpen`, e
+        empilhados em coluna (nunca em linha) — era o `flex-row
+        overflow-x-auto` daqui que criava a scrollbar horizontal que quebrava
+        a navegação no mobile. No desktop (`md:`), o painel volta a ficar
+        sempre visível na sidebar, como antes, ignorando `mobileMenuOpen`.
+      */}
+      <nav
+        className={`${
+          mobileMenuOpen ? "flex" : "hidden"
+        } flex-col gap-1 p-3 md:flex md:flex-1 md:flex-col md:overflow-y-auto`}
+      >
         {items.map((item) => {
           const active =
             item.href === dashboardHref
@@ -167,6 +209,7 @@ export function AdminNav({
               key={item.href}
               href={item.href}
               title={!open ? item.label : undefined}
+              onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                 active ? "text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
@@ -181,7 +224,10 @@ export function AdminNav({
         })}
       </nav>
 
-      <form action={logoutAction} className="border-t border-slate-100 p-3">
+      <form
+        action={logoutAction}
+        className={`${mobileMenuOpen ? "block" : "hidden"} border-t border-slate-100 p-3 md:block`}
+      >
         <button
           type="submit"
           title={!open ? "Sair" : undefined}
