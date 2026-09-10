@@ -4,6 +4,8 @@ import { useRef, useState, type FormEvent } from "react";
 import { useActionState } from "react";
 import type { RegisterState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
+import { AvatarUploadField } from "@/app/_components/avatar-upload-field";
+import { formatInstagramHandle, formatPhoneInput } from "@/lib/format";
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition-all focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200";
@@ -22,6 +24,8 @@ export function RegisterForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [modo, setModo] = useState<"SIMPLES" | "COMPLETO">("COMPLETO");
+  const [telefone, setTelefone] = useState("");
+  const [instagram, setInstagram] = useState("");
   const dialogoRef = useRef<HTMLDialogElement>(null);
   const formularioRef = useRef<HTMLFormElement>(null);
   const provaRef = useRef<HTMLInputElement>(null);
@@ -70,6 +74,29 @@ export function RegisterForm({
 
   return (
     <form ref={formularioRef} action={formAction} onSubmit={aoSubmeter} className="space-y-4">
+      {/*
+        O cabeçalho precisa estar DENTRO do `<form>`, não antes dele: o input
+        oculto que `AvatarUploadField` usa para carregar o arquivo recortado só
+        entra no `FormData` do submit se for descendente do form (um input fora
+        dele, mesmo com o `name` certo, é ignorado pelo browser). Isso já
+        aconteceu aqui — o avatar vivia num `<div>` irmão ANTES do `<form>`, e a
+        logo nunca chegava na Server Action.
+      */}
+      <div className="mb-8 text-center">
+        <AvatarUploadField
+          id="logoFile"
+          name="logoFile"
+          aspectRatio={1}
+          sizeClassName="h-16 w-16"
+          placeholder="+"
+          alt="Logo da empresa"
+        />
+        <h1 className="mt-4 text-xl font-bold text-slate-800">Crie sua loja</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Cadastre sua empresa e comece a usar em poucos minutos
+        </p>
+      </div>
+
       <div>
         <label htmlFor="nomeEmpresa" className="mb-1.5 block text-xs font-semibold text-slate-600">
           Nome da empresa
@@ -82,6 +109,44 @@ export function RegisterForm({
           placeholder="Mercearia São José"
           className={INPUT_CLASS}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="telefone" className="mb-1.5 block text-xs font-semibold text-slate-600">
+            Celular (WhatsApp)
+          </label>
+          <input
+            id="telefone"
+            name="telefone"
+            type="tel"
+            inputMode="numeric"
+            value={telefone}
+            onChange={(event) => setTelefone(formatPhoneInput(event.target.value))}
+            placeholder="(11) 91234-5678"
+            className={INPUT_CLASS}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="instagram" className="mb-1.5 block text-xs font-semibold text-slate-600">
+            Instagram
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm text-slate-400">
+              @
+            </span>
+            <input
+              id="instagram"
+              name="instagram"
+              type="text"
+              value={instagram}
+              onChange={(event) => setInstagram(formatInstagramHandle(event.target.value))}
+              placeholder="minhaloja"
+              className={`${INPUT_CLASS} pl-8`}
+            />
+          </div>
+        </div>
       </div>
 
       <div>

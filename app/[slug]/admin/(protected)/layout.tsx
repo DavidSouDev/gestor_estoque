@@ -60,6 +60,7 @@ export default async function AdminProtectedLayout({
         <SimplesTopBar
           slug={slug}
           empresaNome={empresa?.nome ?? slug}
+          logo={empresa?.logo}
           primaryColor={empresa?.primaryColor ?? "#18181b"}
           logoutAction={logout.bind(null, slug)}
         />
@@ -77,6 +78,7 @@ export default async function AdminProtectedLayout({
         slug={slug}
         empresaNome={empresa?.nome ?? slug}
         email={session.email}
+        logo={empresa?.logo}
         primaryColor={empresa?.primaryColor ?? "#18181b"}
         logoutAction={logout.bind(null, slug)}
       />

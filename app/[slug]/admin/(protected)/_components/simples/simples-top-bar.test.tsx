@@ -13,6 +13,22 @@ describe("SimplesTopBar", () => {
     expect(screen.getByText("M")).toBeInTheDocument();
   });
 
+  it("renderiza a logo da empresa em vez da inicial quando informada", () => {
+    render(
+      <SimplesTopBar
+        slug="minha-loja"
+        empresaNome="Loja"
+        logo="https://bucket.r2.dev/empresa-1/empresas/logos/x.png"
+        primaryColor="#123456"
+        logoutAction={vi.fn()}
+      />
+    );
+
+    const img = screen.getByRole("img", { name: "Loja" });
+    expect(img).toHaveAttribute("src", "https://bucket.r2.dev/empresa-1/empresas/logos/x.png");
+    expect(screen.queryByText("L")).not.toBeInTheDocument();
+  });
+
   it("aplica a cor primária como background do avatar", () => {
     render(
       <SimplesTopBar slug="minha-loja" empresaNome="Loja" primaryColor="#123456" logoutAction={vi.fn()} />

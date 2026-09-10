@@ -7,6 +7,7 @@ import { createAdminSession } from "@/lib/session";
 import { HttpError } from "@/lib/http-error";
 import { registroBloqueado, registrarCriacaoDeEmpresa } from "@/lib/registro-rate-limit";
 import { extrairIpDoChamador } from "@/lib/client-ip";
+import { uploadImage } from "@/lib/storage/r2";
 import type { ModoInterface } from "@prisma/client";
 
 export interface RegisterState {
@@ -40,6 +41,9 @@ export async function register(
   const senha = String(formData.get("senha") ?? "");
   const confirmarSenha = String(formData.get("confirmarSenha") ?? "");
   const modoInterfaceRaw = String(formData.get("modoInterface") ?? "");
+  const telefone = String(formData.get("telefone") ?? "").trim() || undefined;
+  const instagram = String(formData.get("instagram") ?? "").trim() || undefined;
+  const logoFile = formData.get("logoFile");
   // `String(... ?? "")` colapsa os três estados de fracasso num só: campo
   // ausente do payload, campo presente e vazio (o hidden input existe mas nunca
   // foi escrito) e campo forjado com outro valor. Todos viram uma string
@@ -102,11 +106,27 @@ export async function register(
       email,
       senha,
       modoInterface: modoInterfaceRaw as ModoInterface,
+      telefone,
+      instagram,
       // O id que o USUÁRIO viu no formulário. O service compara por igualdade
       // contra o vigente do servidor antes de abrir a transação (Pitfall 4) e
       // grava sempre o dele — este valor nunca chega ao banco por si só.
       termoAceitoId: termoId,
     });
+
+    // Best-effort, de propósito: o upload precisa do `empresaId` (só existe
+    // depois do create acima), então não pode entrar na mesma transação. Uma
+    // falha aqui NÃO pode derrubar um cadastro que já foi concluído com
+    // sucesso — a pior consequência é a loja nascer sem logo, corrigível
+    // depois em "Minha Loja" (mesmo caminho de `marca/actions.ts`).
+    if (logoFile instanceof File && logoFile.size > 0) {
+      try {
+        const url = await uploadImage(logoFile, empresa.id, "empresas/logos");
+        await empresaService.update(empresa.id, { logo: url });
+      } catch (error) {
+        console.error("[registro] falha ao enviar logo no cadastro (best-effort)", error);
+      }
+    }
 
     await registrarCriacaoDeEmpresa(ip);
 

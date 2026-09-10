@@ -49,12 +49,14 @@ export function AdminNav({
   slug,
   empresaNome,
   email,
+  logo,
   primaryColor,
   logoutAction,
 }: {
   slug: string;
   empresaNome: string;
   email: string;
+  logo?: string | null;
   primaryColor: string;
   logoutAction: () => Promise<void>;
 }) {
@@ -71,10 +73,15 @@ export function AdminNav({
     >
       <div className="flex items-center gap-3 border-b border-slate-100 p-4">
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+          className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold text-white"
           style={{ backgroundColor: primaryColor }}
         >
-          {empresaNome.charAt(0).toUpperCase()}
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={empresaNome} className="h-full w-full object-cover" />
+          ) : (
+            empresaNome.charAt(0).toUpperCase()
+          )}
         </div>
         {open && (
           <div className="min-w-0">

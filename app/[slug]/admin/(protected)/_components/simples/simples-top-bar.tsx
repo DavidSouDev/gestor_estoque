@@ -3,21 +3,28 @@ import Link from "next/link";
 export function SimplesTopBar({
   slug,
   empresaNome,
+  logo,
   primaryColor,
   logoutAction,
 }: {
   slug: string;
   empresaNome: string;
+  logo?: string | null;
   primaryColor: string;
   logoutAction: () => Promise<void>;
 }) {
   return (
     <header className="flex items-center gap-3 border-b border-slate-100 bg-white px-5 py-4">
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+        className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-bold text-white"
         style={{ backgroundColor: primaryColor }}
       >
-        {empresaNome.charAt(0).toUpperCase()}
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt={empresaNome} className="h-full w-full object-cover" />
+        ) : (
+          empresaNome.charAt(0).toUpperCase()
+        )}
       </div>
       <p className="flex-1 truncate font-bold text-slate-800">{empresaNome}</p>
 

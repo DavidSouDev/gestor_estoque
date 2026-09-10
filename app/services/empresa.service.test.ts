@@ -227,6 +227,10 @@ describe("empresaService.registerComUsuario", () => {
           nome: "Minha Loja",
           slug: "minha-loja",
           modoInterface: ModoInterface.COMPLETO,
+
+          telefone: undefined,
+          instagram: undefined,
+
           trialFim: TRIAL_FIM_MEIO_DIA,
           ultimoStatusAuditado: "TRIAL",
         },
@@ -246,6 +250,46 @@ describe("empresaService.registerComUsuario", () => {
       });
 
       expect(resultado).toEqual({ empresa: empresaBase, usuario: usuarioBase });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("repassa telefone e instagram para o create da Empresa quando informados no cadastro", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AGORA_MEIO_DIA);
+
+    try {
+      mockTransaction();
+      prismaMock.empresa.findMany.mockResolvedValue([]);
+      prismaMock.empresa.create.mockResolvedValue(empresaBase as never);
+      prismaMock.usuario.create.mockResolvedValue(usuarioBase as never);
+      prismaMock.auditoriaAcesso.create.mockResolvedValue({} as never);
+
+      await empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
+        telefone: "(11) 99999-9999",
+        instagram: "mercearia",
+      });
+
+      expect(prismaMock.empresa.create).toHaveBeenCalledWith({
+        data: {
+          nome: "Minha Loja",
+          slug: "minha-loja",
+          modoInterface: ModoInterface.COMPLETO,
+
+          telefone: "(11) 99999-9999",
+          instagram: "mercearia",
+
+          trialFim: TRIAL_FIM_MEIO_DIA,
+          ultimoStatusAuditado: "TRIAL",
+        },
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -276,6 +320,10 @@ describe("empresaService.registerComUsuario", () => {
           nome: "Minha Loja",
           slug: "minha-loja",
           modoInterface: ModoInterface.COMPLETO,
+
+          telefone: undefined,
+          instagram: undefined,
+
           trialFim: TRIAL_FIM_MEIO_DIA,
           ultimoStatusAuditado: "TRIAL",
         },

@@ -9,12 +9,20 @@ import { HttpError } from "@/lib/http-error";
  * lançando `NEXT_REDIRECT` — um mock que apenas registrasse a chamada deixaria a
  * função seguir executando código que, em produção, nunca roda.
  */
-const { redirectMock, createAdminSessionMock, registerComUsuarioMock } = vi.hoisted(() => ({
+const {
+  redirectMock,
+  createAdminSessionMock,
+  registerComUsuarioMock,
+  empresaUpdateMock,
+  uploadImageMock,
+} = vi.hoisted(() => ({
   redirectMock: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
   createAdminSessionMock: vi.fn(),
   registerComUsuarioMock: vi.fn(),
+  empresaUpdateMock: vi.fn(),
+  uploadImageMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,7 +38,11 @@ vi.mock("@/lib/session", () => ({
 }));
 
 vi.mock("@/app/services/empresa.service", () => ({
-  empresaService: { registerComUsuario: registerComUsuarioMock },
+  empresaService: { registerComUsuario: registerComUsuarioMock, update: empresaUpdateMock },
+}));
+
+vi.mock("@/lib/storage/r2", () => ({
+  uploadImage: uploadImageMock,
 }));
 
 import { headers } from "next/headers";
@@ -173,8 +185,79 @@ describe("register — aceite dos termos (TERM-01 / D-11)", () => {
       email: "responsavel@teste.com",
       senha: "senha-plana",
       modoInterface: "COMPLETO",
+      telefone: undefined,
+      instagram: undefined,
       termoAceitoId: TERMO_VIGENTE_ID,
     });
+  });
+});
+
+describe("register — telefone e instagram (opcionais)", () => {
+  it("repassa telefone e instagram preenchidos para o service", async () => {
+    await expect(
+      register(
+        {},
+        formValido({ telefone: "(11) 99999-9999", instagram: "mercearia" })
+      )
+    ).rejects.toThrow("REDIRECT:/minha-loja/admin");
+
+    expect(registerComUsuarioMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        telefone: "(11) 99999-9999",
+        instagram: "mercearia",
+      })
+    );
+  });
+
+  it("não envia telefone/instagram quando os campos vêm vazios", async () => {
+    await expect(
+      register({}, formValido({ telefone: "", instagram: "" }))
+    ).rejects.toThrow("REDIRECT:/minha-loja/admin");
+
+    expect(registerComUsuarioMock).toHaveBeenCalledWith(
+      expect.objectContaining({ telefone: undefined, instagram: undefined })
+    );
+  });
+});
+
+describe("register — logo enviada no cadastro (best-effort)", () => {
+  function formComLogo(file: File) {
+    const formData = formValido();
+    formData.set("logoFile", file);
+    return formData;
+  }
+
+  it("faz upload da logo e atualiza a empresa recém-criada quando o formulário traz logoFile", async () => {
+    uploadImageMock.mockResolvedValue("https://bucket.r2.dev/empresa-1/empresas/logos/x.png");
+    empresaUpdateMock.mockResolvedValue({});
+
+    const logo = new File(["conteudo"], "logo.png", { type: "image/png" });
+
+    await expect(register({}, formComLogo(logo))).rejects.toThrow("REDIRECT:/minha-loja/admin");
+
+    expect(uploadImageMock).toHaveBeenCalledWith(logo, empresaCriada.id, "empresas/logos");
+    expect(empresaUpdateMock).toHaveBeenCalledWith(empresaCriada.id, {
+      logo: "https://bucket.r2.dev/empresa-1/empresas/logos/x.png",
+    });
+  });
+
+  it("não chama upload quando nenhum arquivo é enviado", async () => {
+    await expect(register({}, formValido())).rejects.toThrow("REDIRECT:/minha-loja/admin");
+
+    expect(uploadImageMock).not.toHaveBeenCalled();
+    expect(empresaUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("não falha o cadastro quando o upload da logo lança erro — best-effort", async () => {
+    uploadImageMock.mockRejectedValue(new Error("R2 fora do ar"));
+    const logo = new File(["conteudo"], "logo.png", { type: "image/png" });
+
+    // A conta já foi criada com sucesso antes do upload rodar — uma falha
+    // aqui não pode virar um erro de cadastro nem impedir o redirect.
+    await expect(register({}, formComLogo(logo))).rejects.toThrow("REDIRECT:/minha-loja/admin");
+
+    expect(empresaUpdateMock).not.toHaveBeenCalled();
+    expect(createAdminSessionMock).toHaveBeenCalled();
   });
 });
 

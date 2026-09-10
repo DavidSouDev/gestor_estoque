@@ -57,7 +57,7 @@ describe("MarcaSimplesForm", () => {
     expect(screen.getByLabelText("Seu nome")).toHaveValue("David");
     expect(screen.getByLabelText("Nome da loja")).toHaveValue("Mercearia Teste");
     expect(screen.getByLabelText("Descrição")).toHaveValue("Produtos frescos");
-    expect(screen.getByLabelText("Telefone")).toHaveValue("11999999999");
+    expect(screen.getByLabelText("Telefone (WhatsApp)")).toHaveValue("(11) 99999-9999");
     expect(screen.getByLabelText("Instagram")).toHaveValue("mercearia");
   });
 

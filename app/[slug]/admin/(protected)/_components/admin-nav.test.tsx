@@ -33,6 +33,23 @@ describe("AdminNav", () => {
     expect(screen.getByText("admin@teste.com")).toBeInTheDocument();
   });
 
+  it("renderiza a inicial da empresa quando não há logo", () => {
+    render(<AdminNav {...baseProps} />);
+
+    expect(screen.getByText("M")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("renderiza a logo da empresa em vez da inicial quando informada", () => {
+    render(
+      <AdminNav {...baseProps} logo="https://bucket.r2.dev/empresa-1/empresas/logos/x.png" />
+    );
+
+    const img = screen.getByRole("img", { name: "Mercearia Teste" });
+    expect(img).toHaveAttribute("src", "https://bucket.r2.dev/empresa-1/empresas/logos/x.png");
+    expect(screen.queryByText("M")).not.toBeInTheDocument();
+  });
+
   it("gera os links de navegação com o slug informado", () => {
     render(<AdminNav {...baseProps} />);
 
