@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthTokenPayload, VerifiedAuthTokenPayload, signAuthToken, verifyAuthToken } from "@/lib/jwt";
 import { revalidarConta } from "@/lib/auth-guard";
 import { acessoBloqueado } from "@/lib/avaliar-acesso";
+import { usuarioService, UpdateUsuarioDTO } from "@/app/services/usuario.service";
 
 const SESSION_COOKIE = "admin_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7d, mesma janela do JWT
@@ -45,6 +46,57 @@ export async function createAdminSession(payload: AuthTokenPayload) {
 export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
+}
+
+/**
+ * Único ponto autorizado a gravar em `Usuario` a partir de uma Server Action
+ * do admin web (sessão por cookie) quando o alvo da escrita é o PRÓPRIO
+ * usuário autenticado. Toda Server Action nessa situação deve chamar isto em
+ * vez de `usuarioService.update` direto.
+ *
+ * Por quê: `revalidarConta` (lib/auth-guard.ts) trata QUALQUER escrita em
+ * `Usuario` como revogação da sessão corrente — compara `updatedAt` contra o
+ * `iat` do JWT, de propósito grosseiro, para matar um cookie vazado depois de
+ * uma troca de senha. Isso significa que a escrita feita por uma Server
+ * Action autoinvalida a PRÓPRIA sessão de quem a fez, e não só sessões
+ * antigas/vazadas — o `iat` do cookie atual passa a ficar ANTERIOR ao
+ * `updatedAt` que a escrita acabou de gravar.
+ *
+ * A correção é reemitir o cookie (novo `iat`) na MESMA escrita, e não depois:
+ * o Next.js, ao final de uma Server Action, re-renderiza a página atual para
+ * devolver a UI atualizada na MESMA resposta (é assim que `useActionState`
+ * atualiza a tela sem navegação). Esse re-render roda `requireAdminSession`
+ * de novo, e ele SÓ enxerga a escrita em `cookies()` porque o Next sincroniza
+ * as mutações da fase 'action' para a fase 'render' antes de renderizar de
+ * novo (`synchronizeMutableCookies`, node_modules/next/dist/server/app-render/
+ * action-handler.js). Sem reemitir aqui, esse mesmo re-render usa o cookie
+ * ANTIGO — pré-escrita — e vê a sessão como revogada, derrubando quem
+ * ACABOU de salvar a própria alteração no mesmo clique.
+ *
+ * Não usar para escrever o `Usuario` de OUTRA conta (ex.: um admin
+ * desativando outro usuário) — ali a invalidação da sessão alheia é o
+ * comportamento CORRETO e não deve ser mascarada.
+ *
+ * Não usar a partir de `app/api/*` (sessão por Bearer token, não por cookie):
+ * `requireAuth` nunca chama esta função, e emitir um cookie de admin dentro de
+ * uma resposta JSON de API seria emitir sessão de navegador para quem não
+ * necessariamente é um navegador.
+ */
+export async function updateSelfAndRenewSession(
+  auth: VerifiedAuthTokenPayload,
+  dados: UpdateUsuarioDTO
+) {
+  const atualizado = await usuarioService.update(auth.sub, dados);
+
+  await createAdminSession({
+    sub: auth.sub,
+    empresaId: auth.empresaId,
+    empresaSlug: auth.empresaSlug,
+    email: atualizado.email,
+    role: atualizado.role,
+  });
+
+  return atualizado;
 }
 
 /**
