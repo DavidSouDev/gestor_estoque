@@ -12,7 +12,13 @@ export interface BrandingFormState {
   success?: boolean;
 }
 
-async function resolveLogo(formData: FormData, empresaId: string): Promise<string | undefined> {
+/**
+ * Retorna `null` (não `undefined`) para "remover": `undefined` num `data` do
+ * Prisma (ou no allowlist de `EmpresaService.update`, que só grava campos
+ * `!== undefined`) significa "não mexe nesse campo" — a logo antiga
+ * sobreviveria à remoção. `null` é o único valor que de fato limpa `logo`.
+ */
+async function resolveLogo(formData: FormData, empresaId: string): Promise<string | null | undefined> {
   const atual = String(formData.get("logo") ?? "").trim() || undefined;
   const file = formData.get("logoFile");
 
@@ -31,7 +37,7 @@ async function resolveLogo(formData: FormData, empresaId: string): Promise<strin
       await deleteImage(atual, empresaId);
     }
 
-    return undefined;
+    return null;
   }
 
   return atual;
@@ -63,7 +69,7 @@ export async function updateBranding(
     return { error: "Selecione um modo de uso válido." };
   }
 
-  let logo: string | undefined;
+  let logo: string | null | undefined;
 
   try {
     logo = await resolveLogo(formData, auth.empresaId);

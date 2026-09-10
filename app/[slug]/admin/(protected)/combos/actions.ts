@@ -12,7 +12,12 @@ export interface ComboFormState {
   error?: string;
 }
 
-async function resolveFotoCapa(formData: FormData, empresaId: string): Promise<string | undefined> {
+/**
+ * Retorna `null` (não `undefined`) para "remover": `undefined` num `data` do
+ * Prisma significa "não mexe nesse campo" — a coluna antiga sobreviveria à
+ * remoção. `null` é o único valor que de fato limpa `fotoCapa` no update.
+ */
+async function resolveFotoCapa(formData: FormData, empresaId: string): Promise<string | null | undefined> {
   const atual = String(formData.get("fotoCapa") ?? "").trim() || undefined;
   const file = formData.get("fotoCapaFile");
 
@@ -31,7 +36,7 @@ async function resolveFotoCapa(formData: FormData, empresaId: string): Promise<s
       await deleteImage(atual, empresaId);
     }
 
-    return undefined;
+    return null;
   }
 
   return atual;
@@ -103,7 +108,7 @@ export async function createCombo(
     return { error: erro };
   }
 
-  let fotoCapa: string | undefined;
+  let fotoCapa: string | null | undefined;
 
   try {
     fotoCapa = await resolveFotoCapa(formData, auth.empresaId);
@@ -141,7 +146,7 @@ export async function updateCombo(
     return { error: erro };
   }
 
-  let fotoCapa: string | undefined;
+  let fotoCapa: string | null | undefined;
 
   try {
     fotoCapa = await resolveFotoCapa(formData, auth.empresaId);

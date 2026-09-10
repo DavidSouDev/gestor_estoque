@@ -39,7 +39,7 @@ export interface CreateComboDTO {
 
   preco: number;
 
-  fotoCapa?: string;
+  fotoCapa?: string | null;
 
   ordemCatalogo?: number;
 
@@ -55,7 +55,7 @@ export interface UpdateComboDTO {
 
   preco?: number;
 
-  fotoCapa?: string;
+  fotoCapa?: string | null;
 
   ordemCatalogo?: number;
 

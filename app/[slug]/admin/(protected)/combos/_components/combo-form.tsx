@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState } from "react";
 import type { ComboFormState } from "../actions";
 import type { ComboAdminDetalhe, ProdutoAdmin } from "../../../_lib/types";
 import { CollapsibleSection } from "../../_components/collapsible-section";
+import { ImageUploadField } from "@/app/_components/image-upload-field";
 
 const INPUT_CLASS =
   "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -21,12 +22,6 @@ export function ComboForm({
   const quantidadePorProduto = new Map(
     (combo?.itens ?? []).map((item) => [item.produtoId, item.quantidade])
   );
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setPreviewUrl(file ? URL.createObjectURL(file) : null);
-  }
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-4">
@@ -95,21 +90,14 @@ export function ComboForm({
             Foto
           </label>
           <input type="hidden" name="fotoCapa" defaultValue={combo?.fotoCapa ?? ""} />
-          {(previewUrl ?? combo?.fotoCapa) && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl ?? combo?.fotoCapa ?? undefined}
-              alt="Prévia da foto do combo"
-              className="h-24 w-24 rounded-xl object-cover"
-            />
-          )}
-          <input
+          <ImageUploadField
             id="fotoCapaFile"
             name="fotoCapaFile"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFotoChange}
-            className={INPUT_CLASS}
+            defaultPreviewUrl={combo?.fotoCapa}
+            aspectRatio={1}
+            inputClassName={INPUT_CLASS}
+            previewClassName="h-24 w-24 rounded-xl object-cover"
+            alt="Prévia da foto do combo"
           />
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" name="removerFotoCapa" />

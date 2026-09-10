@@ -16,7 +16,7 @@ export interface CreateProdutoDTO {
 
   estoque?: number;
 
-  fotoCapa?: string;
+  fotoCapa?: string | null;
 
   ordemCatalogo?: number;
 
@@ -38,7 +38,7 @@ export interface UpdateProdutoDTO {
 
   estoque?: number;
 
-  fotoCapa?: string;
+  fotoCapa?: string | null;
 
   ordemCatalogo?: number;
 

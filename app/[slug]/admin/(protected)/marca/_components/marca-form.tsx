@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState, useState } from "react";
 import type { BrandingFormState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
+import { ImageUploadField } from "@/app/_components/image-upload-field";
 
 type EmpresaBranding = {
   nome: string;
@@ -43,11 +44,6 @@ export function MarcaForm({
   const [accentColor, setAccentColor] = useState(empresa.accentColor);
   const [modo, setModo] = useState(empresa.modoInterface);
   const logo = logoPreview ?? empresa.logo ?? "";
-
-  function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setLogoPreview(file ? URL.createObjectURL(file) : null);
-  }
 
   return (
     <form action={formAction} className="space-y-6">
@@ -96,12 +92,14 @@ export function MarcaForm({
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-600">Logo</label>
             <input type="hidden" name="logo" defaultValue={empresa.logo ?? ""} />
-            <input
+            <ImageUploadField
+              id="logoFile"
               name="logoFile"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleLogoChange}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              aspectRatio={1}
+              inputClassName="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              previewClassName="hidden"
+              alt="Prévia da logo"
+              onPreviewChange={setLogoPreview}
             />
             <p className="mt-1 text-xs text-slate-400">Deixe vazio para usar a inicial do nome</p>
             <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">

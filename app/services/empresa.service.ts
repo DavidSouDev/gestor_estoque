@@ -51,7 +51,7 @@ export interface UpdateEmpresaDTO {
   nome?: string;
   slug?: string;
 
-  logo?: string;
+  logo?: string | null;
   banner?: string;
   descricao?: string;
 

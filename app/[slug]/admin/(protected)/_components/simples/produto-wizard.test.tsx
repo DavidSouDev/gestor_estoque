@@ -28,6 +28,18 @@ vi.mock("../../_lib/simples-actions", () => ({
   removerImagemProduto: removerImagemProdutoMock,
 }));
 
+// O recorte real depende de dimensões de imagem decodificada pelo navegador
+// (`naturalWidth`/`getBoundingClientRect`), que o jsdom não simula. O modal é
+// substituído por um botão que aplica o arquivo bruto, mantendo o teste focado
+// na integração do wizard com o fluxo de upload, não na matemática do recorte.
+vi.mock("@/app/_components/image-crop-modal", () => ({
+  ImageCropModal: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => (
+    <button type="button" onClick={() => onConfirm(file)}>
+      Aplicar recorte (mock)
+    </button>
+  ),
+}));
+
 import { ProdutoWizard } from "./produto-wizard";
 
 const existing = {
@@ -115,6 +127,7 @@ describe("ProdutoWizard", () => {
     const file = new File(["conteudo"], "foto.png", { type: "image/png" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
+    await user.click(screen.getByRole("button", { name: "Aplicar recorte (mock)" }));
 
     expect(await screen.findByRole("button", { name: "Próximo" })).toBeInTheDocument();
     expect(uploadImagemProdutoMock).toHaveBeenCalledWith("loja", expect.any(FormData));
@@ -190,6 +203,7 @@ describe("ProdutoWizard", () => {
     const file = new File(["conteudo"], "nova-foto.png", { type: "image/png" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(input, file);
+    await user.click(screen.getByRole("button", { name: "Aplicar recorte (mock)" }));
 
     await screen.findByRole("button", { name: "Próximo" });
     await user.click(screen.getByRole("button", { name: "Próximo" }));
