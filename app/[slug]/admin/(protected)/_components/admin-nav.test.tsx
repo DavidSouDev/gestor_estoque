@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AdminNav } from "./admin-nav";
 
@@ -84,22 +84,27 @@ describe("AdminNav", () => {
       );
     });
 
-    it("é o último item da lista, depois de Minha Loja", () => {
-      render(<AdminNav {...baseProps} />);
+    it("é o último item da lista de navegação, depois de Estoque", () => {
+      // Escopado ao `<nav>`: o cabeçalho tem seu próprio link (Configurações,
+      // sem rótulo de texto) que `getAllByRole("link")` sem escopo também
+      // pegaria, quebrando esta comparação exata por posição.
+      const { container } = render(<AdminNav {...baseProps} />);
+      const nav = container.querySelector("nav") as HTMLElement;
+      const rotulos = within(nav)
+        .getAllByRole("link")
+        .map((link) => link.textContent);
 
-      const rotulos = screen.getAllByRole("link").map((link) => link.textContent);
-
-      // Os seis existentes estão ordenados por frequência diária de uso; assinatura
-      // é o destino menos visitado do produto e fecha esse gradiente. Termos de Uso
-      // pertence ao mesmo agrupamento de nível de conta e é ainda menos visitado,
-      // então fecha a lista.
+      // "Minha Loja" saiu da lista (virou o ícone de Configurações no
+      // cabeçalho). Os cinco que restam estão ordenados por frequência diária
+      // de uso; assinatura é o destino menos visitado do produto e fecha esse
+      // gradiente. Termos de Uso pertence ao mesmo agrupamento de nível de
+      // conta e é ainda menos visitado, então fecha a lista.
       expect(rotulos).toEqual([
         "Início",
         "Meus Produtos",
         "Combos",
         "Promoções",
         "Estoque",
-        "Minha Loja",
         "Assinatura",
         "Termos de Uso",
       ]);
@@ -111,6 +116,41 @@ describe("AdminNav", () => {
       expect(screen.getByRole("link", { name: /assinatura/i })).not.toHaveStyle({
         backgroundColor: "#2563eb",
       });
+    });
+  });
+
+  // "Minha Loja" deixou de ser um item de lista com rótulo — pouco intuitivo —
+  // e virou só um ícone de engrenagem no cabeçalho, mesmo tratamento que
+  // `simples-top-bar.tsx` já dá à mesma página. A página em `marca/` continua
+  // igual; só o ponto de entrada muda.
+  describe("ícone de Configurações no cabeçalho (substitui a entrada de Minha Loja)", () => {
+    it("aponta para a página de marca do slug", () => {
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.getByTitle("Configurações")).toHaveAttribute(
+        "href",
+        "/loja-teste/admin/marca"
+      );
+    });
+
+    it("não existe mais um item de navegação chamado Minha Loja", () => {
+      render(<AdminNav {...baseProps} />);
+
+      expect(screen.queryByRole("link", { name: /minha loja/i })).not.toBeInTheDocument();
+    });
+
+    it("continua visível quando a barra lateral é colapsada — sem ele o modo colapsado ficaria sem caminho até /admin/marca", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<AdminNav {...baseProps} />);
+
+      // Único `<button>` do cabeçalho (o de Sair vive num `<form>` no rodapé) —
+      // é o toggle de colapsar/expandir.
+      const colapsar = container.querySelector(
+        "div.border-b.border-slate-100.p-4 button"
+      ) as HTMLButtonElement;
+      await user.click(colapsar);
+
+      expect(screen.getByTitle("Configurações")).toBeInTheDocument();
     });
   });
 
@@ -185,7 +225,7 @@ describe("AdminNav em /assinatura", () => {
     vi.resetModules();
   });
 
-  it("marca o item de Assinatura como ativo e não ativa Minha Loja", async () => {
+  it("marca o item de Assinatura como ativo e não ativa Estoque", async () => {
     vi.resetModules();
     vi.doMock("next/navigation", () => ({
       usePathname: () => "/loja-teste/admin/assinatura",
@@ -199,7 +239,7 @@ describe("AdminNav em /assinatura", () => {
     });
     // `pathname.startsWith(item.href)` casa com /assinatura e com nenhuma outra
     // rota, porque nenhum href existente é prefixo dele.
-    expect(screen.getByRole("link", { name: /minha loja/i })).not.toHaveStyle({
+    expect(screen.getByRole("link", { name: /estoque/i })).not.toHaveStyle({
       backgroundColor: "#2563eb",
     });
     expect(screen.getByRole("link", { name: /início/i })).not.toHaveStyle({

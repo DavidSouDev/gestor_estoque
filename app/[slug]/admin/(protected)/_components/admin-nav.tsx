@@ -15,8 +15,13 @@ const ICONS = {
     "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
   estoque:
     "M4 7v10a1 1 0 001 1h14a1 1 0 001-1V7M4 7l8-4 8 4M4 7l8 4m0 0l8-4m-8 4v10",
-  marca:
-    "M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01",
+  // Mesmo ícone de engrenagem do botão "Configurações" de `simples-top-bar.tsx`
+  // (dois `<path>`, por isso os dois entram aqui como array) — ver o comentário
+  // do link de Minha Loja/Configurações abaixo para o porquê da troca.
+  configuracoes: [
+    "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+    "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  ],
   assinatura: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
   termos:
     "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
@@ -32,8 +37,10 @@ function buildNavItems(slug: string) {
     { href: `/${slug}/admin/combos`, label: "Combos", icon: ICONS.combos },
     { href: `/${slug}/admin/promocoes`, label: "Promoções", icon: ICONS.promocoes },
     { href: `/${slug}/admin/estoque`, label: "Estoque", icon: ICONS.estoque },
-    { href: `/${slug}/admin/marca`, label: "Minha Loja", icon: ICONS.marca },
-    // Último de propósito: os seis acima estão ordenados por frequência diária de
+    // "Minha Loja" saiu desta lista — vira o ícone de engrenagem no cabeçalho
+    // (ver comentário no link de Configurações, abaixo), mesmo tratamento que
+    // `simples-top-bar.tsx` já dá à mesma página. A página em si não mudou.
+    // Último de propósito: os cinco acima estão ordenados por frequência diária de
     // uso, e assinatura é o destino menos visitado do produto — pertence ao fim
     // desse gradiente, junto dos controles de nível de conta.
     { href: `/${slug}/admin/assinatura`, label: "Assinatura", icon: ICONS.assinatura },
@@ -71,7 +78,19 @@ export function AdminNav({
         open ? "md:w-60" : "md:w-16"
       } flex w-full shrink-0 flex-col border-b border-slate-100 bg-white transition-all duration-200 md:h-screen md:border-b-0 md:border-r`}
     >
-      <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+      {/*
+        Colapsada, a sidebar tem 64px (`md:w-16`) — depois do padding sobra
+        ~32px, o suficiente para UM quadrado de 32px, não para vários lado a
+        lado. Por isso o `flex-col` quando `!open`: avatar, engrenagem e
+        colapsar empilham em vez de disputar a mesma linha, que era o que
+        antes fazia a engrenagem "vazar" pra fora da sidebar por cima do
+        conteúdo (só o `open` já tinha logo+nome cabendo na horizontal).
+      */}
+      <div
+        className={`flex border-b border-slate-100 p-4 ${
+          open ? "items-center gap-3" : "flex-col items-center gap-3"
+        }`}
+      >
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold text-white"
           style={{ backgroundColor: primaryColor }}
@@ -89,19 +108,51 @@ export function AdminNav({
             <p className="truncate text-xs text-slate-400">{email}</p>
           </div>
         )}
-        <button
-          onClick={() => setOpen(!open)}
-          className="ml-auto hidden shrink-0 text-slate-400 hover:text-slate-600 md:block"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d={open ? ICONS.collapse : ICONS.expand}
-            />
-          </svg>
-        </button>
+
+        <div className={`flex items-center gap-1 ${open ? "ml-auto" : "flex-col"}`}>
+          {/* "Minha Loja" saiu da lista de navegação (pouco intuitiva como
+              item de lista) e virou só este ícone — a página em `marca/` não
+              mudou em nada, só o ponto de entrada. Mesmo ícone e mesmo
+              destino que o botão de "Configurações" de `simples-top-bar.tsx`,
+              pela mesma razão: sem `open &&` porque o modo colapsado esconde
+              só o RÓTULO dos itens de navegação (o ícone continua visível), e
+              este link precisa da mesma garantia — senão o modo colapsado
+              ficaria sem NENHUM caminho até `/admin/marca`. */}
+          <Link
+            href={`/${slug}/admin/marca`}
+            title="Configurações"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={ICONS.configuracoes[0]}
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={ICONS.configuracoes[1]}
+              />
+            </svg>
+          </Link>
+
+          <button
+            onClick={() => setOpen(!open)}
+            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:flex"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={open ? ICONS.collapse : ICONS.expand}
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <nav className="flex flex-1 flex-row gap-1 overflow-x-auto p-3 md:flex-col">
