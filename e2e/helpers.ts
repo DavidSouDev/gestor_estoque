@@ -179,6 +179,37 @@ export async function publicarNovaVersaoDeTermos(
   return (await publicacao.json()) as { id: string; versao: number };
 }
 
+/**
+ * Gera um CPF com dígito verificador válido (mesmo algoritmo de
+ * `lib/cpf-cnpj.ts`) e único a cada chamada: o registro exige `cpfCnpj`
+ * desde `bloqueio de registro por cpf/cnpj`, e o campo é `@unique` no schema,
+ * então cada empresa nova do e2e precisa do próprio número.
+ */
+let sequenciaCpf = 0;
+
+function calcularDigitoVerificadorCpf(base: string, pesos: number[]): number {
+  const soma = base
+    .split("")
+    .reduce((total, digito, indice) => total + Number(digito) * pesos[indice], 0);
+
+  const resto = soma % 11;
+
+  return resto < 2 ? 0 : 11 - resto;
+}
+
+function gerarCpfValidoUnico(): string {
+  sequenciaCpf += 1;
+
+  const nove = `${Date.now()}${sequenciaCpf}`.slice(-9).padStart(9, "0");
+  const pesos1 = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+  const pesos2 = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  const digito1 = calcularDigitoVerificadorCpf(nove, pesos1);
+  const digito2 = calcularDigitoVerificadorCpf(nove + digito1, pesos2);
+
+  return `${nove}${digito1}${digito2}`;
+}
+
 export function uniqueEmpresa() {
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
 
@@ -187,5 +218,6 @@ export function uniqueEmpresa() {
     nomeResponsavel: "Admin E2E",
     email: `admin-e2e-${suffix}@teste.com`,
     senha: "senha123",
+    cpfCnpj: gerarCpfValidoUnico(),
   };
 }

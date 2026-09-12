@@ -20,6 +20,14 @@ export interface RegisterComUsuarioDTO {
   senha: string;
   modoInterface: ModoInterface;
 
+  /**
+   * CPF ou CNPJ, já normalizado (só dígitos) e validado pela Server Action
+   * (`documentoValido` em `lib/cpf-cnpj.ts`). Obrigatório e único no banco
+   * (`Empresa.cpfCnpj`) — é o que impede a mesma pessoa/empresa real de gerar
+   * trials infinitos criando contas novas com e-mails diferentes.
+   */
+  cpfCnpj: string;
+
   // Coletados no próprio formulário de cadastro, opcionais (mesma regra de
   // "Minha Loja"): quem não preenche agora continua podendo preencher depois
   // em `marca/actions.ts`. `logo` NÃO entra aqui de propósito — o upload
@@ -189,6 +197,7 @@ class EmpresaService {
 
             telefone: data.telefone,
             instagram: data.instagram,
+            cpfCnpj: data.cpfCnpj,
 
             trialFim,
             ultimoStatusAuditado: StatusAcesso.TRIAL,
@@ -258,6 +267,10 @@ class EmpresaService {
 
         if (campos.includes("email")) {
           throw new HttpError("Este email já está em uso.", 409);
+        }
+
+        if (campos.includes("cpfCnpj")) {
+          throw new HttpError("Este CPF/CNPJ já possui uma conta cadastrada.", 409);
         }
 
         if (campos.includes("slug")) {

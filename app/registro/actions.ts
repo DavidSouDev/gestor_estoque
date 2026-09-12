@@ -8,6 +8,7 @@ import { HttpError } from "@/lib/http-error";
 import { registroBloqueado, registrarCriacaoDeEmpresa } from "@/lib/registro-rate-limit";
 import { extrairIpDoChamador } from "@/lib/client-ip";
 import { uploadImage } from "@/lib/storage/r2";
+import { documentoValido, normalizarDocumento } from "@/lib/cpf-cnpj";
 import type { ModoInterface } from "@prisma/client";
 
 export interface RegisterState {
@@ -41,6 +42,7 @@ export async function register(
   const senha = String(formData.get("senha") ?? "");
   const confirmarSenha = String(formData.get("confirmarSenha") ?? "");
   const modoInterfaceRaw = String(formData.get("modoInterface") ?? "");
+  const cpfCnpj = normalizarDocumento(String(formData.get("cpfCnpj") ?? ""));
   const telefone = String(formData.get("telefone") ?? "").trim() || undefined;
   const instagram = String(formData.get("instagram") ?? "").trim() || undefined;
   const logoFile = formData.get("logoFile");
@@ -61,6 +63,10 @@ export async function register(
 
   if (!EMAIL_REGEX.test(email)) {
     return { error: "Informe um email válido." };
+  }
+
+  if (!documentoValido(cpfCnpj)) {
+    return { error: "Informe um CPF ou CNPJ válido." };
   }
 
   if (senha.length < 6) {
@@ -105,6 +111,7 @@ export async function register(
       nomeResponsavel,
       email,
       senha,
+      cpfCnpj,
       modoInterface: modoInterfaceRaw as ModoInterface,
       telefone,
       instagram,

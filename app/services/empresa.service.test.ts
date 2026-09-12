@@ -22,6 +22,7 @@ const empresaBase = {
   descricao: null,
   telefone: null,
   instagram: null,
+  cpfCnpj: "12345678901",
   primaryColor: "#18181b",
   accentColor: "#f59e0b",
   modoInterface: ModoInterface.COMPLETO,
@@ -143,6 +144,13 @@ const empresaPublicaBase = {
  */
 const TERMO_VIGENTE_ID = "termo-1";
 
+/**
+ * CPF de teste usado em todo `registerComUsuario` desta suíte. Não precisa
+ * passar no dígito verificador — a validação de formato mora na Server Action
+ * (`app/registro/actions.ts`), não no service, que só persiste o que recebe.
+ */
+const CPF_TESTE = "12345678901";
+
 const usuarioBase = {
   id: "usuario-1",
   nome: "Responsável",
@@ -173,11 +181,20 @@ function mockTransaction() {
  * chega mais nesse caminho — era por isso que estes testes ficavam verdes
  * enquanto o cadastro real caía na mensagem genérica de falha. A cobertura do
  * formato antigo mora em `lib/prisma-error.test.ts` (D-F); não duplicá-la aqui.
+ *
+ * `campos` chega SEM aspas — é o que os call sites querem afirmar via
+ * `.includes("cpfCnpj")` etc. — mas `constraint.fields` é montado AQUI com
+ * cada campo aspeado, porque é isso que `adapter-pg/dist/index.js:473` extrai
+ * do `detail` do Postgres, que sempre aspeia nomes de coluna
+ * (`Key ("cpfCnpj")=(...) already exists`). Sem essa aspa, o teste não
+ * cobriria a remoção que `camposDaColisaoUnica` faz — a mesma lacuna que
+ * escondeu o bug real (toda comparação `.includes(...)` falhando em produção).
  */
 function makeP2002(campos: string[]) {
+  const fieldsAspeados = campos.map((campo) => `"${campo}"`);
   const driverAdapterError = new Error(
     `Unique constraint failed on the fields: (\`${campos.join("`, `")}\`)`,
-    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: campos } } }
+    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: fieldsAspeados } } }
   );
   driverAdapterError.name = "DriverAdapterError";
 
@@ -214,6 +231,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       });
@@ -230,6 +248,7 @@ describe("empresaService.registerComUsuario", () => {
 
           telefone: undefined,
           instagram: undefined,
+          cpfCnpj: CPF_TESTE,
 
           trialFim: TRIAL_FIM_MEIO_DIA,
           ultimoStatusAuditado: "TRIAL",
@@ -271,6 +290,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
         telefone: "(11) 99999-9999",
@@ -285,6 +305,7 @@ describe("empresaService.registerComUsuario", () => {
 
           telefone: "(11) 99999-9999",
           instagram: "mercearia",
+          cpfCnpj: CPF_TESTE,
 
           trialFim: TRIAL_FIM_MEIO_DIA,
           ultimoStatusAuditado: "TRIAL",
@@ -311,6 +332,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       });
@@ -323,6 +345,7 @@ describe("empresaService.registerComUsuario", () => {
 
           telefone: undefined,
           instagram: undefined,
+          cpfCnpj: CPF_TESTE,
 
           trialFim: TRIAL_FIM_MEIO_DIA,
           ultimoStatusAuditado: "TRIAL",
@@ -366,6 +389,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       });
@@ -396,6 +420,7 @@ describe("empresaService.registerComUsuario", () => {
       nomeResponsavel: "Responsável",
       email: "responsavel@teste.com",
       senha: "senha-plana",
+      cpfCnpj: CPF_TESTE,
       modoInterface: ModoInterface.COMPLETO,
       termoAceitoId: TERMO_VIGENTE_ID,
     });
@@ -417,6 +442,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       })
@@ -445,6 +471,7 @@ describe("empresaService.registerComUsuario", () => {
           nomeResponsavel: "Responsável",
           email: "responsavel@teste.com",
           senha: "senha-plana",
+          cpfCnpj: CPF_TESTE,
           modoInterface: ModoInterface.COMPLETO,
           termoAceitoId: TERMO_VIGENTE_ID,
         })
@@ -462,6 +489,27 @@ describe("empresaService.registerComUsuario", () => {
     }
   });
 
+  it("converte violação de unicidade de cpfCnpj em HttpError 409", async () => {
+    mockTransaction();
+    prismaMock.empresa.findMany.mockResolvedValue([]);
+    prismaMock.empresa.create.mockRejectedValue(makeP2002(["cpfCnpj"]));
+
+    await expect(
+      empresaService.registerComUsuario({
+        nomeEmpresa: "Minha Loja",
+        nomeResponsavel: "Responsável",
+        email: "responsavel@teste.com",
+        senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
+        modoInterface: ModoInterface.COMPLETO,
+        termoAceitoId: TERMO_VIGENTE_ID,
+      })
+    ).rejects.toMatchObject({
+      message: "Este CPF/CNPJ já possui uma conta cadastrada.",
+      status: 409,
+    });
+  });
+
   it("converte violação de unicidade de slug em HttpError 409", async () => {
     mockTransaction();
     prismaMock.empresa.findMany.mockResolvedValue([]);
@@ -473,6 +521,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       })
@@ -493,6 +542,7 @@ describe("empresaService.registerComUsuario", () => {
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       })
@@ -522,6 +572,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
       nomeResponsavel: "Responsável",
       email: "responsavel@teste.com",
       senha: "senha-plana",
+      cpfCnpj: CPF_TESTE,
       modoInterface: ModoInterface.COMPLETO,
       termoAceitoId: TERMO_VIGENTE_ID,
     });
@@ -555,6 +606,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
       nomeResponsavel: "Responsável",
       email: "responsavel@teste.com",
       senha: "senha-plana",
+      cpfCnpj: CPF_TESTE,
       modoInterface: ModoInterface.COMPLETO,
       termoAceitoId: TERMO_VIGENTE_ID,
     });
@@ -581,6 +633,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       })
@@ -608,6 +661,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: "termo-antigo",
       })
@@ -646,6 +700,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
       nomeResponsavel: "Responsável",
       email: "responsavel@teste.com",
       senha: "senha-plana",
+      cpfCnpj: CPF_TESTE,
       modoInterface: ModoInterface.COMPLETO,
       termoAceitoId: "termo-2",
     });
@@ -673,6 +728,7 @@ describe("empresaService.registerComUsuario — aceite dos termos (TERM-01)", ()
         nomeResponsavel: "Responsável",
         email: "responsavel@teste.com",
         senha: "senha-plana",
+        cpfCnpj: CPF_TESTE,
         modoInterface: ModoInterface.COMPLETO,
         termoAceitoId: TERMO_VIGENTE_ID,
       })
