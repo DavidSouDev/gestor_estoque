@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import type { RegisterState } from "../actions";
 import { ModoInterfacePicker } from "@/app/_components/modo-interface-picker";
 import { AvatarUploadField } from "@/app/_components/avatar-upload-field";
-import { formatInstagramHandle, formatPhoneInput } from "@/lib/format";
+import { formatCpfCnpjInput, formatInstagramHandle, formatPhoneInput } from "@/lib/format";
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm transition-all focus:border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200";
@@ -26,6 +26,7 @@ export function RegisterForm({
   const [modo, setModo] = useState<"SIMPLES" | "COMPLETO">("COMPLETO");
   const [telefone, setTelefone] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const dialogoRef = useRef<HTMLDialogElement>(null);
   const formularioRef = useRef<HTMLFormElement>(null);
   const provaRef = useRef<HTMLInputElement>(null);
@@ -159,6 +160,23 @@ export function RegisterForm({
           type="text"
           required
           placeholder="Seu nome completo"
+          className={INPUT_CLASS}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="cpfCnpj" className="mb-1.5 block text-xs font-semibold text-slate-600">
+          CPF/CNPJ
+        </label>
+        <input
+          id="cpfCnpj"
+          name="cpfCnpj"
+          type="text"
+          inputMode="numeric"
+          required
+          value={cpfCnpj}
+          onChange={(event) => setCpfCnpj(formatCpfCnpjInput(event.target.value))}
+          placeholder="000.000.000-00"
           className={INPUT_CLASS}
         />
       </div>

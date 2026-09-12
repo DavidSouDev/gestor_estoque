@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCpfCnpjInput,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -70,6 +71,39 @@ describe("formatPhoneInput", () => {
 
   it("trunca em 11 dígitos", () => {
     expect(formatPhoneInput("119999999999999")).toBe("(11) 99999-9999");
+  });
+});
+
+describe("formatCpfCnpjInput", () => {
+  it("devolve string vazia sem dígitos", () => {
+    expect(formatCpfCnpjInput("")).toBe("");
+    expect(formatCpfCnpjInput("abc")).toBe("");
+  });
+
+  it("monta o CPF progressivamente", () => {
+    expect(formatCpfCnpjInput("123")).toBe("123");
+    expect(formatCpfCnpjInput("123456")).toBe("123.456");
+    expect(formatCpfCnpjInput("123456789")).toBe("123.456.789");
+  });
+
+  it("formata CPF completo (11 dígitos)", () => {
+    expect(formatCpfCnpjInput("12345678909")).toBe("123.456.789-09");
+  });
+
+  it("passa a formatar como CNPJ a partir do 12º dígito", () => {
+    expect(formatCpfCnpjInput("112223330001")).toBe("11.222.333/0001");
+  });
+
+  it("formata CNPJ completo (14 dígitos)", () => {
+    expect(formatCpfCnpjInput("11222333000181")).toBe("11.222.333/0001-81");
+  });
+
+  it("ignora caracteres não numéricos já digitados", () => {
+    expect(formatCpfCnpjInput("123.456.789-09")).toBe("123.456.789-09");
+  });
+
+  it("trunca em 14 dígitos", () => {
+    expect(formatCpfCnpjInput("1122233300018199999")).toBe("11.222.333/0001-81");
   });
 });
 

@@ -25,7 +25,7 @@ const ACEITAR = "Li e aceito, criar minha loja";
 type Usuario = ReturnType<typeof userEvent.setup>;
 
 /**
- * Preencher os cinco campos obrigatórios é PRÉ-REQUISITO de todo teste que
+ * Preencher os seis campos obrigatórios é PRÉ-REQUISITO de todo teste que
  * espera o modal abrir. O jsdom roda `reportValidity()` antes de disparar o
  * evento `submit`: com um `required` vazio nenhum submit acontece, e o gate do
  * modal — que vive no `onSubmit` — nunca seria alcançado.
@@ -34,6 +34,7 @@ async function preencherObrigatorios(user: Usuario) {
   const campos: [string, string][] = [
     ["Nome da empresa", "Mercearia São José"],
     ["Seu nome", "David"],
+    ["CPF/CNPJ", "12345678909"],
     ["E-mail", "david@teste.com"],
     ["Senha", "senha1234"],
     ["Confirmar senha", "senha1234"],
@@ -58,9 +59,20 @@ describe("RegisterForm", () => {
 
     expect(screen.getByLabelText("Nome da empresa")).toBeRequired();
     expect(screen.getByLabelText("Seu nome")).toBeRequired();
+    expect(screen.getByLabelText("CPF/CNPJ")).toBeRequired();
     expect(screen.getByLabelText("E-mail")).toBeRequired();
     expect(screen.getByLabelText("Senha")).toBeRequired();
     expect(screen.getByLabelText("Confirmar senha")).toBeRequired();
+  });
+
+  it("aplica a máscara de CPF/CNPJ ao digitar", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm action={vi.fn().mockResolvedValue({})} termo={TERMO} />);
+
+    const campo = screen.getByLabelText("CPF/CNPJ");
+    await user.type(campo, "12345678909");
+
+    expect(campo).toHaveValue("123.456.789-09");
   });
 
   it("renderiza o seletor de modo de interface com as duas opções", () => {

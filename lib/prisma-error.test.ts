@@ -17,11 +17,20 @@ import { camposDaColisaoUnica } from "./prisma-error";
  *
  * A `message` imita a real de propósito: uma falha de teste deve se parecer com
  * a falha de produção.
+ *
+ * `campos` chega SEM aspas (é o que os testes abaixo querem afirmar), mas o
+ * `constraint.fields` montado aqui aspeia cada um antes de embutir — é
+ * exatamente o que `adapter-pg/dist/index.js:473` produz ao recortar o
+ * `detail` do Postgres, que SEMPRE aspeia nomes de coluna (`Key ("cpfCnpj")=(...)`).
+ * Sem essa aspa artificial, o teste não exercitaria a remoção que
+ * `camposDaColisaoUnica` faz — e foi exatamente essa lacuna que deixou passar
+ * o bug real (toda comparação `.includes("cpfCnpj")` falhando em produção).
  */
 function erroDoDriverAdapter(campos: string[]): Prisma.PrismaClientKnownRequestError {
+  const fieldsAspeados = campos.map((campo) => `"${campo}"`);
   const driverAdapterError = new Error(
     `Unique constraint failed on the fields: (\`${campos.join("`, `")}\`)`,
-    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: campos } } }
+    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: fieldsAspeados } } }
   );
   driverAdapterError.name = "DriverAdapterError";
 
@@ -61,6 +70,30 @@ function erroComMeta(meta: Record<string, unknown> | undefined): Prisma.PrismaCl
 describe("camposDaColisaoUnica — formato do driver adapter", () => {
   it("extrai o campo de meta.driverAdapterError.cause.constraint.fields", () => {
     expect(camposDaColisaoUnica(erroDoDriverAdapter(["email"]))).toEqual(["email"]);
+  });
+
+  it("remove as aspas que o detail do Postgres sempre inclui, contra a colisão real (P2002 de cpfCnpj em produção)", () => {
+    // Reprodução literal de `error.meta` observado ao duplicar `Empresa.cpfCnpj`
+    // contra o Postgres real: sem a remoção de aspas, `campos` sai
+    // `['"cpfCnpj"']` e `campos.includes("cpfCnpj")`, no service, nunca é
+    // verdadeiro — a mensagem específica nunca aparece, só a genérica.
+    const driverAdapterError = new Error("UniqueConstraintViolation", {
+      cause: {
+        originalCode: "23505",
+        originalMessage: 'duplicate key value violates unique constraint "Empresa_cpfCnpj_key"',
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ['"cpfCnpj"'] },
+      },
+    });
+    driverAdapterError.name = "DriverAdapterError";
+
+    const erro = new Prisma.PrismaClientKnownRequestError("UniqueConstraintViolation", {
+      code: "P2002",
+      clientVersion: "7.9.1",
+      meta: { modelName: "Empresa", driverAdapterError },
+    });
+
+    expect(camposDaColisaoUnica(erro)).toEqual(["cpfCnpj"]);
   });
 
   it("extrai os dois nomes de uma constraint composta, na mesma ordem", () => {

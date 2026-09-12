@@ -61,6 +61,51 @@ export function formatPhoneInput(value: string): string {
 }
 
 /**
+ * Máscara incremental de CPF/CNPJ, aplicada a cada tecla digitada — não é
+ * validação (isso é `documentoValido` em `lib/cpf-cnpj.ts`). Alterna sozinha
+ * entre CPF (11 dígitos, "000.000.000-00") e CNPJ (14 dígitos,
+ * "00.000.000/0000-00") pela contagem de dígitos já digitados, mesmo padrão
+ * de `formatPhoneInput`.
+ */
+export function formatCpfCnpjInput(value: string): string {
+  const digitos = value.replace(/\D/g, "").slice(0, 14);
+
+  if (!digitos) {
+    return "";
+  }
+
+  if (digitos.length <= 11) {
+    if (digitos.length <= 3) {
+      return digitos;
+    }
+
+    if (digitos.length <= 6) {
+      return `${digitos.slice(0, 3)}.${digitos.slice(3)}`;
+    }
+
+    if (digitos.length <= 9) {
+      return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6)}`;
+    }
+
+    return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
+  }
+
+  if (digitos.length <= 5) {
+    return digitos;
+  }
+
+  if (digitos.length <= 8) {
+    return `${digitos.slice(0, 2)}.${digitos.slice(2)}`;
+  }
+
+  if (digitos.length <= 12) {
+    return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8)}`;
+  }
+
+  return `${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-${digitos.slice(12)}`;
+}
+
+/**
  * Reduz qualquer coisa que o usuário cole (URL completa, `@handle`, ou o
  * handle puro) ao mesmo handle limpo — mesma lógica de `instagramLink` em
  * `lib/contato.ts`, aplicada aqui na digitação para que o campo já mostre só

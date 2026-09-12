@@ -51,11 +51,20 @@ const usuarioBase = {
  * chega mais nesse caminho — era por isso que estes testes ficavam verdes
  * enquanto a criação real caía na mensagem genérica de falha. A cobertura do
  * formato antigo mora em `lib/prisma-error.test.ts` (D-F); não duplicá-la aqui.
+ *
+ * `campos` chega SEM aspas — é o que os call sites querem afirmar via
+ * `.includes("empresaId")` etc. — mas `constraint.fields` é montado AQUI com
+ * cada campo aspeado, porque é isso que `adapter-pg/dist/index.js:473` extrai
+ * do `detail` do Postgres, que sempre aspeia nomes de coluna
+ * (`Key ("empresaId")=(...) already exists`). Sem essa aspa, o teste não
+ * cobriria a remoção que `camposDaColisaoUnica` faz — a mesma lacuna que
+ * escondeu o bug real (toda comparação `.includes(...)` falhando em produção).
  */
 function makeP2002(campos: string[]) {
+  const fieldsAspeados = campos.map((campo) => `"${campo}"`);
   const driverAdapterError = new Error(
     `Unique constraint failed on the fields: (\`${campos.join("`, `")}\`)`,
-    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: campos } } }
+    { cause: { kind: "UniqueConstraintViolation", constraint: { fields: fieldsAspeados } } }
   );
   driverAdapterError.name = "DriverAdapterError";
 

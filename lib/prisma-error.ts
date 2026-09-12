@@ -143,5 +143,18 @@ export function camposDaColisaoUnica(erro: Prisma.PrismaClientKnownRequestError)
   }
 
   // 3. Desconhecido ou malformado converge no vazio.
-  return listaDeCampos(constraint.fields) ?? [];
+  const campos = listaDeCampos(constraint.fields);
+
+  if (campos === null) {
+    return [];
+  }
+
+  // O `detail` do Postgres sempre aspeia os nomes de coluna — `Key ("cpfCnpj")=(...)
+  // already exists` —, e a regex do adaptador (`adapter-pg/dist/index.js:473`)
+  // captura o conteúdo do parêntese literal, aspas inclusas. Sem esta remoção,
+  // `campos` chega como `['"cpfCnpj"']`, e todo `.includes("cpfCnpj")` dos
+  // chamadores falha silenciosamente para a mensagem genérica — o bug real que
+  // esta linha corrige. `meta.target` (ramo 1, acima) nunca aspeia, então a
+  // remoção fica confinada a este ramo.
+  return campos.map((campo) => campo.replace(/^"(.*)"$/, "$1"));
 }

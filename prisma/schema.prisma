@@ -65,6 +65,14 @@ model Empresa {
   telefone  String?
   instagram String?
 
+  // Documento (CPF ou CNPJ) do responsavel, so digitos. Obrigatorio no
+  // cadastro publico (registerComUsuario) e unico para impedir que a mesma
+  // pessoa/empresa real gere trials infinitos criando contas novas com
+  // e-mails diferentes. Nullable porque contas anteriores a essa trava nao
+  // tem o campo preenchido — a obrigatoriedade e aplicada na aplicacao, nao
+  // no banco.
+  cpfCnpj String? @unique
+
   primaryColor String @default("#18181b")
   accentColor  String @default("#f59e0b")
 
