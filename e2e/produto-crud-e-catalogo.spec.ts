@@ -7,6 +7,7 @@ async function criarEmpresaLogada(page: Page) {
   await page.goto("/registro");
   await page.getByLabel("Nome da empresa").fill(empresa.nomeEmpresa);
   await page.getByLabel("Seu nome").fill(empresa.nomeResponsavel);
+  await page.getByLabel("CPF/CNPJ").fill(empresa.cpfCnpj);
   await page.getByLabel("E-mail").fill(empresa.email);
   await page.getByLabel("Senha", { exact: true }).fill(empresa.senha);
   await page.getByLabel("Confirmar senha").fill(empresa.senha);
