@@ -3,19 +3,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ProdutoAdmin } from "../../../_lib/types";
 
-const {
-  refreshMock,
-  criarProdutoSimplesMock,
-  atualizarProdutoSimplesMock,
-  uploadImagemProdutoMock,
-  removerImagemProdutoMock,
-} = vi.hoisted(() => ({
-  refreshMock: vi.fn(),
-  criarProdutoSimplesMock: vi.fn(),
-  atualizarProdutoSimplesMock: vi.fn(),
-  uploadImagemProdutoMock: vi.fn(),
-  removerImagemProdutoMock: vi.fn(),
-}));
+const { refreshMock, criarProdutoSimplesMock, atualizarProdutoSimplesMock, uploadImagemProdutoMock } =
+  vi.hoisted(() => ({
+    refreshMock: vi.fn(),
+    criarProdutoSimplesMock: vi.fn(),
+    atualizarProdutoSimplesMock: vi.fn(),
+    uploadImagemProdutoMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
@@ -25,7 +19,6 @@ vi.mock("../../_lib/simples-actions", () => ({
   criarProdutoSimples: criarProdutoSimplesMock,
   atualizarProdutoSimples: atualizarProdutoSimplesMock,
   uploadImagemProduto: uploadImagemProdutoMock,
-  removerImagemProduto: removerImagemProdutoMock,
 }));
 
 // O recorte real depende de dimensões de imagem decodificada pelo navegador
@@ -48,6 +41,7 @@ const existing = {
   precoVarejo: 25.5,
   estoque: 8,
   fotoCapa: "https://exemplo.com/foto.png",
+  variantes: [],
 } as unknown as ProdutoAdmin;
 
 async function preencherAteConfirmacao(user: ReturnType<typeof userEvent.setup>) {
@@ -157,7 +151,7 @@ describe("ProdutoWizard", () => {
       nome: "Feijão",
       precoVarejo: 12.5,
       estoque: 0,
-      fotoCapa: undefined,
+      fotos: [],
     });
     expect(refreshMock).toHaveBeenCalledTimes(1);
     expect(atualizarProdutoSimplesMock).not.toHaveBeenCalled();
@@ -182,13 +176,12 @@ describe("ProdutoWizard", () => {
       nome: "Arroz 5kg",
       precoVarejo: 25.5,
       estoque: 8,
-      fotoCapa: "https://exemplo.com/foto.png",
+      fotos: ["https://exemplo.com/foto.png"],
     });
     expect(screen.queryByRole("button", { name: "Adicionar outro" })).not.toBeInTheDocument();
-    expect(removerImagemProdutoMock).not.toHaveBeenCalled();
   });
 
-  it("apaga a foto antiga do bucket ao trocar a foto de um produto existente", async () => {
+  it("troca a foto de um produto existente (remove a antiga, envia a nova)", async () => {
     atualizarProdutoSimplesMock.mockResolvedValue({ success: true });
     uploadImagemProdutoMock.mockResolvedValue({ url: "https://exemplo.com/nova-foto.png" });
     const user = userEvent.setup();
@@ -198,7 +191,7 @@ describe("ProdutoWizard", () => {
     await user.click(screen.getByRole("button", { name: "Próximo" }));
     await user.click(screen.getByRole("button", { name: "Próximo" }));
 
-    await user.click(screen.getByRole("button", { name: "Trocar imagem" }));
+    await user.click(screen.getByRole("button", { name: "Remover" }));
 
     const file = new File(["conteudo"], "nova-foto.png", { type: "image/png" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -214,12 +207,42 @@ describe("ProdutoWizard", () => {
       nome: "Arroz 5kg",
       precoVarejo: 25.5,
       estoque: 8,
-      fotoCapa: "https://exemplo.com/nova-foto.png",
+      fotos: ["https://exemplo.com/nova-foto.png"],
     });
-    expect(removerImagemProdutoMock).toHaveBeenCalledWith(
-      "minha-loja",
-      "https://exemplo.com/foto.png"
-    );
+  });
+
+  it("selecionar 2+ fotos de uma vez pula o recorte e junta todas na galeria", async () => {
+    criarProdutoSimplesMock.mockResolvedValue({ success: true });
+    uploadImagemProdutoMock
+      .mockResolvedValueOnce({ url: "https://exemplo.com/a.png" })
+      .mockResolvedValueOnce({ url: "https://exemplo.com/b.png" });
+    const user = userEvent.setup();
+    render(<ProdutoWizard slug="minha-loja" onDone={vi.fn()} onCancel={vi.fn()} />);
+
+    await user.type(screen.getByPlaceholderText("Ex: Arroz 5kg"), "Feijão");
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    fireEvent.change(screen.getByPlaceholderText("0,00"), { target: { value: "10,00" } });
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+
+    const fileA = new File(["a"], "a.png", { type: "image/png" });
+    const fileB = new File(["b"], "b.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, [fileA, fileB]);
+
+    expect(screen.queryByRole("button", { name: "Aplicar recorte (mock)" })).not.toBeInTheDocument();
+    expect(await screen.findByText(/2 fotos escolhidas/)).toBeInTheDocument();
+    expect(uploadImagemProdutoMock).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    await user.click(screen.getByRole("button", { name: "Salvar produto" }));
+
+    expect(criarProdutoSimplesMock).toHaveBeenCalledWith("minha-loja", {
+      nome: "Feijão",
+      precoVarejo: 10,
+      estoque: 0,
+      fotos: ["https://exemplo.com/a.png", "https://exemplo.com/b.png"],
+    });
   });
 
   it("mostra o erro retornado pela action e não avança para a tela de sucesso", async () => {

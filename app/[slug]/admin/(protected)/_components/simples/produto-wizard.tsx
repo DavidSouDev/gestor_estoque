@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useTransition, type ChangeEvent } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/format";
 import type { ProdutoAdmin } from "../../../_lib/types";
-import {
-  criarProdutoSimples,
-  atualizarProdutoSimples,
-  uploadImagemProduto,
-  removerImagemProduto,
-} from "../../_lib/simples-actions";
+import { fotosIniciaisDoProduto } from "../../../_lib/fotos-iniciais";
+import { criarProdutoSimples, atualizarProdutoSimples, uploadImagemProduto } from "../../_lib/simples-actions";
 import { WizardShell } from "./wizard-shell";
 import { NumberStepper } from "./number-stepper";
-import { ImageCropModal } from "@/app/_components/image-crop-modal";
+import { MultiImageUploadField } from "@/app/_components/multi-image-upload-field";
 
 const INPUT_CLASS =
   "w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center text-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -36,39 +32,11 @@ export function ProdutoWizard({
   const [nome, setNome] = useState(existing?.nome ?? "");
   const [preco, setPreco] = useState(existing ? String(existing.precoVarejo) : "");
   const [estoque, setEstoque] = useState(existing?.estoque ?? 0);
-  const [fotoCapa, setFotoCapa] = useState(existing?.fotoCapa ?? "");
+  const [fotos, setFotos] = useState<string[]>(() => fotosIniciaisDoProduto(existing));
   const [error, setError] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [rawFoto, setRawFoto] = useState<File | null>(null);
 
   const precoNumero = Number(preco.replace(",", "."));
-
-  function handleFotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (file) setRawFoto(file);
-  }
-
-  async function handleFotoCropConfirm(croppedFile: File) {
-    setRawFoto(null);
-    setError(null);
-    setIsUploading(true);
-
-    const formData = new FormData();
-    formData.append("file", croppedFile);
-
-    const resultado = await uploadImagemProduto(slug, formData);
-
-    setIsUploading(false);
-
-    if (resultado.error) {
-      setError(resultado.error);
-      return;
-    }
-
-    setFotoCapa(resultado.url ?? "");
-  }
 
   function salvar() {
     setError(null);
@@ -78,7 +46,7 @@ export function ProdutoWizard({
         nome,
         precoVarejo: precoNumero,
         estoque,
-        fotoCapa: fotoCapa || undefined,
+        fotos,
       };
 
       const resultado = existing
@@ -88,10 +56,6 @@ export function ProdutoWizard({
       if (resultado.error) {
         setError(resultado.error);
         return;
-      }
-
-      if (existing?.fotoCapa && existing.fotoCapa !== dados.fotoCapa) {
-        await removerImagemProduto(slug, existing.fotoCapa);
       }
 
       setSalvo(true);
@@ -117,7 +81,7 @@ export function ProdutoWizard({
                 setNome("");
                 setPreco("");
                 setEstoque(0);
-                setFotoCapa("");
+                setFotos([]);
                 setSalvo(false);
               }}
               className="rounded-2xl bg-slate-900 px-8 py-4 text-lg font-semibold text-white shadow-md hover:opacity-90"
@@ -199,48 +163,18 @@ export function ProdutoWizard({
       <WizardShell
         step={3}
         totalSteps={TOTAL_STEPS}
-        title="Quer adicionar uma foto?"
-        subtitle="Se não tiver uma foto agora, pode pular essa parte."
+        title="Quer adicionar fotos?"
+        subtitle="Se não tiver uma foto agora, pode pular essa parte. Escolher mais de uma foto de uma vez cria uma opção pro cliente escolher — útil se o produto vier em estampas ou cores sortidas."
         onBack={() => setStep(2)}
         onNext={() => setStep(4)}
-        nextLabel={fotoCapa ? "Próximo" : "Pular"}
-        nextDisabled={isUploading}
+        nextLabel={fotos.length > 0 ? "Próximo" : "Pular"}
       >
-        {fotoCapa ? (
-          <div className="flex flex-col items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={fotoCapa}
-              alt="Foto do produto"
-              className="h-32 w-32 rounded-2xl object-cover"
-            />
-            <button
-              type="button"
-              onClick={() => setFotoCapa("")}
-              className="text-sm font-semibold text-slate-500 underline"
-            >
-              Trocar imagem
-            </button>
-          </div>
-        ) : (
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFotoChange}
-            disabled={isUploading}
-            className={INPUT_CLASS}
-          />
-        )}
-        {isUploading && <p className="mt-3 text-sm text-slate-500">Enviando...</p>}
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        {rawFoto && (
-          <ImageCropModal
-            file={rawFoto}
-            aspectRatio={1}
-            onCancel={() => setRawFoto(null)}
-            onConfirm={handleFotoCropConfirm}
-          />
-        )}
+        <MultiImageUploadField
+          slug={slug}
+          uploadAction={uploadImagemProduto}
+          initialUrls={fotos}
+          onChange={setFotos}
+        />
       </WizardShell>
     );
   }

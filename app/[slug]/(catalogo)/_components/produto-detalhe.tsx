@@ -3,22 +3,35 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
+import { whatsappLink } from "@/lib/contato";
 import type { ProdutoCatalogoSerializado } from "../../_lib/types";
 
 export function ProdutoDetalhe({
   slug,
   produto,
   precoPromocional,
-  linkWhatsapp,
+  telefoneEmpresa,
+  nomeEmpresa,
   linkInstagram,
 }: {
   slug: string;
   produto: ProdutoCatalogoSerializado;
   precoPromocional?: number;
-  linkWhatsapp?: string | null;
+  telefoneEmpresa?: string | null;
+  nomeEmpresa: string;
   linkInstagram?: string | null;
 }) {
-  const imagens = [
+  const [varianteSelecionadaId, setVarianteSelecionadaId] = useState<string | null>(null);
+  const [imagemAtiva, setImagemAtiva] = useState(0);
+
+  const varianteAtiva = produto.variantes.find((variante) => variante.id === varianteSelecionadaId);
+
+  function selecionarVariante(id: string) {
+    setVarianteSelecionadaId((atual) => (atual === id ? null : id));
+    setImagemAtiva(0);
+  }
+
+  const imagensProduto = [
     ...(produto.fotoCapa ? [{ id: "capa", url: produto.fotoCapa, alt: produto.nome }] : []),
     ...produto.imagens
       .slice()
@@ -26,14 +39,40 @@ export function ProdutoDetalhe({
       .map((imagem) => ({ id: imagem.id, url: imagem.url, alt: imagem.alt ?? produto.nome })),
   ];
 
-  const [imagemAtiva, setImagemAtiva] = useState(0);
+  // Variante sem foto própria cai de volta pras imagens do produto — não faz
+  // sentido deixar a galeria vazia só porque essa variante específica ainda
+  // não tem imagem cadastrada.
+  const imagens =
+    varianteAtiva && varianteAtiva.imagens.length > 0
+      ? varianteAtiva.imagens
+          .slice()
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((imagem) => ({ id: imagem.id, url: imagem.url, alt: imagem.alt ?? varianteAtiva.nome }))
+      : imagensProduto;
 
-  const precoOriginal = produto.precoVarejo;
-  const emPromocao = precoPromocional !== undefined && precoPromocional < precoOriginal;
-  const percentualOff = emPromocao
-    ? Math.round((1 - precoPromocional / precoOriginal) * 100)
-    : 0;
-  const semEstoque = produto.estoque <= 0;
+  const precoBase = varianteAtiva?.precoVarejo ?? produto.precoVarejo;
+
+  // Promoções são configuradas em cima do preço do produto — se a variante
+  // selecionada tem um preço próprio (sobrescrito), o valor promocional
+  // calculado pra outro preço não se aplica a ela, então a promoção só
+  // aparece quando a variante ativa não sobrescreve o preço (ou nenhuma está
+  // selecionada).
+  const emPromocao =
+    (varianteAtiva?.precoVarejo ?? null) === null &&
+    precoPromocional !== undefined &&
+    precoPromocional < precoBase;
+  const percentualOff = emPromocao ? Math.round((1 - precoPromocional! / precoBase) * 100) : 0;
+  const precoFinal = emPromocao ? precoPromocional! : precoBase;
+
+  const estoqueExibido =
+    varianteAtiva && produto.controlaEstoquePorVariante ? varianteAtiva.estoque : produto.estoque;
+  const semEstoque = estoqueExibido <= 0;
+
+  const nomeParaMensagem = varianteAtiva ? `${produto.nome} (${varianteAtiva.nome})` : produto.nome;
+  const mensagemWhatsapp = `Olá! Quero comprar o produto "${nomeParaMensagem}" (${formatCurrency(
+    precoFinal
+  )}) da loja ${nomeEmpresa}.`;
+  const linkWhatsapp = telefoneEmpresa ? whatsappLink(telefoneEmpresa, mensagemWhatsapp) : null;
 
   return (
     <div>
@@ -50,8 +89,8 @@ export function ProdutoDetalhe({
             {imagens.length > 0 && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={imagens[imagemAtiva].url}
-                alt={imagens[imagemAtiva].alt}
+                src={imagens[imagemAtiva]?.url ?? imagens[0].url}
+                alt={imagens[imagemAtiva]?.alt ?? imagens[0].alt}
                 className="h-full w-full object-cover"
               />
             )}
@@ -81,6 +120,44 @@ export function ProdutoDetalhe({
               ))}
             </div>
           )}
+
+          {produto.variantes.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium text-slate-600">Variantes</p>
+              <div className="flex flex-wrap gap-2">
+                {produto.variantes.map((variante) => {
+                  const capaVariante = variante.imagens.slice().sort((a, b) => a.ordem - b.ordem)[0];
+                  const selecionada = variante.id === varianteSelecionadaId;
+
+                  return (
+                    <button
+                      key={variante.id}
+                      onClick={() => selecionarVariante(variante.id)}
+                      className={`flex items-center gap-2 rounded-full border-2 py-1 pl-1 pr-3 text-sm font-medium transition-colors ${
+                        selecionada
+                          ? "border-slate-800 bg-slate-800 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                      }`}
+                    >
+                      {capaVariante ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={capaVariante.url}
+                          alt={variante.nome}
+                          className="h-7 w-7 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span
+                          className={`h-7 w-7 rounded-full ${selecionada ? "bg-slate-700" : "bg-slate-100"}`}
+                        />
+                      )}
+                      {variante.nome}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col">
@@ -97,7 +174,7 @@ export function ProdutoDetalhe({
             <div>
               {emPromocao && (
                 <span className="mr-2 text-sm text-slate-400 line-through">
-                  {formatCurrency(precoOriginal)}
+                  {formatCurrency(precoBase)}
                 </span>
               )}
               {emPromocao && (
@@ -105,9 +182,7 @@ export function ProdutoDetalhe({
                   {percentualOff}% OFF
                 </span>
               )}
-              <p className="text-3xl font-bold text-slate-800">
-                {formatCurrency(emPromocao ? precoPromocional : precoOriginal)}
-              </p>
+              <p className="text-3xl font-bold text-slate-800">{formatCurrency(precoFinal)}</p>
             </div>
 
             <span
@@ -115,7 +190,7 @@ export function ProdutoDetalhe({
                 semEstoque ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
               }`}
             >
-              {semEstoque ? "Indisponível" : `${produto.estoque} em estoque`}
+              {semEstoque ? "Indisponível" : `${estoqueExibido} em estoque`}
             </span>
 
             {(linkWhatsapp || linkInstagram) && (

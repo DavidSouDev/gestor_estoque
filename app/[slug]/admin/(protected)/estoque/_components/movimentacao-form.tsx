@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { MovimentacaoFormState } from "../actions";
 import type { ProdutoAdmin } from "../../../_lib/types";
 
@@ -21,6 +21,12 @@ export function MovimentacaoForm({
   produtos: ProdutoAdmin[];
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const [produtoId, setProdutoId] = useState("");
+
+  const produtoSelecionado = useMemo(
+    () => produtos.find((produto) => produto.id === produtoId),
+    [produtos, produtoId]
+  );
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-4">
@@ -28,15 +34,39 @@ export function MovimentacaoForm({
         <label htmlFor="produtoId" className="text-sm font-medium text-slate-600">
           Produto
         </label>
-        <select id="produtoId" name="produtoId" required className={INPUT_CLASS}>
+        <select
+          id="produtoId"
+          name="produtoId"
+          required
+          className={INPUT_CLASS}
+          value={produtoId}
+          onChange={(event) => setProdutoId(event.target.value)}
+        >
           <option value="">Selecione...</option>
           {produtos.map((produto) => (
             <option key={produto.id} value={produto.id}>
-              {produto.nome} (estoque atual: {produto.estoque})
+              {produto.nome}
+              {!produto.controlaEstoquePorVariante && ` (estoque atual: ${produto.estoque})`}
             </option>
           ))}
         </select>
       </div>
+
+      {produtoSelecionado?.controlaEstoquePorVariante && (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="produtoVarianteId" className="text-sm font-medium text-slate-600">
+            Variante
+          </label>
+          <select id="produtoVarianteId" name="produtoVarianteId" required className={INPUT_CLASS}>
+            <option value="">Selecione...</option>
+            {produtoSelecionado.variantes.map((variante) => (
+              <option key={variante.id} value={variante.id}>
+                {variante.nome} (estoque atual: {variante.estoque})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">

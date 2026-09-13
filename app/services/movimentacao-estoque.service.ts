@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { HttpError } from "@/lib/http-error";
-import { TipoMovimentacao } from "@prisma/client";
+import { Prisma, TipoMovimentacao } from "@prisma/client";
 
 export interface CreateMovimentacaoDTO {
   produtoId: string;
   usuarioId: string;
   empresaId: string;
+
+  // Obrigatório quando o produto tem `controlaEstoquePorVariante`, proibido
+  // quando não tem — ver a checagem de exclusividade em `create()`.
+  produtoVarianteId?: string;
 
   tipo: TipoMovimentacao;
 
@@ -24,6 +28,7 @@ class MovimentacaoEstoqueService {
       },
       include: {
         produto: true,
+        produtoVariante: true,
         usuario: {
           select: {
             id: true,
@@ -45,6 +50,7 @@ class MovimentacaoEstoqueService {
       },
       include: {
         produto: true,
+        produtoVariante: true,
         usuario: {
           select: {
             id: true,
@@ -73,6 +79,15 @@ class MovimentacaoEstoqueService {
    * O `findUnique` inicial continua existindo só para dar um erro limpo de
    * "produto não encontrado" — a garantia de corretude sob concorrência mora
    * inteira no `updateMany` condicional, não nele.
+   *
+   * Variantes (fase "variantes de produto"): quando o produto controla
+   * estoque por variante, a MESMA técnica (condição no WHERE) se aplica ao
+   * saldo da VARIANTE, e o delta aplicado nela é espelhado — na MESMA
+   * transação — em `produto.estoque`, que passa a ser só um agregado. Os dois
+   * modos (produto vs. variante) são mutuamente exclusivos: nunca ficam
+   * escolhidos "errado" porque `produto.controlaEstoquePorVariante` decide, e
+   * a checagem abaixo recusa a combinação inconsistente antes de mexer em
+   * qualquer saldo.
    */
   async create(data: CreateMovimentacaoDTO) {
     // Defesa de segunda camada: os dois chamadores atuais (Zod `.positive()`
@@ -94,11 +109,27 @@ class MovimentacaoEstoqueService {
         select: {
           id: true,
           empresaId: true,
+          controlaEstoquePorVariante: true,
         },
       });
 
       if (!produto || produto.empresaId !== data.empresaId) {
         throw new HttpError("Produto não encontrado.", 404);
+      }
+
+      if (produto.controlaEstoquePorVariante && !data.produtoVarianteId) {
+        throw new HttpError(
+          "Este produto controla estoque por variante — selecione uma variante.",
+          400
+        );
+      }
+
+      if (!produto.controlaEstoquePorVariante && data.produtoVarianteId) {
+        throw new HttpError("Este produto não controla estoque por variante.", 400);
+      }
+
+      if (data.produtoVarianteId) {
+        return this.criarMovimentacaoVariante(tx, data, data.produtoVarianteId);
       }
 
       let resultado: { count: number };
@@ -163,12 +194,116 @@ class MovimentacaoEstoqueService {
     });
   }
 
+  /**
+   * `tx` é o `Prisma.TransactionClient` da transação aberta em `create()` —
+   * este método nunca abre a própria transação, só existe pra não inchar
+   * `create()` com o branch de variante inline.
+   */
+  private async criarMovimentacaoVariante(
+    tx: Prisma.TransactionClient,
+    data: CreateMovimentacaoDTO,
+    produtoVarianteId: string
+  ) {
+    const variante = await tx.produtoVariante.findFirst({
+      where: { id: produtoVarianteId, produtoId: data.produtoId, deletedAt: null },
+      select: { id: true, estoque: true },
+    });
+
+    if (!variante) {
+      throw new HttpError("Variante não encontrada.", 404);
+    }
+
+    let delta: number;
+
+    switch (data.tipo) {
+      case TipoMovimentacao.ENTRADA: {
+        const resultado = await tx.produtoVariante.updateMany({
+          where: { id: variante.id },
+          data: { estoque: { increment: data.quantidade } },
+        });
+
+        if (resultado.count === 0) {
+          throw new HttpError("Variante não encontrada.", 404);
+        }
+
+        delta = data.quantidade;
+        break;
+      }
+
+      case TipoMovimentacao.SAIDA: {
+        const resultado = await tx.produtoVariante.updateMany({
+          where: { id: variante.id, estoque: { gte: data.quantidade } },
+          data: { estoque: { decrement: data.quantidade } },
+        });
+
+        if (resultado.count === 0) {
+          throw new HttpError("Estoque insuficiente.", 409);
+        }
+
+        delta = -data.quantidade;
+        break;
+      }
+
+      case TipoMovimentacao.AJUSTE: {
+        // AJUSTE grava um valor absoluto — o delta a espelhar no produto só
+        // existe depois de saber o valor ANTERIOR. A condição
+        // `estoque: variante.estoque` no WHERE é um lock otimista: se outra
+        // transação já tiver mexido no saldo da variante entre a leitura
+        // acima e este UPDATE, `count` vem 0 e o ajuste é recusado em vez de
+        // sobrescrever um valor que já está desatualizado.
+        const resultado = await tx.produtoVariante.updateMany({
+          where: { id: variante.id, estoque: variante.estoque },
+          data: { estoque: data.quantidade },
+        });
+
+        if (resultado.count === 0) {
+          throw new HttpError(
+            "O estoque da variante mudou enquanto este ajuste era enviado. Tente novamente.",
+            409
+          );
+        }
+
+        delta = data.quantidade - variante.estoque;
+        break;
+      }
+    }
+
+    if (delta !== 0) {
+      await tx.produto.updateMany({
+        where: { id: data.produtoId },
+        data: { estoque: { increment: delta } },
+      });
+    }
+
+    return tx.movimentacaoEstoque.create({
+      data: {
+        produtoId: data.produtoId,
+        produtoVarianteId: variante.id,
+        usuarioId: data.usuarioId,
+        tipo: data.tipo,
+        quantidade: data.quantidade,
+        motivo: data.motivo,
+      },
+      include: {
+        produto: true,
+        produtoVariante: true,
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+      },
+    });
+  }
+
   async listByProduto(produtoId: string) {
     return prisma.movimentacaoEstoque.findMany({
       where: {
         produtoId,
       },
       include: {
+        produtoVariante: true,
         usuario: {
           select: {
             id: true,
@@ -198,12 +333,22 @@ class MovimentacaoEstoqueService {
    * sem inventar um número. Em vez de fingir uma reversão incorreta, a
    * exclusão de AJUSTE é recusada; a correção correta é registrar um novo
    * ajuste com o valor certo, preservando o histórico completo.
+   *
+   * Quando a movimentação é de variante (`produtoVarianteId` preenchido), a
+   * reversão incide sobre o saldo da variante e o mesmo delta é espelhado em
+   * `produto.estoque`, igual ao `create()`.
    */
   async delete(id: string) {
     return prisma.$transaction(async (tx) => {
       const movimentacao = await tx.movimentacaoEstoque.findUnique({
         where: { id },
-        select: { id: true, produtoId: true, tipo: true, quantidade: true },
+        select: {
+          id: true,
+          produtoId: true,
+          produtoVarianteId: true,
+          tipo: true,
+          quantidade: true,
+        },
       });
 
       if (!movimentacao) {
@@ -217,6 +362,8 @@ class MovimentacaoEstoqueService {
         );
       }
 
+      const varianteId = movimentacao.produtoVarianteId;
+
       let resultado: { count: number };
 
       if (movimentacao.tipo === TipoMovimentacao.ENTRADA) {
@@ -224,10 +371,15 @@ class MovimentacaoEstoqueService {
         // decremento — se parte dela já foi consumida por uma SAIDA
         // registrada depois, a exclusão é recusada em vez de deixar o
         // estoque negativo.
-        resultado = await tx.produto.updateMany({
-          where: { id: movimentacao.produtoId, estoque: { gte: movimentacao.quantidade } },
-          data: { estoque: { decrement: movimentacao.quantidade } },
-        });
+        resultado = varianteId
+          ? await tx.produtoVariante.updateMany({
+              where: { id: varianteId, estoque: { gte: movimentacao.quantidade } },
+              data: { estoque: { decrement: movimentacao.quantidade } },
+            })
+          : await tx.produto.updateMany({
+              where: { id: movimentacao.produtoId, estoque: { gte: movimentacao.quantidade } },
+              data: { estoque: { decrement: movimentacao.quantidade } },
+            });
 
         if (resultado.count === 0) {
           throw new HttpError(
@@ -235,16 +387,35 @@ class MovimentacaoEstoqueService {
             409
           );
         }
+
+        if (varianteId) {
+          await tx.produto.updateMany({
+            where: { id: movimentacao.produtoId },
+            data: { estoque: { decrement: movimentacao.quantidade } },
+          });
+        }
       } else {
         // SAIDA: reverter incrementando é sempre seguro, nunca produz
         // estoque negativo.
-        resultado = await tx.produto.updateMany({
-          where: { id: movimentacao.produtoId },
-          data: { estoque: { increment: movimentacao.quantidade } },
-        });
+        resultado = varianteId
+          ? await tx.produtoVariante.updateMany({
+              where: { id: varianteId },
+              data: { estoque: { increment: movimentacao.quantidade } },
+            })
+          : await tx.produto.updateMany({
+              where: { id: movimentacao.produtoId },
+              data: { estoque: { increment: movimentacao.quantidade } },
+            });
 
         if (resultado.count === 0) {
           throw new HttpError("Produto não encontrado.", 404);
+        }
+
+        if (varianteId) {
+          await tx.produto.updateMany({
+            where: { id: movimentacao.produtoId },
+            data: { estoque: { increment: movimentacao.quantidade } },
+          });
         }
       }
 

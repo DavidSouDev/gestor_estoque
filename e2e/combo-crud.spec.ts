@@ -25,7 +25,9 @@ async function criarProduto(page: Page, slug: string, nome: string, preco: strin
   await page.getByLabel("Preço", { exact: true }).fill(preco);
   await page.getByLabel("Estoque").fill("10");
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos$`));
+  // Criar redireciona pra tela de edição (onde mora a seção de variantes),
+  // não pra listagem.
+  await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
 }
 
 // Note: os nomes de produto e combo aqui de propósito NÃO compartilham um

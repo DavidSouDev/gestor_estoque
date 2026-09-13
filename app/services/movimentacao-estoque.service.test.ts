@@ -14,6 +14,7 @@ const produtoBase = {
   precoVarejo: 10,
   precoAtacado: 8,
   estoque: 10,
+  controlaEstoquePorVariante: false,
   fotoCapa: null,
   ordemCatalogo: 0,
   destaque: false,
@@ -24,9 +25,24 @@ const produtoBase = {
   deletedAt: null,
 };
 
+const varianteBase = {
+  id: "variante-1",
+  produtoId: "produto-1",
+  nome: "P - Estampa A",
+  precoVarejo: null,
+  precoAtacado: null,
+  estoque: 5,
+  ordem: 0,
+  ativo: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
+};
+
 const movimentacaoBase = {
   id: "movimentacao-1",
   produtoId: "produto-1",
+  produtoVarianteId: null,
   usuarioId: "usuario-1",
   tipo: TipoMovimentacao.ENTRADA,
   quantidade: 5,
@@ -250,6 +266,244 @@ describe("movimentacaoEstoqueService.create", () => {
     expect(prismaMock.produto.updateMany).toHaveBeenCalledWith({
       where: { id: "produto-1", empresaId: "empresa-1" },
       data: { estoque: 42 },
+    });
+  });
+});
+
+describe("movimentacaoEstoqueService.create — produto com variantes", () => {
+  it("recusa produtoVarianteId quando o produto não controla estoque por variante", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue(produtoBase as never);
+
+    await expect(
+      movimentacaoEstoqueService.create({
+        produtoId: "produto-1",
+        produtoVarianteId: "variante-1",
+        usuarioId: "usuario-1",
+        empresaId: "empresa-1",
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 5,
+      })
+    ).rejects.toMatchObject({
+      message: "Este produto não controla estoque por variante.",
+      status: 400,
+    });
+
+    expect(prismaMock.produtoVariante.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("exige produtoVarianteId quando o produto controla estoque por variante", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+    } as never);
+
+    await expect(
+      movimentacaoEstoqueService.create({
+        produtoId: "produto-1",
+        usuarioId: "usuario-1",
+        empresaId: "empresa-1",
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 5,
+      })
+    ).rejects.toMatchObject({
+      message: "Este produto controla estoque por variante — selecione uma variante.",
+      status: 400,
+    });
+
+    expect(prismaMock.produtoVariante.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("lança erro quando a variante não existe ou não pertence ao produto", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+    } as never);
+    prismaMock.produtoVariante.findFirst.mockResolvedValue(null);
+
+    await expect(
+      movimentacaoEstoqueService.create({
+        produtoId: "produto-1",
+        produtoVarianteId: "variante-inexistente",
+        usuarioId: "usuario-1",
+        empresaId: "empresa-1",
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 5,
+      })
+    ).rejects.toMatchObject({ message: "Variante não encontrada.", status: 404 });
+  });
+
+  it("ENTRADA na variante espelha o mesmo incremento no agregado do produto", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+    } as never);
+    prismaMock.produtoVariante.findFirst.mockResolvedValue(varianteBase as never);
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.produto.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.movimentacaoEstoque.create.mockResolvedValue(movimentacaoBase as never);
+
+    await movimentacaoEstoqueService.create({
+      produtoId: "produto-1",
+      produtoVarianteId: "variante-1",
+      usuarioId: "usuario-1",
+      empresaId: "empresa-1",
+      tipo: TipoMovimentacao.ENTRADA,
+      quantidade: 5,
+    });
+
+    expect(prismaMock.produtoVariante.updateMany).toHaveBeenCalledWith({
+      where: { id: "variante-1" },
+      data: { estoque: { increment: 5 } },
+    });
+    expect(prismaMock.produto.updateMany).toHaveBeenCalledWith({
+      where: { id: "produto-1" },
+      data: { estoque: { increment: 5 } },
+    });
+    expect(prismaMock.movimentacaoEstoque.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ produtoId: "produto-1", produtoVarianteId: "variante-1" }),
+      })
+    );
+  });
+
+  it("SAIDA insuficiente na variante falha mesmo se o agregado do produto teria saldo", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+      estoque: 999, // saldo agregado alto — a checagem tem que ser sobre a variante, não sobre isto
+    } as never);
+    prismaMock.produtoVariante.findFirst.mockResolvedValue(varianteBase as never); // estoque: 5
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 0 } as never);
+
+    await expect(
+      movimentacaoEstoqueService.create({
+        produtoId: "produto-1",
+        produtoVarianteId: "variante-1",
+        usuarioId: "usuario-1",
+        empresaId: "empresa-1",
+        tipo: TipoMovimentacao.SAIDA,
+        quantidade: 10,
+      })
+    ).rejects.toMatchObject({ message: "Estoque insuficiente.", status: 409 });
+
+    expect(prismaMock.produto.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("AJUSTE na variante espelha o delta (novo - antigo) no agregado do produto", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+    } as never);
+    prismaMock.produtoVariante.findFirst.mockResolvedValue(varianteBase as never); // estoque: 5
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.produto.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.movimentacaoEstoque.create.mockResolvedValue(movimentacaoBase as never);
+
+    await movimentacaoEstoqueService.create({
+      produtoId: "produto-1",
+      produtoVarianteId: "variante-1",
+      usuarioId: "usuario-1",
+      empresaId: "empresa-1",
+      tipo: TipoMovimentacao.AJUSTE,
+      quantidade: 20,
+    });
+
+    expect(prismaMock.produtoVariante.updateMany).toHaveBeenCalledWith({
+      where: { id: "variante-1", estoque: 5 },
+      data: { estoque: 20 },
+    });
+    expect(prismaMock.produto.updateMany).toHaveBeenCalledWith({
+      where: { id: "produto-1" },
+      data: { estoque: { increment: 15 } },
+    });
+  });
+
+  /**
+   * ⚠️ CASO CRÍTICO — não remova nem relaxe.
+   *
+   * AJUSTE grava um valor absoluto: sem o lock otimista (`estoque:
+   * variante.estoque` no WHERE), duas requisições concorrentes de AJUSTE
+   * poderiam ler o mesmo valor antigo, e a segunda escrita perderia o delta da
+   * primeira — o agregado do produto ficaria incoerente com a soma real das
+   * variantes.
+   */
+  it("recusa o AJUSTE quando o estoque da variante mudou entre a leitura e a escrita", async () => {
+    mockTransaction();
+    prismaMock.produto.findUnique.mockResolvedValue({
+      ...produtoBase,
+      controlaEstoquePorVariante: true,
+    } as never);
+    prismaMock.produtoVariante.findFirst.mockResolvedValue(varianteBase as never); // estoque: 5
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 0 } as never);
+
+    await expect(
+      movimentacaoEstoqueService.create({
+        produtoId: "produto-1",
+        produtoVarianteId: "variante-1",
+        usuarioId: "usuario-1",
+        empresaId: "empresa-1",
+        tipo: TipoMovimentacao.AJUSTE,
+        quantidade: 20,
+      })
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(prismaMock.produto.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.movimentacaoEstoque.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("movimentacaoEstoqueService.delete — movimentação de variante", () => {
+  it("reverte uma ENTRADA de variante decrementando a variante e o agregado do produto", async () => {
+    mockTransaction();
+    prismaMock.movimentacaoEstoque.findUnique.mockResolvedValue({
+      ...movimentacaoBase,
+      produtoVarianteId: "variante-1",
+      tipo: TipoMovimentacao.ENTRADA,
+      quantidade: 5,
+    } as never);
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.produto.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.movimentacaoEstoque.delete.mockResolvedValue(movimentacaoBase as never);
+
+    await movimentacaoEstoqueService.delete("movimentacao-1");
+
+    expect(prismaMock.produtoVariante.updateMany).toHaveBeenCalledWith({
+      where: { id: "variante-1", estoque: { gte: 5 } },
+      data: { estoque: { decrement: 5 } },
+    });
+    expect(prismaMock.produto.updateMany).toHaveBeenCalledWith({
+      where: { id: "produto-1" },
+      data: { estoque: { decrement: 5 } },
+    });
+  });
+
+  it("reverte uma SAIDA de variante incrementando a variante e o agregado do produto", async () => {
+    mockTransaction();
+    prismaMock.movimentacaoEstoque.findUnique.mockResolvedValue({
+      ...movimentacaoBase,
+      produtoVarianteId: "variante-1",
+      tipo: TipoMovimentacao.SAIDA,
+      quantidade: 3,
+    } as never);
+    prismaMock.produtoVariante.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.produto.updateMany.mockResolvedValue({ count: 1 } as never);
+    prismaMock.movimentacaoEstoque.delete.mockResolvedValue(movimentacaoBase as never);
+
+    await movimentacaoEstoqueService.delete("movimentacao-1");
+
+    expect(prismaMock.produtoVariante.updateMany).toHaveBeenCalledWith({
+      where: { id: "variante-1" },
+      data: { estoque: { increment: 3 } },
+    });
+    expect(prismaMock.produto.updateMany).toHaveBeenCalledWith({
+      where: { id: "produto-1" },
+      data: { estoque: { increment: 3 } },
     });
   });
 });

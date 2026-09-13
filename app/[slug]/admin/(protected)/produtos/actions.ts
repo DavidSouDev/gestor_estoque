@@ -7,39 +7,43 @@ import { requireAdminSession } from "@/lib/session";
 import { produtoService } from "@/app/services/produto.service";
 import { assertBelongsToEmpresa } from "../../_lib/guards";
 import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
+import { sincronizarFotosDoProduto } from "../_lib/sincronizar-fotos-produto";
 
 export interface ProdutoFormState {
   error?: string;
 }
 
 /**
- * Retorna `null` (não `undefined`) para "remover": `undefined` num `data` do
- * Prisma significa "não mexe nesse campo" — a coluna antiga sobreviveria à
- * remoção. `null` é o único valor que de fato limpa `fotoCapa` no update.
+ * Upload de UMA foto por chamada — o campo de fotos do produto
+ * (`MultiImageUploadField`) faz upload imediato por arquivo, nunca em lote.
+ * As URLs resultantes chegam no submit do formulário como `imagemUrl`
+ * repetido (`formData.getAll`), lidas em `parseFotos` abaixo.
  */
-async function resolveFotoCapa(formData: FormData, empresaId: string): Promise<string | null | undefined> {
-  const atual = String(formData.get("fotoCapa") ?? "").trim() || undefined;
-  const file = formData.get("fotoCapaFile");
+export async function uploadImagemProduto(
+  slug: string,
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  const auth = await requireAdminSession(slug);
+  const file = formData.get("file");
 
-  if (file instanceof File && file.size > 0) {
-    const nova = await uploadImage(file, empresaId, "produtos");
-
-    if (atual) {
-      await deleteImage(atual, empresaId);
-    }
-
-    return nova;
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecione uma imagem." };
   }
 
-  if (formData.get("removerFotoCapa") === "on") {
-    if (atual) {
-      await deleteImage(atual, empresaId);
-    }
-
-    return null;
+  try {
+    const url = await uploadImage(file, auth.empresaId, "produtos");
+    return { url };
+  } catch (error) {
+    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
   }
+}
 
-  return atual;
+function parseFotos(formData: FormData): string[] {
+  return formData
+    .getAll("imagemUrl")
+    .map(String)
+    .map((url) => url.trim())
+    .filter(Boolean);
 }
 
 function parseProdutoForm(formData: FormData) {
@@ -55,6 +59,7 @@ function parseProdutoForm(formData: FormData) {
     precoVarejo,
     precoAtacado: precoAtacadoRaw ? Number(precoAtacadoRaw) : undefined,
     estoque: Number.isNaN(estoque) ? 0 : estoque,
+    controlaEstoquePorVariante: formData.get("controlaEstoquePorVariante") === "on",
     destaque: formData.get("destaque") === "on",
     visivelCatalogo: formData.get("visivelCatalogo") === "on",
   };
@@ -100,21 +105,16 @@ export async function createProduto(
     return { error: erro };
   }
 
-  let fotoCapa: string | null | undefined;
-
-  try {
-    fotoCapa = await resolveFotoCapa(formData, auth.empresaId);
-  } catch (error) {
-    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
-  }
-
+  const fotos = parseFotos(formData);
   const codigo = dados.codigo || (await produtoService.generateUniqueCodigo(auth.empresaId, dados.nome));
   const precoAtacado = dados.precoAtacado ?? dados.precoVarejo;
 
+  let produtoCriado;
+
   try {
-    await produtoService.create({
+    produtoCriado = await produtoService.create({
       ...dados,
-      fotoCapa,
+      fotoCapa: fotos[0]?.trim() || undefined,
       codigo,
       precoAtacado,
       empresaId: auth.empresaId,
@@ -127,9 +127,16 @@ export async function createProduto(
     throw error;
   }
 
+  // 2+ fotos escolhidas de uma vez viram uma variante cada — ver
+  // sincronizar-fotos-produto.ts (mesma regra do modo SIMPLES).
+  await sincronizarFotosDoProduto(produtoCriado.id, fotos, auth.empresaId);
+
   revalidatePath(`/${slug}/admin/produtos`);
   revalidatePath(`/${slug}`);
-  redirect(`/${slug}/admin/produtos`);
+  // Vai direto pra tela de edição (não pra listagem): é lá que mora a seção
+  // "Variantes" (pra configurar atributos/preço/estoque por variante, se
+  // quiser ir além do que a foto sozinha resolve).
+  redirect(`/${slug}/admin/produtos/${produtoCriado.id}`);
 }
 
 export async function updateProduto(
@@ -139,7 +146,7 @@ export async function updateProduto(
   formData: FormData
 ): Promise<ProdutoFormState> {
   const auth = await requireAdminSession(slug);
-  await assertBelongsToEmpresa(await produtoService.findById(id), auth.empresaId);
+  const produto = await assertBelongsToEmpresa(await produtoService.findById(id), auth.empresaId);
 
   const dados = parseProdutoForm(formData);
   const erro = validarProduto(dados);
@@ -148,18 +155,12 @@ export async function updateProduto(
     return { error: erro };
   }
 
-  let fotoCapa: string | null | undefined;
-
-  try {
-    fotoCapa = await resolveFotoCapa(formData, auth.empresaId);
-  } catch (error) {
-    return { error: error instanceof UploadError ? error.message : "Erro ao enviar imagem." };
-  }
+  const fotos = parseFotos(formData);
 
   try {
     await produtoService.update(id, {
       ...dados,
-      fotoCapa,
+      fotoCapa: fotos[0]?.trim() || undefined,
       precoAtacado: dados.precoAtacado ?? dados.precoVarejo,
     });
   } catch (error) {
@@ -169,6 +170,8 @@ export async function updateProduto(
 
     throw error;
   }
+
+  await sincronizarFotosDoProduto(id, fotos, auth.empresaId, produto.fotoCapa);
 
   revalidatePath(`/${slug}/admin/produtos`);
   revalidatePath(`/${slug}/admin/produtos/${id}`);
@@ -183,9 +186,15 @@ export async function deleteProduto(slug: string, id: string) {
 
   await produtoService.delete(id);
 
-  if (produto?.fotoCapa) {
-    await deleteImage(produto.fotoCapa, auth.empresaId);
-  }
+  const imagensParaRemover = [
+    ...(produto?.fotoCapa ? [produto.fotoCapa] : []),
+    // O cascade do banco apaga as linhas de ProdutoVariante/Imagem, mas o
+    // bucket R2 não sabe nada disso — precisa ser limpo explicitamente aqui,
+    // senão os objetos ficam órfãos.
+    ...(produto?.variantes.flatMap((variante) => variante.imagens.map((imagem) => imagem.url)) ?? []),
+  ];
+
+  await Promise.all(imagensParaRemover.map((url) => deleteImage(url, auth.empresaId)));
 
   revalidatePath(`/${slug}/admin/produtos`);
   revalidatePath(`/${slug}`);

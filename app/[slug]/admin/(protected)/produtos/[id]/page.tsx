@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { serializeDecimals } from "@/lib/serialize";
 import { ProdutoForm } from "../_components/produto-form";
 import { updateProduto } from "../actions";
+import { VariantesSection } from "./_components/variantes-section";
 
 export default async function EditarProdutoPage({
   params,
@@ -22,14 +23,41 @@ export default async function EditarProdutoPage({
   }
 
   const movimentacoes = await movimentacaoEstoqueService.listByProduto(id);
+  const produtoSerializado = serializeDecimals(produto);
+
+  // `serializeDecimals` preserva o tipo de entrada (é um identity generic —
+  // ver lib/serialize.ts), então `variante.precoVarejo` continua tipado como
+  // `Decimal | null` mesmo já sendo `number | null` em runtime. Convertido
+  // aqui, no Server Component, explicitamente — mesma ideia de
+  // `Number(produto.precoVarejo)` em produto-form.tsx, só que numa lista.
+  const variantesSerializadas = produto.variantes.map((variante) => ({
+    id: variante.id,
+    nome: variante.nome,
+    precoVarejo: variante.precoVarejo !== null ? Number(variante.precoVarejo) : null,
+    precoAtacado: variante.precoAtacado !== null ? Number(variante.precoAtacado) : null,
+    estoque: variante.estoque,
+    ativo: variante.ativo,
+    atributos: variante.atributos.map(({ nome, valor }) => ({ nome, valor })),
+    imagens: variante.imagens.map(({ url, alt }) => ({ url, alt })),
+  }));
 
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <h1 className="font-bold text-slate-800">Editar produto</h1>
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <ProdutoForm action={updateProduto.bind(null, slug, id)} produto={serializeDecimals(produto)} />
+          <ProdutoForm slug={slug} action={updateProduto.bind(null, slug, id)} produto={produtoSerializado} />
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <VariantesSection
+          slug={slug}
+          produtoId={id}
+          produtoPrecoVarejo={Number(produto.precoVarejo)}
+          controlaEstoquePorVariante={produto.controlaEstoquePorVariante}
+          variantes={variantesSerializadas}
+        />
       </div>
 
       <section>
@@ -45,6 +73,7 @@ export default async function EditarProdutoPage({
               >
                 <span>
                   {movimentacao.tipo} · {movimentacao.quantidade} un.
+                  {movimentacao.produtoVariante ? ` · ${movimentacao.produtoVariante.nome}` : ""}
                   {movimentacao.motivo ? ` · ${movimentacao.motivo}` : ""}
                 </span>
                 <span className="text-slate-500">

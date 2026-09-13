@@ -1,5 +1,18 @@
 import { getEmpresaCatalogo } from "../_lib/empresa";
 import { CatalogoClient } from "./_components/catalogo-client";
+import type { ProdutoCatalogo } from "../_lib/types";
+
+// Card do catálogo não exibe preço/imagem por variante (fora de escopo da
+// primeira versão) — só converte `Decimal` pra `number` mesmo assim, porque
+// `ProdutoCatalogoSerializado` cruza a fronteira Server -> Client e precisa
+// de um objeto plano em qualquer profundidade.
+function serializarVariantes(variantes: ProdutoCatalogo["variantes"]) {
+  return variantes.map((variante) => ({
+    ...variante,
+    precoVarejo: variante.precoVarejo !== null ? Number(variante.precoVarejo) : null,
+    precoAtacado: variante.precoAtacado !== null ? Number(variante.precoAtacado) : null,
+  }));
+}
 
 export default async function CatalogoPage({
   params,
@@ -26,6 +39,7 @@ export default async function CatalogoPage({
     .map((produto) => ({
       ...produto,
       precoVarejo: Number(produto.precoVarejo),
+      variantes: serializarVariantes(produto.variantes),
       precoPromocional: precosPromocionais.get(produto.id),
     }));
 
@@ -36,7 +50,11 @@ export default async function CatalogoPage({
       preco: Number(combo.preco),
       itens: combo.itens.map((item) => ({
         ...item,
-        produto: { ...item.produto, precoVarejo: Number(item.produto.precoVarejo) },
+        produto: {
+          ...item.produto,
+          precoVarejo: Number(item.produto.precoVarejo),
+          variantes: serializarVariantes(item.produto.variantes),
+        },
       })),
       precoPromocional: precosPromocionais.get(combo.id),
     }));
