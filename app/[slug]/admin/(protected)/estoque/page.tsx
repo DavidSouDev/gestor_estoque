@@ -48,6 +48,9 @@ export default async function AdminEstoquePage({
                     Produto
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Variante
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Tipo
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -69,6 +72,9 @@ export default async function AdminEstoquePage({
                   <tr key={movimentacao.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
                     <td className="px-4 py-3 font-semibold text-slate-800">
                       {movimentacao.produto.nome}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {movimentacao.produtoVariante?.nome ?? "—"}
                     </td>
                     <td className="px-4 py-3">
                       <span

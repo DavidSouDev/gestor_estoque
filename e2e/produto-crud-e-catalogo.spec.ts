@@ -30,7 +30,12 @@ test.describe("CRUD de produto e reflexo no catálogo público", () => {
     await page.getByLabel("Estoque").fill("15");
     await page.getByRole("button", { name: "Salvar" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos$`));
+    // Criar redireciona pra tela de edição (onde mora a seção de variantes),
+    // não pra listagem.
+    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
+    await expect(page.getByRole("heading", { name: "Editar produto" })).toBeVisible();
+
+    await page.goto(`/${slug}/admin/produtos`);
     await expect(page.getByRole("link", { name: nomeProduto })).toBeVisible();
     await expect(page.getByText("15 un.")).toBeVisible();
 
@@ -47,8 +52,9 @@ test.describe("CRUD de produto e reflexo no catálogo público", () => {
     await page.getByLabel("Nome").fill(nomeProduto);
     await page.getByLabel("Preço", { exact: true }).fill("10.00");
     await page.getByRole("button", { name: "Salvar" }).click();
-    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos$`));
+    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
 
+    await page.goto(`/${slug}/admin/produtos`);
     await page.getByText("Visível").click();
     await expect(page.getByText("Oculto")).toBeVisible();
 
@@ -64,7 +70,9 @@ test.describe("CRUD de produto e reflexo no catálogo público", () => {
     await page.getByLabel("Nome").fill(nomeProduto);
     await page.getByLabel("Preço", { exact: true }).fill("5.00");
     await page.getByRole("button", { name: "Salvar" }).click();
-    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos$`));
+    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
+
+    await page.goto(`/${slug}/admin/produtos`);
     await expect(page.getByRole("link", { name: nomeProduto })).toBeVisible();
 
     page.once("dialog", (dialog) => dialog.accept());

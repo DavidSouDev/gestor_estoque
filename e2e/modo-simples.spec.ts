@@ -69,7 +69,7 @@ test.describe("Modo simples de interface", () => {
     await page.getByRole("button", { name: "Próximo" }).click();
 
     // Passo 4: foto (pulado)
-    await expect(page.getByRole("heading", { name: "Quer adicionar uma foto?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quer adicionar fotos?" })).toBeVisible();
     await page.getByRole("button", { name: "Pular" }).click();
 
     // Passo 5: confirmação

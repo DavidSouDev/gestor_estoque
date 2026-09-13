@@ -8,6 +8,7 @@ import { movimentacaoEstoqueService } from "@/app/services/movimentacao-estoque.
 import { promocaoService } from "@/app/services/promocao.service";
 import { comboService } from "@/app/services/combo.service";
 import { uploadImage, deleteImage, UploadError } from "@/lib/storage/r2";
+import { sincronizarFotosDoProduto } from "./sincronizar-fotos-produto";
 
 export interface SimplesActionState {
   error?: string;
@@ -34,14 +35,9 @@ export async function uploadImagemProduto(
   }
 }
 
-export async function removerImagemProduto(slug: string, url: string): Promise<void> {
-  const auth = await requireAdminSession(slug);
-  await deleteImage(url, auth.empresaId);
-}
-
 export async function criarProdutoSimples(
   slug: string,
-  data: { nome: string; precoVarejo: number; estoque: number; fotoCapa?: string }
+  data: { nome: string; precoVarejo: number; estoque: number; fotos: string[] }
 ): Promise<SimplesActionState> {
   const auth = await requireAdminSession(slug);
 
@@ -57,16 +53,19 @@ export async function criarProdutoSimples(
 
   const estoque = Number.isFinite(data.estoque) && data.estoque >= 0 ? data.estoque : 0;
   const codigo = await produtoService.generateUniqueCodigo(auth.empresaId, nome);
+  const fotoCapa = data.fotos[0]?.trim() || undefined;
+
+  let produto;
 
   try {
-    await produtoService.create({
+    produto = await produtoService.create({
       empresaId: auth.empresaId,
       codigo,
       nome,
       precoVarejo: data.precoVarejo,
       precoAtacado: data.precoVarejo,
       estoque,
-      fotoCapa: data.fotoCapa?.trim() || undefined,
+      fotoCapa,
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -75,6 +74,8 @@ export async function criarProdutoSimples(
 
     throw error;
   }
+
+  await sincronizarFotosDoProduto(produto.id, data.fotos, auth.empresaId);
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);
@@ -208,7 +209,7 @@ export async function criarComboSimples(
 export async function atualizarProdutoSimples(
   slug: string,
   id: string,
-  data: { nome: string; precoVarejo: number; estoque: number; fotoCapa?: string }
+  data: { nome: string; precoVarejo: number; estoque: number; fotos: string[] }
 ): Promise<SimplesActionState> {
   const auth = await requireAdminSession(slug);
   const produto = await produtoService.findById(id);
@@ -228,14 +229,17 @@ export async function atualizarProdutoSimples(
   }
 
   const estoque = Number.isFinite(data.estoque) && data.estoque >= 0 ? data.estoque : 0;
+  const fotoCapaNova = data.fotos[0]?.trim() || undefined;
 
   await produtoService.update(id, {
     nome,
     precoVarejo: data.precoVarejo,
     precoAtacado: data.precoVarejo,
     estoque,
-    fotoCapa: data.fotoCapa?.trim() || undefined,
+    fotoCapa: fotoCapaNova,
   });
+
+  await sincronizarFotosDoProduto(id, data.fotos, auth.empresaId, produto.fotoCapa);
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);
@@ -253,9 +257,15 @@ export async function removerProdutoSimples(slug: string, id: string): Promise<S
 
   await produtoService.delete(id);
 
-  if (produto.fotoCapa) {
-    await deleteImage(produto.fotoCapa, auth.empresaId);
-  }
+  const imagensParaRemover = [
+    ...(produto.fotoCapa ? [produto.fotoCapa] : []),
+    // Onde o cascade do banco apaga as linhas de ProdutoVariante/Imagem, o
+    // bucket R2 não sabe nada disso — precisa ser limpo explicitamente aqui,
+    // senão os objetos ficam órfãos.
+    ...produto.variantes.flatMap((variante) => variante.imagens.map((imagem) => imagem.url)),
+  ];
+
+  await Promise.all(imagensParaRemover.map((url) => deleteImage(url, auth.empresaId)));
 
   revalidatePath(`/${slug}/admin`);
   revalidatePath(`/${slug}`);

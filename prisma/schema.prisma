@@ -190,7 +190,17 @@ model Produto {
   visivelCatalogo Boolean @default(true)
   ativo           Boolean @default(true)
 
+  // Fase "variantes de produto": quando true, o saldo autoritativo de estoque
+  // passa a ser a SOMA das variantes (cada uma com seu próprio `estoque`), e
+  // `estoque` aqui vira um espelho mantido em sincronia a cada escrita em
+  // variante (mesma transação, nunca recalculado por leitura+soma depois).
+  // Quando false (padrão), `estoque` continua sendo o único saldo, como antes
+  // desta feature existir — produtos sem variantes não mudam de
+  // comportamento.
+  controlaEstoquePorVariante Boolean @default(false)
+
   imagens       ProdutoImagem[]
+  variantes     ProdutoVariante[]
   comboItens    ComboItem[]
   promocoes     PromocaoItem[]
   movimentacoes MovimentacaoEstoque[]
@@ -201,6 +211,68 @@ model Produto {
 
   @@unique([empresaId, codigo])
   @@index([empresaId, ativo, visivelCatalogo, ordemCatalogo])
+}
+
+// Variante do produto (ex: tamanho + estampa de um conjunto infantil).
+// Atributos são livres (ver ProdutoVarianteAtributo) para servir qualquer
+// combinação que o lojista queira, não só tamanho/cor fixos.
+model ProdutoVariante {
+  id String @id @default(uuid())
+
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  nome String // rótulo de exibição, ex: "P - Estampa A"
+
+  // Null = herda o preço do produto. Ver produto-variante.service.ts.
+  precoVarejo  Decimal? @db.Decimal(10, 2)
+  precoAtacado Decimal? @db.Decimal(10, 2)
+
+  // Só é o saldo autoritativo quando produto.controlaEstoquePorVariante = true;
+  // fora disso o campo existe mas não é lido/exibido.
+  estoque Int @default(0)
+
+  ordem Int     @default(0)
+  ativo Boolean @default(true)
+
+  atributos     ProdutoVarianteAtributo[]
+  imagens       ProdutoVarianteImagem[]
+  movimentacoes MovimentacaoEstoque[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([produtoId, ordem])
+}
+
+model ProdutoVarianteAtributo {
+  id String @id @default(uuid())
+
+  varianteId String
+  variante   ProdutoVariante @relation(fields: [varianteId], references: [id], onDelete: Cascade)
+
+  nome  String // ex: "Tamanho"
+  valor String // ex: "P"
+  ordem Int    @default(0)
+
+  @@unique([varianteId, nome])
+}
+
+model ProdutoVarianteImagem {
+  id String @id @default(uuid())
+
+  varianteId String
+  variante   ProdutoVariante @relation(fields: [varianteId], references: [id], onDelete: Cascade)
+
+  url String
+  alt String?
+
+  ordem Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([varianteId])
 }
 
 model ProdutoImagem {
@@ -309,6 +381,13 @@ model MovimentacaoEstoque {
   produtoId String
   produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
+  // Preenchido só quando o produto controla estoque por variante — nesse caso
+  // a movimentação incide sobre o saldo da VARIANTE, e `produtoId` acima
+  // continua preenchido (denormalizado) para não quebrar as consultas
+  // existentes por produto/empresa, que não precisam de mais um join.
+  produtoVarianteId String?
+  produtoVariante   ProdutoVariante? @relation(fields: [produtoVarianteId], references: [id], onDelete: Cascade)
+
   usuarioId String
   usuario   Usuario @relation(fields: [usuarioId], references: [id])
 
@@ -321,6 +400,7 @@ model MovimentacaoEstoque {
   createdAt DateTime @default(now())
 
   @@index([produtoId])
+  @@index([produtoVarianteId])
   @@index([usuarioId])
 }
 

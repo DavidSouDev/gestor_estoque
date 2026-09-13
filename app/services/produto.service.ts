@@ -15,6 +15,7 @@ export interface CreateProdutoDTO {
   precoAtacado: number;
 
   estoque?: number;
+  controlaEstoquePorVariante?: boolean;
 
   fotoCapa?: string | null;
 
@@ -37,6 +38,7 @@ export interface UpdateProdutoDTO {
   precoAtacado?: number;
 
   estoque?: number;
+  controlaEstoquePorVariante?: boolean;
 
   fotoCapa?: string | null;
 
@@ -48,6 +50,27 @@ export interface UpdateProdutoDTO {
   visivelCatalogo?: boolean;
 }
 
+// Ordenado por `ordem` e filtrado a `ativo`/não-excluída — mesmo critério em
+// toda leitura pública de variantes (catálogo e detalhe), pra não vazar
+// variante desativada/apagada só porque ela ainda tem linhas no banco.
+const VARIANTE_PUBLICA_INCLUDE = {
+  where: {
+    ativo: true,
+    deletedAt: null,
+  },
+  orderBy: {
+    ordem: "asc",
+  },
+  include: {
+    atributos: {
+      orderBy: { ordem: "asc" },
+    },
+    imagens: {
+      orderBy: { ordem: "asc" },
+    },
+  },
+} as const;
+
 export const PRODUTO_CATALOGO_SELECT = {
   id: true,
   empresaId: true,
@@ -57,10 +80,12 @@ export const PRODUTO_CATALOGO_SELECT = {
   categoria: true,
   precoVarejo: true,
   estoque: true,
+  controlaEstoquePorVariante: true,
   fotoCapa: true,
   ordemCatalogo: true,
   destaque: true,
   imagens: true,
+  variantes: VARIANTE_PUBLICA_INCLUDE,
 } as const;
 
 class ProdutoService {
@@ -166,6 +191,20 @@ class ProdutoService {
       },
       include: {
         imagens: true,
+        // Admin precisa ver as variantes ativas (não as apagadas) pra montar o
+        // seletor de variante no formulário de movimentação de estoque, e o
+        // assistente do modo SIMPLES precisa de `atributos`/`imagens` pra
+        // reconhecer e reidratar as variantes "automáticas" (uma foto = uma
+        // variante, zero atributos) que ele mesmo cria — ver
+        // produto-variante.service.ts `sincronizarAutomaticas`.
+        variantes: {
+          where: { deletedAt: null },
+          orderBy: { ordem: "asc" },
+          include: {
+            atributos: { orderBy: { ordem: "asc" } },
+            imagens: { orderBy: { ordem: "asc" } },
+          },
+        },
         promocoes: {
           include: {
             promocao: true,
@@ -186,6 +225,17 @@ class ProdutoService {
       },
       include: {
         imagens: true,
+        // Tela de edição mostra TODAS as variantes não-apagadas (inclusive
+        // desativadas), pra o lojista poder reativá-las — só o catálogo
+        // público filtra por `ativo`.
+        variantes: {
+          where: { deletedAt: null },
+          orderBy: { ordem: "asc" },
+          include: {
+            atributos: { orderBy: { ordem: "asc" } },
+            imagens: { orderBy: { ordem: "asc" } },
+          },
+        },
         movimentacoes: {
           include: {
             usuario: {
@@ -224,6 +274,7 @@ class ProdutoService {
         precoAtacado: data.precoAtacado,
 
         estoque: data.estoque ?? 0,
+        controlaEstoquePorVariante: data.controlaEstoquePorVariante ?? false,
 
         fotoCapa: data.fotoCapa,
 

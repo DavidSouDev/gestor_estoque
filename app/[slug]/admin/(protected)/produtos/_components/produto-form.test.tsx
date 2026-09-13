@@ -17,13 +17,14 @@ function buildProduto(overrides: Partial<ProdutoAdminDetalhe> = {}): ProdutoAdmi
     fotoCapa: "https://exemplo.com/foto.jpg",
     destaque: true,
     visivelCatalogo: false,
+    variantes: [],
     ...overrides,
   } as unknown as ProdutoAdminDetalhe;
 }
 
 describe("ProdutoForm", () => {
   it("renderiza campos vazios com valores padrão ao criar um novo produto", () => {
-    render(<ProdutoForm action={vi.fn().mockResolvedValue({})} />);
+    render(<ProdutoForm slug="loja" action={vi.fn().mockResolvedValue({})} />);
 
     expect(screen.getByLabelText("Nome")).toHaveValue("");
     expect(screen.getByLabelText("Nome")).toBeRequired();
@@ -32,18 +33,22 @@ describe("ProdutoForm", () => {
   });
 
   it("preenche os campos com os dados do produto ao editar", () => {
-    render(<ProdutoForm action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />);
+    render(<ProdutoForm slug="loja" action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />);
 
     expect(screen.getByLabelText("Nome")).toHaveValue("Arroz Branco 5kg");
     expect(screen.getByLabelText("Preço")).toHaveValue(25);
     expect(screen.getByLabelText("Estoque")).toHaveValue(10);
   });
 
+  it("exibe a foto de capa existente pré-carregada na galeria de fotos, sempre visível", () => {
+    render(<ProdutoForm slug="loja" action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />);
+
+    expect(screen.getByDisplayValue("https://exemplo.com/foto.jpg")).toHaveAttribute("name", "imagemUrl");
+  });
+
   it("exibe os campos avançados dentro da seção colapsável ao expandir", async () => {
     const user = userEvent.setup();
-    const { container } = render(
-      <ProdutoForm action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />
-    );
+    render(<ProdutoForm slug="loja" action={vi.fn().mockResolvedValue({})} produto={buildProduto()} />);
 
     await user.click(screen.getByText("Mais opções"));
 
@@ -51,21 +56,13 @@ describe("ProdutoForm", () => {
     expect(screen.getByLabelText("Categoria")).toHaveValue("Mercearia");
     expect(screen.getByLabelText("Descrição")).toHaveValue("Arroz tipo 1");
     expect(screen.getByLabelText("Preço atacado")).toHaveValue(22);
-    expect(container.querySelector('input[name="fotoCapa"]')).toHaveValue(
-      "https://exemplo.com/foto.jpg"
-    );
-    expect(screen.getByAltText("Prévia da foto do produto")).toHaveAttribute(
-      "src",
-      "https://exemplo.com/foto.jpg"
-    );
-    expect(screen.getByLabelText("Foto")).toHaveAttribute("type", "file");
     expect(screen.getByLabelText("Destaque")).toBeChecked();
     expect(screen.getByLabelText("Visível no catálogo")).not.toBeChecked();
   });
 
   it("usa 'Geral' como categoria padrão e catálogo visível para um novo produto", async () => {
     const user = userEvent.setup();
-    render(<ProdutoForm action={vi.fn().mockResolvedValue({})} />);
+    render(<ProdutoForm slug="loja" action={vi.fn().mockResolvedValue({})} />);
 
     await user.click(screen.getByText("Mais opções"));
 
@@ -78,7 +75,7 @@ describe("ProdutoForm", () => {
     const action = vi.fn().mockResolvedValue({ error: "Nome já utilizado" });
     const user = userEvent.setup();
 
-    render(<ProdutoForm action={action} />);
+    render(<ProdutoForm slug="loja" action={action} />);
 
     await user.type(screen.getByLabelText("Nome"), "Produto Teste");
     await user.type(screen.getByLabelText("Preço"), "10");

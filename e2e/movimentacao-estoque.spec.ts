@@ -25,7 +25,9 @@ async function criarProduto(page: Page, slug: string, nome: string, estoqueInici
   await page.getByLabel("Preço", { exact: true }).fill("10.00");
   await page.getByLabel("Estoque").fill(estoqueInicial);
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos$`));
+  // Criar redireciona pra tela de edição (onde mora a seção de variantes),
+  // não pra listagem.
+  await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
 }
 
 test.describe("Movimentação de estoque", () => {

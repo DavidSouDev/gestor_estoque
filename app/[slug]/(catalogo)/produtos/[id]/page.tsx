@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getEmpresaCatalogo } from "../../../_lib/empresa";
 import { ProdutoDetalhe } from "../../_components/produto-detalhe";
-import { instagramLink, whatsappLink } from "@/lib/contato";
-import { formatCurrency } from "@/lib/format";
+import { instagramLink } from "@/lib/contato";
 
 export default async function ProdutoDetalhePage({
   params,
@@ -31,15 +30,13 @@ export default async function ProdutoDetalhePage({
   const produto = {
     ...produtoEncontrado,
     precoVarejo: Number(produtoEncontrado.precoVarejo),
+    variantes: produtoEncontrado.variantes.map((variante) => ({
+      ...variante,
+      precoVarejo: variante.precoVarejo !== null ? Number(variante.precoVarejo) : null,
+      precoAtacado: variante.precoAtacado !== null ? Number(variante.precoAtacado) : null,
+    })),
   };
 
-  const emPromocao = precoPromocional !== undefined && precoPromocional < produto.precoVarejo;
-  const precoFinal = emPromocao ? precoPromocional : produto.precoVarejo;
-
-  const mensagemWhatsapp = `Olá! Quero comprar o produto "${produto.nome}" (${formatCurrency(
-    precoFinal
-  )}) da loja ${empresa.nome}.`;
-  const linkWhatsapp = empresa.telefone ? whatsappLink(empresa.telefone, mensagemWhatsapp) : null;
   const linkInstagram = empresa.instagram ? instagramLink(empresa.instagram) : null;
 
   return (
@@ -47,7 +44,8 @@ export default async function ProdutoDetalhePage({
       slug={slug}
       produto={produto}
       precoPromocional={precoPromocional}
-      linkWhatsapp={linkWhatsapp}
+      telefoneEmpresa={empresa.telefone}
+      nomeEmpresa={empresa.nome}
       linkInstagram={linkInstagram}
     />
   );

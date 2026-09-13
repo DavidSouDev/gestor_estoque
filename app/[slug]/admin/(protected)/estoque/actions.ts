@@ -18,6 +18,7 @@ export async function registrarMovimentacao(
   const auth = await requireAdminSession(slug);
 
   const produtoId = String(formData.get("produtoId") ?? "");
+  const produtoVarianteId = String(formData.get("produtoVarianteId") ?? "").trim() || undefined;
   const tipo = String(formData.get("tipo") ?? "") as TipoMovimentacao;
   const quantidade = Number(formData.get("quantidade"));
   const motivo = String(formData.get("motivo") ?? "").trim() || undefined;
@@ -38,9 +39,14 @@ export async function registrarMovimentacao(
     return { error: "Produto não encontrado." };
   }
 
+  if (produto.controlaEstoquePorVariante && !produtoVarianteId) {
+    return { error: "Este produto controla estoque por variante — selecione uma variante." };
+  }
+
   try {
     await movimentacaoEstoqueService.create({
       produtoId,
+      produtoVarianteId,
       usuarioId: auth.sub,
       empresaId: auth.empresaId,
       tipo,

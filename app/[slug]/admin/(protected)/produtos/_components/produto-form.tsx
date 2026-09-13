@@ -2,9 +2,11 @@
 
 import { useActionState } from "react";
 import type { ProdutoFormState } from "../actions";
+import { uploadImagemProduto } from "../actions";
 import type { ProdutoAdminDetalhe } from "../../../_lib/types";
+import { fotosIniciaisDoProduto } from "../../../_lib/fotos-iniciais";
 import { CollapsibleSection } from "../../_components/collapsible-section";
-import { ImageUploadField } from "@/app/_components/image-upload-field";
+import { MultiImageUploadField } from "@/app/_components/multi-image-upload-field";
 
 const INPUT_CLASS =
   "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-800/20";
@@ -46,9 +48,11 @@ function Field({
 }
 
 export function ProdutoForm({
+  slug,
   action,
   produto,
 }: {
+  slug: string;
   action: (state: ProdutoFormState, formData: FormData) => Promise<ProdutoFormState>;
   produto?: ProdutoAdminDetalhe;
 }) {
@@ -68,6 +72,37 @@ export function ProdutoForm({
           required
         />
         <Field label="Estoque" name="estoque" type="number" defaultValue={produto?.estoque ?? 0} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-slate-600">Fotos</span>
+        <MultiImageUploadField
+          slug={slug}
+          uploadAction={uploadImagemProduto}
+          initialUrls={fotosIniciaisDoProduto(produto)}
+          fieldName="imagemUrl"
+        />
+        <p className="text-xs text-slate-400">
+          Escolha mais de uma foto de uma vez e cada uma vira uma variante que o cliente pode
+          selecionar no catálogo — útil pra vender o mesmo produto em tamanhos, estampas ou cores
+          diferentes.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            name="controlaEstoquePorVariante"
+            defaultChecked={produto?.controlaEstoquePorVariante ?? false}
+          />
+          Ativar controle por variante
+        </label>
+        <p className="text-xs text-slate-400">
+          Ative se cada variante (tamanho, estampa, etc.) tiver seu próprio saldo de estoque. O
+          campo &ldquo;Estoque&rdquo; acima passa a ser a soma das variantes. Ativar não
+          redistribui o estoque atual — cadastre o estoque de cada variante depois de salvar.
+        </p>
       </div>
 
       <CollapsibleSection>
@@ -100,25 +135,6 @@ export function ProdutoForm({
           defaultValue={produto ? Number(produto.precoAtacado) : undefined}
           placeholder="Usa o preço acima se deixar em branco"
         />
-        <div className="flex flex-col gap-1">
-          <label htmlFor="fotoCapaFile" className="text-sm font-medium text-slate-600">
-            Foto
-          </label>
-          <input type="hidden" name="fotoCapa" defaultValue={produto?.fotoCapa ?? ""} />
-          <ImageUploadField
-            id="fotoCapaFile"
-            name="fotoCapaFile"
-            defaultPreviewUrl={produto?.fotoCapa}
-            aspectRatio={1}
-            inputClassName={INPUT_CLASS}
-            previewClassName="h-24 w-24 rounded-xl object-cover"
-            alt="Prévia da foto do produto"
-          />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" name="removerFotoCapa" />
-            Remover imagem
-          </label>
-        </div>
 
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm text-slate-600">

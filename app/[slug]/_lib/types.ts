@@ -6,9 +6,17 @@ export type ComboCatalogo = Awaited<ReturnType<typeof comboService.listCatalogo>
 
 // Client Components não aceitam `Decimal` do Prisma como prop (só objetos
 // planos) — essas variantes trocam os campos monetários por `number` para
-// cruzar a fronteira Server -> Client no catálogo público.
-export type ProdutoCatalogoSerializado = Omit<ProdutoCatalogo, "precoVarejo"> & {
+// cruzar a fronteira Server -> Client no catálogo público. `variantes` tem
+// os mesmos dois campos (`precoVarejo`/`precoAtacado`), só que opcionais
+// (`null` = herda o preço do produto).
+export type ProdutoCatalogoSerializado = Omit<ProdutoCatalogo, "precoVarejo" | "variantes"> & {
   precoVarejo: number;
+  variantes: Array<
+    Omit<ProdutoCatalogo["variantes"][number], "precoVarejo" | "precoAtacado"> & {
+      precoVarejo: number | null;
+      precoAtacado: number | null;
+    }
+  >;
 };
 
 export type ComboCatalogoSerializado = Omit<ComboCatalogo, "preco" | "itens"> & {
