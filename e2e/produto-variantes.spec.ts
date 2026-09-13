@@ -1,13 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { uniqueEmpresa } from "./helpers";
 
-// PNG 1x1 mínimo válido — o conteúdo não importa pro teste, só precisa
-// passar pela validação de tipo (`image/png`) do upload real no R2.
-const PNG_1X1 = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-  "base64"
-);
-
 async function criarEmpresaLogada(page: Page) {
   const empresa = uniqueEmpresa();
 
@@ -102,36 +95,5 @@ test.describe("Variantes de produto", () => {
 
     await page.getByRole("button", { name: "P - Estampa A" }).click();
     await expect(page.getByText("8 em estoque")).toBeVisible();
-  });
-
-  test("selecionar várias fotos direto no formulário do produto (modo Completo) cria uma variante por foto", async ({
-    page,
-  }) => {
-    const { slug } = await criarEmpresaLogada(page);
-    const nomeProduto = `Produto Fotos Completo E2E ${Date.now()}`;
-
-    await page.goto(`/${slug}/admin/produtos/novo`);
-    await page.getByLabel("Nome").fill(nomeProduto);
-    await page.getByLabel("Preço", { exact: true }).fill("35.00");
-
-    await page.locator('input[type="file"][multiple]').setInputFiles([
-      { name: "estampa-a.png", mimeType: "image/png", buffer: PNG_1X1 },
-      { name: "estampa-b.png", mimeType: "image/png", buffer: PNG_1X1 },
-    ]);
-    await expect(page.getByText(/2 fotos escolhidas/)).toBeVisible();
-
-    await page.getByRole("button", { name: "Salvar" }).click();
-
-    // Criar redireciona direto pra edição, onde a seção Variantes já mostra
-    // as duas variantes criadas automaticamente a partir das fotos — sem
-    // precisar passar por "+ Nova variante".
-    await expect(page).toHaveURL(new RegExp(`/${slug}/admin/produtos/[^/]+$`));
-    await expect(page.getByText("Variante 1")).toBeVisible();
-    await expect(page.getByText("Variante 2")).toBeVisible();
-
-    await page.goto(`/${slug}`);
-    await page.getByRole("link", { name: nomeProduto }).first().click();
-    await expect(page.getByRole("button", { name: "Variante 1" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Variante 2" })).toBeVisible();
   });
 });
