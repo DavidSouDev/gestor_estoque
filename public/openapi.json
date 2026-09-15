@@ -16,7 +16,11 @@
     { "name": "Produtos" },
     { "name": "Combos" },
     { "name": "Promoções" },
-    { "name": "Movimentações" }
+    { "name": "Movimentações" },
+    { "name": "Assinaturas" },
+    { "name": "Termos" },
+    { "name": "Webhooks" },
+    { "name": "Cron" }
   ],
   "paths": {
     "/api/auth/login": {
@@ -50,12 +54,16 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Empresa" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Empresas"],
-        "summary": "Criar empresa (cadastro público, self-service)",
+        "summary": "Provisionar empresa (restrito a SUPERADMIN)",
+        "description": "NÃO é o cadastro público. O cadastro público (self-service) cria empresa + usuário atomicamente e já registra o aceite dos Termos de Uso — é feito por Server Action (`app/registro/actions.ts`), fora desta API REST. Esta rota é o provisionamento administrativo de uma empresa fora desse fluxo, restrito a usuários com role SUPERADMIN (verificada no banco a cada request, nunca a role do JWT).",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EmpresaCreate" } } }
@@ -64,6 +72,12 @@
           "201": {
             "description": "Empresa criada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": {
+            "description": "Termos de uso pendentes de aceite, ou ação não permitida (requer role SUPERADMIN revalidada no banco).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -81,6 +95,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -99,7 +115,10 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Empresa" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
@@ -110,6 +129,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -214,13 +235,16 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Usuario" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Usuários"],
-        "summary": "Criar usuário (cadastro público, self-service)",
-        "description": "Cada empresa só pode ter um usuário (administrador). Retorna 409 se a empresa informada já tiver um cadastrado.",
+        "summary": "Provisionar usuário para uma empresa existente (restrito a SUPERADMIN)",
+        "description": "NÃO é o cadastro público. O cadastro público (self-service) cria empresa + usuário juntos e já registra o aceite dos Termos de Uso — é feito por Server Action (`app/registro/actions.ts`), fora desta API REST. Esta rota é o provisionamento administrativo de um usuário/administrador para uma empresa já existente, restrito a role SUPERADMIN (verificada no banco a cada request). Cada empresa só pode ter um usuário (administrador); retorna 409 se a empresa informada já tiver um cadastrado.",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsuarioCreate" } } }
@@ -229,6 +253,13 @@
           "201": {
             "description": "Usuário criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": {
+            "description": "Termos de uso pendentes de aceite, ou ação não permitida (requer role SUPERADMIN revalidada no banco).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "409": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
@@ -247,6 +278,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -254,6 +287,7 @@
       "patch": {
         "tags": ["Usuários"],
         "summary": "Atualizar usuário (somente da própria empresa)",
+        "description": "Trocar a senha exige `senhaAtual` no corpo (confirma que quem troca é quem já a conhece, não só quem carrega um token válido). Retorna 403 se `senhaAtual` estiver incorreta, e 409 se o novo email já estiver em uso.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -264,8 +298,15 @@
             "description": "Usuário atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usuario" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": {
+            "description": "Termos de uso pendentes de aceite, ou `senhaAtual` incorreta.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
           "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
@@ -276,6 +317,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -292,6 +335,8 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Produto" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
@@ -309,7 +354,10 @@
             "description": "Produto criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -326,6 +374,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -343,7 +393,10 @@
             "description": "Produto atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Produto" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -355,6 +408,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -371,6 +426,8 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Combo" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
@@ -388,7 +445,10 @@
             "description": "Combo criado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -405,6 +465,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -422,7 +484,10 @@
             "description": "Combo atualizado",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Combo" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -434,6 +499,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -450,13 +517,15 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Promocao" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Promoções"],
         "summary": "Criar promoção",
-        "description": "O empresaId é sempre o da empresa do usuário autenticado; qualquer valor enviado no corpo é ignorado.",
+        "description": "O empresaId é sempre o da empresa do usuário autenticado; qualquer valor enviado no corpo é ignorado. Cada item de `itens` referencia um produtoId OU comboId — os que não pertencerem à própria empresa são descartados; se nenhum item válido sobrar, a resposta é 400.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -467,7 +536,10 @@
             "description": "Promoção criada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -484,6 +556,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -501,7 +575,10 @@
             "description": "Promoção atualizada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Promocao" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -513,6 +590,8 @@
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -529,13 +608,15 @@
             "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       },
       "post": {
         "tags": ["Movimentações"],
         "summary": "Registrar movimentação (ajusta o estoque do produto)",
-        "description": "O usuarioId é sempre o do usuário autenticado; o produto precisa pertencer à empresa do usuário autenticado.",
+        "description": "O usuarioId é sempre o do usuário autenticado; o produto precisa pertencer à empresa do usuário autenticado. ENTRADA soma, SAIDA subtrai (409 se o resultado ficar negativo), AJUSTE define o estoque exatamente.",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
@@ -546,7 +627,12 @@
             "description": "Movimentação registrada",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } }
           },
+          "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
       }
@@ -563,6 +649,8 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MovimentacaoEstoque" } } }
           },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
         }
@@ -570,12 +658,99 @@
       "delete": {
         "tags": ["Movimentações"],
         "summary": "Remover movimentação (somente da própria empresa)",
+        "description": "Reverte o efeito da movimentação no estoque do produto. AJUSTE não pode ser removido (422): o valor anterior não fica registrado, então a exclusão é recusada — a correção correta é registrar um novo ajuste. ENTRADA cuja quantidade já foi parcialmente consumida por uma SAIDA posterior também é recusada (409), para não deixar o estoque negativo.",
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": { "$ref": "#/components/responses/Message" },
           "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
           "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/assinaturas/checkout": {
+      "post": {
+        "tags": ["Assinaturas"],
+        "summary": "Iniciar checkout de pagamento da assinatura",
+        "description": "Único ponto de entrada de pagamento do produto. O corpo do request é ignorado por completo — o empresaId é sempre o da empresa do usuário autenticado, nunca aceito do chamador. Diferente das demais rotas protegidas, esta rota deliberadamente permite empresa com assinatura suspensa (é o único jeito de o cliente bloqueado voltar a pagar), então NÃO retorna 402 — mas ainda respeita o bloqueio por termos de uso pendentes. Hoje não é consumida pela UI (o painel usa a Server Action `iniciarPagamento` direto, sem HTTP); é o endpoint canônico para chamadores que têm um Bearer token.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "URL de checkout gerada com sucesso",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/TermosPendentes" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" },
+          "502": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/termos": {
+      "post": {
+        "tags": ["Termos"],
+        "summary": "Publicar nova versão dos Termos de Uso (restrito a SUPERADMIN)",
+        "description": "Publicar é sempre um INSERT — não existe atualização nem remoção de uma versão já publicada; corrigir o texto significa publicar a versão seguinte (o número de versão é monotônico e único). Restrito a role SUPERADMIN, verificada no banco a cada request. Sem tela própria: o único jeito de chamar esta rota hoje é diretamente por HTTP (curl, Postman, script).",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TermoPublicarInput" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Termos publicados",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TermoPublicado" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/AssinaturaSuspensa" },
+          "403": {
+            "description": "Termos de uso pendentes de aceite, ou ação não permitida (requer role SUPERADMIN revalidada no banco).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "409": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/webhooks/asaas": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Ingestão de webhooks de pagamento do Asaas",
+        "description": "Endpoint público (não usa Bearer JWT) chamado pelo gateway de pagamento Asaas, não por clientes desta API. Autentica por comparação resistente a tempo de um token compartilhado, ecoado literalmente no header `asaas-access-token` (configurado junto com a URL do webhook no Asaas). Responde SEMPRE 200 com corpo vazio para entregas autenticadas — novo, duplicado, desconhecido ou malformado incluídos — exceto quando a persistência do evento falha (500), caso em que o Asaas deve reenviar. Não documentado com schema de request/response porque o Asaas não versiona nem assina o formato do envelope.",
+        "parameters": [
+          {
+            "name": "asaas-access-token",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Token compartilhado, ecoado literalmente pelo Asaas em toda entrega."
+          }
+        ],
+        "responses": {
+          "200": { "description": "Entrega aceita (autenticada; processamento real acontece de forma assíncrona)." },
+          "401": { "description": "Header `asaas-access-token` ausente ou inválido." },
+          "500": { "description": "Falha ao persistir o evento — o Asaas deve reenviar." }
+        }
+      }
+    },
+    "/api/cron/reconciliacao-diaria": {
+      "get": {
+        "tags": ["Cron"],
+        "summary": "Worker diário de reconciliação de acesso por assinatura",
+        "description": "Rede de segurança para empresas cuja assinatura muda de status sem nenhum request autenticado acontecer (ex.: trial vencido cujo admin nunca mais fez login). Não usa Bearer JWT: autentica por comparação resistente a tempo do header `Authorization: Bearer <CRON_SECRET>` (o formato que o Vercel Cron envia automaticamente, também reproduzível por qualquer agendador externo). É o único caminho do sistema que opera sobre todas as empresas de uma vez, e tem um freio de segurança que suprime bloqueios em massa acima de um limiar, registrando a anomalia sem aplicá-los.",
+        "security": [{ "cronSecret": [] }],
+        "responses": {
+          "200": {
+            "description": "Execução concluída (ainda que alguma empresa individual tenha falhado — ver `erros`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReconciliacaoResultado" } } }
+          },
+          "401": { "description": "Header `Authorization: Bearer <CRON_SECRET>` ausente ou inválido." }
         }
       }
     }
@@ -587,6 +762,11 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": "Token obtido em POST /api/auth/login. Envie como 'Authorization: Bearer <token>'."
+      },
+      "cronSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Valor de CRON_SECRET compartilhado com o agendador. NÃO é um JWT de sessão — é um segredo estático, comparado no servidor com hash resistente a timing, apenas no mesmo formato de header 'Authorization: Bearer <segredo>'."
       }
     },
     "parameters": {
@@ -604,6 +784,14 @@
       },
       "Error": {
         "description": "Erro",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "AssinaturaSuspensa": {
+        "description": "Assinatura suspensa por falta de pagamento (402, e não 403: pagar resolve).",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "TermosPendentes": {
+        "description": "Termos de uso pendentes de aceite (403). Bloqueia qualquer rota autenticada até o aceite, mesmo com token e assinatura válidos.",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       }
     },
@@ -627,6 +815,17 @@
           "descricao": { "type": "string", "nullable": true },
           "telefone": { "type": "string", "nullable": true },
           "instagram": { "type": "string", "nullable": true },
+          "cpfCnpj": { "type": "string", "nullable": true, "description": "Só dígitos. Único no banco; obrigatório no cadastro público, nulo em contas anteriores à trava (D-01)." },
+          "primaryColor": { "type": "string", "description": "Cor de marca em hex. Default '#18181b'." },
+          "accentColor": { "type": "string", "description": "Cor de destaque em hex. Default '#f59e0b'." },
+          "modoInterface": { "type": "string", "enum": ["COMPLETO", "SIMPLES"] },
+          "acessoAte": { "type": "string", "format": "date-time", "nullable": true, "description": "Fato de billing. Fonte da verdade do acesso, junto com trialFim/canceladoEm/acessoVitalicio." },
+          "trialFim": { "type": "string", "format": "date-time", "nullable": true },
+          "canceladoEm": { "type": "string", "format": "date-time", "nullable": true },
+          "acessoVitalicio": { "type": "boolean" },
+          "ultimoStatusAuditado": { "type": "string", "nullable": true, "enum": ["TRIAL", "EM_DIA", "CARENCIA", "BLOQUEADO", "CANCELADO"], "description": "Bookkeeping de auditoria do worker de reconciliação. NÃO é fonte da verdade de acesso." },
+          "asaasCustomerId": { "type": "string", "nullable": true },
+          "asaasSubscriptionId": { "type": "string", "nullable": true },
           "createdAt": { "type": "string", "format": "date-time" },
           "updatedAt": { "type": "string", "format": "date-time" },
           "deletedAt": { "type": "string", "format": "date-time", "nullable": true }
@@ -642,7 +841,9 @@
           "banner": { "type": "string" },
           "descricao": { "type": "string" },
           "telefone": { "type": "string" },
-          "instagram": { "type": "string" }
+          "instagram": { "type": "string" },
+          "primaryColor": { "type": "string" },
+          "accentColor": { "type": "string" }
         }
       },
       "EmpresaUpdate": {
@@ -654,7 +855,10 @@
           "banner": { "type": "string" },
           "descricao": { "type": "string" },
           "telefone": { "type": "string" },
-          "instagram": { "type": "string" }
+          "instagram": { "type": "string" },
+          "primaryColor": { "type": "string" },
+          "accentColor": { "type": "string" },
+          "modoInterface": { "type": "string", "enum": ["COMPLETO", "SIMPLES"] }
         }
       },
       "EmpresaResumo": {
@@ -667,14 +871,16 @@
       },
       "ProdutoCatalogo": {
         "type": "object",
-        "description": "Versão pública e filtrada do produto, sem precoAtacado, estoque ou dados internos.",
+        "description": "Versão pública e filtrada do produto, sem precoAtacado ou outros dados internos.",
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "empresaId": { "type": "string", "format": "uuid" },
           "codigo": { "type": "string" },
           "nome": { "type": "string" },
           "descricao": { "type": "string", "nullable": true },
+          "categoria": { "type": "string" },
           "precoVarejo": { "type": "number", "format": "double" },
+          "estoque": { "type": "integer" },
           "fotoCapa": { "type": "string", "nullable": true },
           "ordemCatalogo": { "type": "integer" },
           "destaque": { "type": "boolean" },
@@ -718,6 +924,8 @@
           "descricao": { "type": "string", "nullable": true },
           "telefone": { "type": "string", "nullable": true },
           "instagram": { "type": "string", "nullable": true },
+          "primaryColor": { "type": "string" },
+          "accentColor": { "type": "string" },
           "produtos": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoCatalogo" }, "description": "Somente produtos ativos e visíveis no catálogo." },
           "combos": { "type": "array", "items": { "$ref": "#/components/schemas/ComboCatalogo" }, "description": "Somente combos ativos e visíveis no catálogo." },
           "promocoes": { "type": "array", "items": { "$ref": "#/components/schemas/Promocao" }, "description": "Somente promoções vigentes (dataInicio <= agora <= dataFim)." }
@@ -741,7 +949,7 @@
               "id": { "type": "string", "format": "uuid" },
               "nome": { "type": "string" },
               "email": { "type": "string", "format": "email" },
-              "role": { "type": "string", "enum": ["ADMIN"] },
+              "role": { "type": "string", "enum": ["ADMIN", "SUPERADMIN"] },
               "empresaId": { "type": "string", "format": "uuid" }
             }
           }
@@ -753,7 +961,7 @@
           "id": { "type": "string", "format": "uuid" },
           "nome": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "role": { "type": "string", "enum": ["ADMIN"] },
+          "role": { "type": "string", "enum": ["ADMIN", "SUPERADMIN"] },
           "ativo": { "type": "boolean" },
           "empresaId": { "type": "string", "format": "uuid" },
           "empresa": { "$ref": "#/components/schemas/EmpresaResumo" },
@@ -773,10 +981,12 @@
       },
       "UsuarioUpdate": {
         "type": "object",
+        "description": "senhaAtual é obrigatório quando senha está presente — confirma que quem troca é quem já conhece a senha antiga, não só quem carrega um token válido.",
         "properties": {
           "nome": { "type": "string" },
           "email": { "type": "string", "format": "email" },
           "senha": { "type": "string", "format": "password" },
+          "senhaAtual": { "type": "string", "format": "password" },
           "ativo": { "type": "boolean" }
         }
       },
@@ -799,6 +1009,7 @@
           "codigo": { "type": "string" },
           "nome": { "type": "string" },
           "descricao": { "type": "string", "nullable": true },
+          "categoria": { "type": "string" },
           "precoVarejo": { "type": "number", "format": "double" },
           "precoAtacado": { "type": "number", "format": "double" },
           "estoque": { "type": "integer" },
@@ -821,6 +1032,7 @@
           "codigo": { "type": "string" },
           "nome": { "type": "string" },
           "descricao": { "type": "string" },
+          "categoria": { "type": "string", "default": "Geral" },
           "precoVarejo": { "type": "number", "format": "double" },
           "precoAtacado": { "type": "number", "format": "double" },
           "estoque": { "type": "integer", "default": 0 },
@@ -837,6 +1049,7 @@
           "codigo": { "type": "string" },
           "nome": { "type": "string" },
           "descricao": { "type": "string" },
+          "categoria": { "type": "string" },
           "precoVarejo": { "type": "number", "format": "double" },
           "precoAtacado": { "type": "number", "format": "double" },
           "estoque": { "type": "integer" },
@@ -993,6 +1206,66 @@
           },
           "quantidade": { "type": "integer" },
           "motivo": { "type": "string" }
+        }
+      },
+      "CheckoutResponse": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "description": "URL de checkout do gateway de pagamento (Asaas), para onde o cliente deve ser redirecionado." },
+          "checkoutId": { "type": "string" }
+        }
+      },
+      "TermoPublicarInput": {
+        "type": "object",
+        "required": ["conteudo"],
+        "properties": {
+          "conteudo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200000,
+            "description": "Texto puro (nunca Markdown/HTML), renderizado com escape automático e `white-space: pre-wrap`."
+          }
+        }
+      },
+      "TermoPublicado": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "versao": { "type": "integer", "description": "Monotônica e única; incrementada a cada publicação." },
+          "publicadoEm": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReconciliacaoResultado": {
+        "type": "object",
+        "description": "Contrato de resposta do worker diário: sete chaves no topo, cinco em `freio`. Nenhum campo extra deve ser adicionado sem necessidade — o corpo vai para log de terceiro (painel do agendador).",
+        "properties": {
+          "instante": { "type": "string", "format": "date-time" },
+          "duracaoMs": { "type": "integer" },
+          "avaliadas": { "type": "integer", "description": "Total de empresas (não removidas) avaliadas nesta execução." },
+          "transicoesDetectadas": { "type": "integer" },
+          "aplicadas": { "type": "integer" },
+          "freio": {
+            "type": "object",
+            "description": "Freio de segurança contra bloqueio em massa.",
+            "properties": {
+              "disparou": { "type": "boolean" },
+              "limiar": { "type": "number", "description": "Proporção de perdas de acesso acima da qual o freio dispara." },
+              "piso": { "type": "integer", "description": "Quantidade mínima de perdas de acesso antes de o freio poder disparar." },
+              "perdasDeAcessoDetectadas": { "type": "integer" },
+              "perdasDeAcessoSuprimidas": { "type": "integer" }
+            }
+          },
+          "erros": {
+            "type": "array",
+            "description": "Uma entrada por empresa cuja transição falhou ao ser persistida; as demais empresas do lote não são afetadas.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "empresaId": { "type": "string", "format": "uuid" },
+                "mensagem": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }
